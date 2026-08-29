@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -462,8 +463,14 @@ class GUISafetyTests(unittest.TestCase):
                 controller._run_job(selection, [])
 
             self.assertEqual(update.call_count, 2)
-            self.assertEqual(update.call_args_list[0].args[0], root / "sandbox")
-            self.assertEqual(update.call_args_list[1].args[0], root / "real-orca")
+            self.assertEqual(
+                os.path.normcase(os.path.realpath(update.call_args_list[0].args[0])),
+                os.path.normcase(os.path.realpath(root / "sandbox")),
+            )
+            self.assertEqual(
+                os.path.normcase(os.path.realpath(update.call_args_list[1].args[0])),
+                os.path.normcase(os.path.realpath(root / "real-orca")),
+            )
             self.assertEqual(controller.snapshot().state, "completed")
 
 
@@ -610,7 +617,10 @@ class GUISpoolCreationTests(unittest.TestCase):
             prepared = controller.prepare_spool_creation(request)
             receipt = controller.create_prepared_spool(prepared.ticket)
 
-            self.assertEqual(receipt.real_profile_path, existing)
+            self.assertEqual(
+                os.path.normcase(os.path.realpath(receipt.real_profile_path)),
+                os.path.normcase(os.path.realpath(existing)),
+            )
             self.assertEqual(existing.read_text(encoding="utf-8"), '{"owned_by":"user"}\n')
             with self.assertRaises(GUIError):
                 controller.create_prepared_spool(prepared.ticket)

@@ -1,3 +1,5 @@
+import os
+import shutil
 import subprocess
 import unittest
 from pathlib import Path
@@ -36,12 +38,14 @@ class MacOSDistributionTests(unittest.TestCase):
         cli.assert_not_called()
 
     def test_builder_creates_windowed_self_contained_dmg(self):
-        subprocess.run(
-            ["/bin/bash", "-n", str(self.build_script)],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        bash = shutil.which("bash")
+        if bash is not None:
+            subprocess.run(
+                [bash, "-n", str(self.build_script)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
         source = self.build_script.read_text(encoding="utf-8")
         self.assertIn("--windowed", source)
         self.assertIn("PyInstaller", source)

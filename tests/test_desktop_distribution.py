@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -61,6 +62,10 @@ class DesktopDistributionTests(unittest.TestCase):
                     clear=False,
                 ),
                 patch("u1_filament_automation.desktop_app.server_is_running") as server,
+                patch(
+                    "u1_filament_automation.desktop_app.platform.system",
+                    return_value="Linux",
+                ),
                 patch("u1_filament_automation.desktop_app.os.write") as write,
             ):
                 self.assertEqual(main(), 0)
@@ -76,12 +81,14 @@ class DesktopDistributionTests(unittest.TestCase):
         linux_script = self.root / "packaging" / "linux" / "build_appimage.sh"
         self.assertTrue(windows_script.is_file())
         self.assertTrue(inno.is_file())
-        subprocess.run(
-            ["/bin/bash", "-n", str(linux_script)],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+        bash = shutil.which("bash")
+        if bash is not None:
+            subprocess.run(
+                [bash, "-n", str(linux_script)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
         self.assertIn("PyInstaller", windows_script.read_text(encoding="utf-8"))
         self.assertIn("Inno Setup", windows_script.read_text(encoding="utf-8"))
         self.assertIn("appimagetool", linux_script.read_text(encoding="utf-8"))

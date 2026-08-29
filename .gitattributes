@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+# These recovered printer assets are verified byte-for-byte with SHA-256.
+# Git must never rewrite their line endings on Windows checkouts.
+src/u1_filament_automation/assets/** text eol=lf
+vendor/apa-chain-v6-safe/** text eol=lf
+
