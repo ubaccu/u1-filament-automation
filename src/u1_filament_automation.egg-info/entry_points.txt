@@ -1,0 +1,2 @@
+[console_scripts]
+u1fa = u1_filament_automation.cli:main
