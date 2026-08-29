@@ -17,6 +17,9 @@
   release non invia comandi alla stampante e non installa firmware.
 - Il canale beta riceve beta e release stabili; il canale stabile ignora le
   pre-release. Non vengono richiesti né salvati token GitHub personali.
+- Le build multipiattaforma vengono eseguite anche a ogni aggiornamento di
+  `main`, così i collaudatori possono scaricare gli artefatti prima di creare una
+  release; soltanto un tag `v*` pubblica la release.
 
 ## 1.7.0b1 — 2026-08-29
 
