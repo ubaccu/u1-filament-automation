@@ -2,13 +2,15 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from u1_filament_automation.desktop_app import (
     ASKPASS_MODE_ENV,
     ASKPASS_PASSWORD_ENV,
+    DesktopRuntime,
     application_data_dir,
     desktop_log_path,
     emit_askpass_password,
@@ -94,6 +96,56 @@ class DesktopDistributionTests(unittest.TestCase):
         self.assertIn("appimagetool", linux_script.read_text(encoding="utf-8"))
         self.assertIn("adaptive_pa_macro.cfg", windows_script.read_text(encoding="utf-8"))
         self.assertIn("adaptive_pa_macro.cfg", linux_script.read_text(encoding="utf-8"))
+
+    def test_desktop_distribution_embeds_a_native_window(self):
+        pyproject = (self.root / "pyproject.toml").read_text(encoding="utf-8")
+        desktop = (
+            self.root / "src" / "u1_filament_automation" / "desktop_app.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("pywebview", pyproject)
+        self.assertIn("webview.create_window", desktop)
+        self.assertIn("confirm_close=True", desktop)
+        self.assertIn("window.destroy()", desktop)
+        self.assertNotIn("webbrowser.open", desktop)
+
+    def test_native_window_exit_stops_service_and_allows_clean_restart(self):
+        controller = MagicMock()
+        server = MagicMock()
+        service_thread = MagicMock(spec=threading.Thread)
+        runtime = DesktopRuntime(
+            server=server,
+            controller=controller,
+            url="http://127.0.0.1:8765/",
+            thread=service_thread,
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_file = Path(temp_dir) / "app.log"
+            with (
+                patch(
+                    "u1_filament_automation.desktop_app.server_is_running",
+                    return_value=False,
+                ),
+                patch(
+                    "u1_filament_automation.desktop_app.application_data_dir",
+                    return_value=Path(temp_dir) / "data",
+                ),
+                patch(
+                    "u1_filament_automation.desktop_app._open_log",
+                    side_effect=lambda: log_file.open("a", encoding="utf-8"),
+                ),
+                patch(
+                    "u1_filament_automation.desktop_app.start_desktop_runtime",
+                    return_value=runtime,
+                ),
+                patch(
+                    "u1_filament_automation.desktop_app.show_native_window"
+                ) as native_window,
+            ):
+                self.assertEqual(main(), 0)
+        native_window.assert_called_once_with(runtime.url, controller)
+        controller.stop_profile_monitor.assert_called_once_with()
+        server.shutdown.assert_called_once_with()
+        service_thread.join.assert_called_once_with(timeout=5.0)
 
     def test_single_workflow_builds_every_platform_and_one_release(self):
         source = self.workflow.read_text(encoding="utf-8")

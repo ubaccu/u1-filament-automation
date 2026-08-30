@@ -24,8 +24,8 @@ private IP addresses, personal names or unreviewed logs.
 
 ## Ordine obbligatorio / Required order
 
-1. Installare il pacchetto corretto e verificare che l'app apra la pagina locale
-   `127.0.0.1:8765`.
+1. Installare il pacchetto corretto e verificare che l'app apra la propria
+   finestra desktop, senza avviare il browser esterno.
 2. Configurare U1 e Spoolman. Questo controllo è in sola lettura.
 3. Aprire **Configurazione o ripristino U1FA AutoPA Mod** e fare soltanto
    **Controlla in sola lettura**.
@@ -46,7 +46,8 @@ private IP addresses, personal names or unreviewed logs.
    estrusore e temperatura. Dura circa 10 minuti: non inviare altri comandi e non
    spegnere la U1.
 10. Verificare backup del profilo Orca, cinque punti Adaptive PA, PA statica e PA
-    ponti. Chiudere l'app con il pulsante dedicato.
+    ponti. Chiudere l'app con il pulsante dedicato, quindi riaprirla e verificare
+    che parta una nuova istanza senza errori.
 11. Verificare la scheda **Aggiornamenti U1FA**. Nel repository privato il
     controllo pubblico può risultare non disponibile; non inserire token GitHub.
     Dopo la prima pre-release pubblica verificare selezione del pacchetto,

@@ -7,19 +7,35 @@ import os
 import platform
 import subprocess
 import sys
+import threading
 import urllib.error
 import urllib.request
-import webbrowser
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, TextIO
+from typing import Any, Mapping, TextIO
+from urllib.parse import urlparse
 
-from .cli import main as cli_main
+from .config import (
+    ConfigError,
+    default_connection_config_path,
+    load_connection_config,
+    normalize_service_url,
+)
+from .gui import CalibrationController, GUIError, run_gui
 
 
 APP_NAME = "U1 Filament Automation"
 APP_URL = "http://127.0.0.1:8765/"
 ASKPASS_MODE_ENV = "U1FA_ASKPASS_MODE"
 ASKPASS_PASSWORD_ENV = "U1FA_SSH_PASSWORD"
+
+
+@dataclass(frozen=True)
+class DesktopRuntime:
+    server: Any
+    controller: CalibrationController
+    url: str
+    thread: threading.Thread
 
 
 def application_data_dir(
@@ -145,11 +161,151 @@ def _open_log() -> TextIO:
     return target.open("a", encoding="utf-8", buffering=1)
 
 
+def _load_webview():
+    try:
+        import webview
+    except ImportError as exc:  # pragma: no cover - dipendenza del pacchetto desktop
+        raise RuntimeError(
+            "Componente finestra desktop mancante / desktop window component missing"
+        ) from exc
+    return webview
+
+
+def show_native_window(
+    url: str,
+    controller: CalibrationController | None = None,
+) -> None:
+    """Mostra U1FA in una finestra desktop, senza aprire il browser esterno."""
+    webview = _load_webview()
+    window = webview.create_window(
+        APP_NAME,
+        url,
+        width=1280,
+        height=860,
+        min_size=(900, 650),
+        resizable=True,
+        confirm_close=True,
+        background_color="#0b1015",
+        text_select=True,
+    )
+
+    if controller is not None:
+        def block_unsafe_close() -> bool:
+            if controller.snapshot().state in {"checking", "running"}:
+                show_error(
+                    "Chiusura bloccata durante la calibrazione / "
+                    "closing is blocked during calibration"
+                )
+                return False
+            return True
+
+        window.events.closing += block_unsafe_close
+
+    stop_service_watch = threading.Event()
+
+    def close_window_after_service_stops() -> None:
+        """Chiude anche la finestra quando si usa ``Chiudi applicazione``."""
+        consecutive_failures = 0
+        while not stop_service_watch.wait(0.4):
+            if server_is_running(url):
+                consecutive_failures = 0
+                continue
+            consecutive_failures += 1
+            if consecutive_failures < 3:
+                continue
+            try:
+                window.destroy()
+            except Exception:
+                pass
+            return
+
+    service_watch = threading.Thread(
+        target=close_window_after_service_stops,
+        name="u1fa-window-lifecycle",
+        daemon=True,
+    )
+    service_watch.start()
+
+    gui_backend = "qt" if platform.system() == "Linux" else None
+    try:
+        webview.start(gui=gui_backend, debug=False)
+    finally:
+        stop_service_watch.set()
+        service_watch.join(timeout=2.0)
+
+
+def _run_desktop_server(
+    data_dir: Path,
+    ready: threading.Event,
+    runtime_box: dict[str, Any],
+    error_box: list[BaseException],
+) -> None:
+    def publish_runtime(server: Any, controller: CalibrationController, url: str) -> None:
+        runtime_box.update(server=server, controller=controller, url=url)
+        ready.set()
+
+    try:
+        config_path = default_connection_config_path()
+        try:
+            saved = load_connection_config(config_path)
+        except ConfigError as exc:
+            print(f"[AVVISO] {exc}")
+            saved = None
+
+        moonraker_url = "" if saved is None else saved.moonraker_url
+        spoolman_url = (
+            "http://127.0.0.1:7912" if saved is None else saved.spoolman_url
+        )
+        if moonraker_url:
+            moonraker_url = normalize_service_url(moonraker_url, "U1/Moonraker")
+        spoolman_url = normalize_service_url(spoolman_url, "Spoolman")
+        parsed = urlparse(moonraker_url)
+        ssh_target = f"root@{parsed.hostname}" if parsed.hostname else None
+
+        run_gui(
+            moonraker_url=moonraker_url,
+            spoolman_url=spoolman_url,
+            sandbox_dir=data_dir / "sandbox",
+            open_browser=False,
+            ssh_target=ssh_target,
+            connection_config_path=config_path,
+            ready_callback=publish_runtime,
+        )
+    except BaseException as exc:  # pragma: no cover - inoltrato alla GUI desktop
+        error_box.append(exc)
+        ready.set()
+
+
+def start_desktop_runtime(data_dir: Path, timeout: float = 20.0) -> DesktopRuntime:
+    ready = threading.Event()
+    runtime_box: dict[str, Any] = {}
+    error_box: list[BaseException] = []
+    thread = threading.Thread(
+        target=_run_desktop_server,
+        args=(data_dir, ready, runtime_box, error_box),
+        name="u1fa-local-service",
+        daemon=True,
+    )
+    thread.start()
+    if not ready.wait(timeout):
+        raise RuntimeError("Avvio interfaccia scaduto / desktop startup timed out")
+    if error_box:
+        raise RuntimeError(str(error_box[0])) from error_box[0]
+    if not {"server", "controller", "url"}.issubset(runtime_box):
+        raise RuntimeError("Interfaccia locale non disponibile / local interface unavailable")
+    return DesktopRuntime(
+        runtime_box["server"],
+        runtime_box["controller"],
+        runtime_box["url"],
+        thread,
+    )
+
+
 def main() -> int:
     if os.environ.get(ASKPASS_MODE_ENV) == "1":
         return emit_askpass_password()
     if server_is_running():
-        webbrowser.open(APP_URL)
+        show_native_window(APP_URL)
         return 0
 
     output = _open_log()
@@ -159,15 +315,15 @@ def main() -> int:
     sys.stderr = output
     try:
         data_dir = application_data_dir()
-        sandbox_dir = data_dir / "sandbox"
-        sandbox_dir.mkdir(parents=True, exist_ok=True)
-        result = cli_main(["gui", "--sandbox-dir", str(sandbox_dir)])
-        if result != 0:
-            show_error(
-                "U1 Filament Automation non è stata avviata / did not start. "
-                f"Log: {desktop_log_path()}"
-            )
-        return result
+        data_dir.mkdir(parents=True, exist_ok=True)
+        runtime = start_desktop_runtime(data_dir)
+        try:
+            show_native_window(runtime.url, runtime.controller)
+        finally:
+            runtime.controller.stop_profile_monitor()
+            runtime.server.shutdown()
+            runtime.thread.join(timeout=5.0)
+        return 0
     except Exception as exc:  # pragma: no cover - ultima protezione desktop
         print(f"Avvio non riuscito / startup failed: {exc!r}")
         show_error(

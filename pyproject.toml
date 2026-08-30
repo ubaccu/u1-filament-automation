@@ -4,13 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "u1-filament-automation"
-version = "1.8.0b2"
+version = "1.8.0b3"
 description = "Safe Spoolman, Snapmaker Orca and Adaptive PA printer automation for Snapmaker U1"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "GPL-3.0-only" }
 authors = [{ name = "Ivan Riccelli / Bottega3DLab" }]
-dependencies = []
+dependencies = [
+  "pywebview>=6,<7; platform_system != 'Linux'",
+  "pywebview[qt]>=6,<7; platform_system == 'Linux'",
+]
 
 [project.scripts]
 u1fa = "u1_filament_automation.cli:main"

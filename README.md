@@ -50,6 +50,9 @@ Aprire il DMG, trascinare **U1 Filament Automation** in **Applicazioni** e
 avviarla. Se la build non è firmata, al primo avvio usare
 **tasto destro sull'app → Apri → Apri**.
 
+U1FA si apre in una normale finestra desktop con icona nel Dock; non richiede di
+usare Chrome o un altro browser.
+
 ### Windows 10/11 x64
 
 Avviare il file `Windows-x64-Setup.exe` e seguire l'installazione. Per configurare

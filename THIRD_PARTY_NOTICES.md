@@ -44,6 +44,8 @@ che restano soggetti alle proprie licenze:
   https://docs.python.org/3/license.html
 - PyInstaller, GNU GPL con eccezione specifica per la distribuzione dei bootloader:
   https://pyinstaller.org/en/stable/license.html
+- pywebview, finestra desktop nativa multipiattaforma, licenza BSD 3-Clause:
+  https://github.com/r0x0r/pywebview/blob/master/LICENSE.md
 - AppImageKit/appimagetool e runtime AppImage, licenza MIT:
   https://github.com/AppImage/AppImageKit/blob/master/LICENSE
 - Inno Setup, usato per generare l'installer Windows secondo la propria licenza:

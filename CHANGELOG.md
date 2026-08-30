@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.8.0b3 — 2026-08-30
+
+- Sostituita l'apertura nel browser con una vera finestra desktop U1FA basata
+  sui componenti nativi di macOS, Windows e Linux.
+- L'indirizzo locale `127.0.0.1:8765` resta un dettaglio interno e non viene più
+  mostrato nella barra del browser.
+- La chiusura della finestra arresta in modo ordinato il servizio locale e
+  consente di riaprire normalmente l'app.
+- Anche il pulsante di chiusura della Home termina insieme finestra, monitor e
+  processo desktop, evitando istanze residue al riavvio.
+- Ripristinata l'icona U1FA nel Dock di macOS e mantenuto il blocco della chiusura
+  durante una calibrazione attiva.
+
 ## 1.8.0b2 — 2026-08-30
 
 - Rimossa dalla GUI la copia duplicata del profilo nella sandbox: per ogni

@@ -30,12 +30,12 @@ class MacOSDistributionTests(unittest.TestCase):
     def test_existing_instance_is_reopened_without_starting_another_server(self):
         with (
             patch("u1_filament_automation.desktop_app.server_is_running", return_value=True),
-            patch("u1_filament_automation.desktop_app.webbrowser.open") as browser,
-            patch("u1_filament_automation.desktop_app.cli_main") as cli,
+            patch("u1_filament_automation.desktop_app.show_native_window") as window,
+            patch("u1_filament_automation.desktop_app.start_desktop_runtime") as runtime,
         ):
             self.assertEqual(main(), 0)
-        browser.assert_called_once_with(APP_URL)
-        cli.assert_not_called()
+        window.assert_called_once_with(APP_URL)
+        runtime.assert_not_called()
 
     def test_builder_creates_windowed_self_contained_dmg(self):
         bash = shutil.which("bash")
@@ -54,6 +54,7 @@ class MacOSDistributionTests(unittest.TestCase):
         self.assertIn("MACOSX_DEPLOYMENT_TARGET", source)
         self.assertIn("Add :CFBundleShortVersionString", source)
         self.assertIn("Add :CFBundleVersion", source)
+        self.assertIn("LSUIElement bool false", source)
         self.assertNotIn("192.168.1.51", source)
         self.assertNotIn("ivanriccelli", source.casefold())
 

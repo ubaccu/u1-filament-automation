@@ -64,8 +64,8 @@ PLIST="$DIST_DIR/$APP_NAME.app/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $SHORT_VERSION" "$PLIST"
 /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $BUNDLE_VERSION" "$PLIST" 2>/dev/null || \
     /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUNDLE_VERSION" "$PLIST"
-/usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST" 2>/dev/null || \
-    /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$PLIST"
+/usr/libexec/PlistBuddy -c "Add :LSUIElement bool false" "$PLIST" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Set :LSUIElement false" "$PLIST"
 /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $MACOSX_DEPLOYMENT_TARGET" "$PLIST" 2>/dev/null || \
     /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $MACOSX_DEPLOYMENT_TARGET" "$PLIST"
 

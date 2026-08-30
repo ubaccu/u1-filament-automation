@@ -1641,6 +1641,9 @@ def run_gui(
     identity_file: str | None = None,
     monitor_interval: float = 10.0,
     connection_config_path: Path | None = None,
+    ready_callback: Callable[
+        [ThreadingHTTPServer, CalibrationController, str], None
+    ] | None = None,
 ) -> int:
     if bind not in {"127.0.0.1", "localhost"}:
         raise GUIError("Per sicurezza l'interfaccia può ascoltare solo su localhost")
@@ -1701,9 +1704,11 @@ def run_gui(
     print(f"Aprire: {url}")
     print(f"Nuovi profili Orca: {real_user_dir} (nessuna sovrascrittura)")
     print("Per chiudere l'interfaccia: Ctrl-C")
-    if open_browser:
-        threading.Timer(0.4, lambda: webbrowser.open(url)).start()
     try:
+        if ready_callback is not None:
+            ready_callback(server, controller, url)
+        if open_browser:
+            threading.Timer(0.4, lambda: webbrowser.open(url)).start()
         server.serve_forever(poll_interval=0.5)
     except KeyboardInterrupt:
         print("\nInterfaccia chiusa. Nessun riavvio inviato alla stampante.")
