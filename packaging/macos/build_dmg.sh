@@ -11,6 +11,8 @@ ICON_FILE="$BUILD_ROOT/U1FA.icns"
 APP_NAME="U1 Filament Automation"
 ARCH="${U1FA_ARCH:-$(uname -m)}"
 VERSION="$(cd "$PROJECT_DIR" && PYTHONPATH="$PROJECT_DIR/src" python3 -c 'from u1_filament_automation import __version__; print(__version__)')"
+SHORT_VERSION="${VERSION%%[!0-9.]*}"
+BUNDLE_VERSION="${VERSION//[^0-9]/}"
 
 case "$ARCH" in
     x86_64|arm64) ;;
@@ -58,8 +60,10 @@ python3 -m PyInstaller \
     "$PROJECT_DIR/packaging/macos/u1fa_bootstrap.py"
 
 PLIST="$DIST_DIR/$APP_NAME.app/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$PLIST"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION//./}" "$PLIST"
+/usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $SHORT_VERSION" "$PLIST" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $SHORT_VERSION" "$PLIST"
+/usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $BUNDLE_VERSION" "$PLIST" 2>/dev/null || \
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUNDLE_VERSION" "$PLIST"
 /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST" 2>/dev/null || \
     /usr/libexec/PlistBuddy -c "Set :LSUIElement true" "$PLIST"
 /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $MACOSX_DEPLOYMENT_TARGET" "$PLIST" 2>/dev/null || \

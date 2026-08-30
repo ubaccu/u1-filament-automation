@@ -1,4 +1,5 @@
 import hashlib
+import os
 import py_compile
 import shutil
 import subprocess
@@ -35,6 +36,7 @@ class VendorAssetTests(unittest.TestCase):
         )
         py_compile.compile(str(VENDOR / "flow_calibrator.py"), doraise=True)
 
+    @unittest.skipIf(os.name == "nt", "il test del diff richiede patch POSIX")
     def test_saved_diff_recreates_exact_v6_file(self):
         patch_command = shutil.which("patch")
         if patch_command is None:

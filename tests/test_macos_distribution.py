@@ -52,6 +52,8 @@ class MacOSDistributionTests(unittest.TestCase):
         self.assertIn("hdiutil create", source)
         self.assertIn("/Applications", source)
         self.assertIn("MACOSX_DEPLOYMENT_TARGET", source)
+        self.assertIn("Add :CFBundleShortVersionString", source)
+        self.assertIn("Add :CFBundleVersion", source)
         self.assertNotIn("192.168.1.51", source)
         self.assertNotIn("ivanriccelli", source.casefold())
 

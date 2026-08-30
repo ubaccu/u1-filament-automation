@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -333,6 +334,7 @@ class PrinterInstallerTests(unittest.TestCase):
             self.assertEqual(target.path.read_bytes(), before)
             self.assertEqual(list(target.root.rglob("*U1FA_BACKUP_*")), [])
 
+    @unittest.skipIf(os.name == "nt", "gli script remoti sono eseguiti sulla U1 POSIX")
     def test_remote_script_rechecks_hash_and_writes_atomically(self):
         with tempfile.TemporaryDirectory() as temporary:
             target = Path(temporary) / "flow_calibrator.py"
@@ -360,6 +362,7 @@ class PrinterInstallerTests(unittest.TestCase):
                 sha256_bytes(Path(payload["backup_path"]).read_bytes()), STOCK_SHA256
             )
 
+    @unittest.skipIf(os.name == "nt", "gli script remoti sono eseguiti sulla U1 POSIX")
     def test_remote_generic_scripts_create_update_restore_and_delete(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
