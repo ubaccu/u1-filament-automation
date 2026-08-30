@@ -32,7 +32,7 @@ from u1_filament_automation.printer import (
     PrinterSetupPlan,
     PrinterSetupResult,
 )
-from u1_filament_automation.spoolman import NewSpoolRequest
+from u1_filament_automation.spoolman import NewSpoolRequest, ServiceError
 from u1_filament_automation.update import UpdateAsset, UpdateInfo
 
 
@@ -317,6 +317,7 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn('type="password"', page)
         self.assertIn('name="confirm"', page)
         self.assertIn("non invia RESTART", page)
+        self.assertIn("procedo sotto la mia responsabilità", page)
 
     def test_setup_preview_with_nothing_to_write_has_no_apply_controls(self):
         plan = PrinterSetupPlan(
@@ -356,6 +357,9 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn("Settings → Maintenance → Advanced Mode → Agree → Enable", page)
         self.assertIn("Settings → Maintenance → Root Access → Agree → Open", page)
         self.assertIn("U1 firmware 1.6.0 is pending validation", page)
+        self.assertIn("Safety and liability notice", page)
+        self.assertIn("If you are unsure, do not proceed", page)
+        self.assertIn("provided without warranty under GPLv3", page)
         self.assertNotIn("Impostazioni", page)
         self.assertNotIn("Manutenzione", page)
         self.assertNotIn("Modalità avanzata", page)
@@ -370,6 +374,9 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn("Impostazioni → Manutenzione → Accesso Root → Accetto → Apri", page)
         self.assertIn("Se non hai modificato la password SSH", page)
         self.assertIn("<code>snapmaker</code>", page)
+        self.assertIn("Avviso di sicurezza e responsabilità", page)
+        self.assertIn("Se hai dubbi, non procedere", page)
+        self.assertIn("fornito senza garanzia ai sensi della GPLv3", page)
         self.assertNotIn("Settings →", page)
         self.assertNotIn("Maintenance →", page)
 
@@ -389,6 +396,32 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn("Automatic synchronization active", page)
         self.assertIn('href="/language?lang=it"', page)
         self.assertIn('href="/language?lang=en"', page)
+
+    def test_monitor_waits_and_retries_when_spoolman_is_offline_at_startup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+                real_orca_dir=root / "real-orca",
+                monitor_interval=5,
+            )
+            with patch.object(
+                controller,
+                "sync_external_profiles",
+                side_effect=ServiceError("connection refused"),
+            ):
+                controller.start_profile_monitor()
+                snapshot = controller.monitor_snapshot()
+                page = _home(controller, "safe-token", language="en")
+                self.assertEqual(snapshot.state, "error")
+                self.assertIn("retrying automatically every 5 seconds", snapshot.message_en)
+                self.assertIn("Automatic synchronization waiting", page)
+                self.assertIsNotNone(controller._monitor_thread)
+                self.assertTrue(controller._monitor_thread.is_alive())
+                controller.stop_profile_monitor()
 
     def test_printer_setup_rechecks_state_and_uses_one_time_ticket(self):
         plan = PrinterSetupPlan(
