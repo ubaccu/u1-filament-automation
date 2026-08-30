@@ -28,6 +28,7 @@ APP_NAME = "U1 Filament Automation"
 APP_URL = "http://127.0.0.1:8765/"
 ASKPASS_MODE_ENV = "U1FA_ASKPASS_MODE"
 ASKPASS_PASSWORD_ENV = "U1FA_SSH_PASSWORD"
+DESKTOP_SELFTEST_ENV = "U1FA_DESKTOP_SELFTEST"
 
 
 @dataclass(frozen=True)
@@ -171,6 +172,12 @@ def _load_webview():
     return webview
 
 
+def desktop_self_test() -> int:
+    """Verifica che il pacchetto compilato contenga il runtime desktop."""
+    webview = _load_webview()
+    return 0 if all(hasattr(webview, name) for name in ("create_window", "start")) else 1
+
+
 def show_native_window(
     url: str,
     controller: CalibrationController | None = None,
@@ -304,6 +311,8 @@ def start_desktop_runtime(data_dir: Path, timeout: float = 20.0) -> DesktopRunti
 def main() -> int:
     if os.environ.get(ASKPASS_MODE_ENV) == "1":
         return emit_askpass_password()
+    if os.environ.get(DESKTOP_SELFTEST_ENV) == "1":
+        return desktop_self_test()
     if server_is_running():
         show_native_window(APP_URL)
         return 0
