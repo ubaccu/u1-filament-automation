@@ -529,9 +529,15 @@ class CalibrationController:
                 )
             self.sync_external_profiles()
         except (ServiceError, ValueError, PAProfileError, OSError, WatchStateError) as exc:
-            raise GUIError(
-                f"Avvio monitor Spoolman bloccato / Spoolman monitor startup blocked: {exc}"
-            ) from exc
+            self._set_monitor(ProfileMonitorSnapshot(
+                "error",
+                f"Spoolman non raggiungibile; nuovo tentativo automatico ogni "
+                f"{self.monitor_interval:g} secondi: {exc}",
+                f"Spoolman is unavailable; retrying automatically every "
+                f"{self.monitor_interval:g} seconds: {exc}",
+                (),
+                time.strftime("%H:%M:%S"),
+            ))
         self._monitor_stop.clear()
         self._monitor_thread = threading.Thread(
             target=self._monitor_loop,
@@ -1008,6 +1014,11 @@ def _home(
     monitor = controller.monitor_snapshot()
     monitor_message = monitor.message_en if language == "en" else monitor.message_it
     monitor_class = "warn" if monitor.state == "error" else "ok"
+    monitor_heading = _tr(
+        language,
+        "Sincronizzazione automatica in attesa" if monitor.state == "error" else "Sincronizzazione automatica attiva",
+        "Automatic synchronization waiting" if monitor.state == "error" else "Automatic synchronization active",
+    )
     monitor_time = (
         "" if not monitor.checked_at
         else f" · {_tr(language, 'ultimo controllo', 'last check')} {html.escape(monitor.checked_at)}"
@@ -1046,7 +1057,7 @@ def _home(
 <p>{_tr(language, "Inserisci i dati una volta sola: l'app crea o riusa vendor e filamento in Spoolman, crea la bobina e genera un solo nuovo profilo direttamente in Snapmaker Orca.", "Enter the data once: the app creates or reuses the vendor and filament in Spoolman, creates the spool and generates one new profile directly in Snapmaker Orca.")}</p>
 <p><a class="button danger" href="/new-spool">{_tr(language, 'Aggiungi nuova bobina', 'Add new spool')}</a></p></div>
 <div class="card"><h2>{_tr(language, '2. Calibra una bobina già presente', '2. Calibrate an existing spool')}</h2><p class="muted">{_tr(language, 'Durata indicativa della calibrazione Adaptive PA: circa 10 minuti.', 'Estimated Adaptive PA calibration time: approximately 10 minutes.')}</p>{calibration_form}</div>
-<div class="card"><p><strong>{_tr(language, 'Sincronizzazione automatica attiva', 'Automatic synchronization active')}</strong></p><p class="{monitor_class}">{html.escape(monitor_message)}{monitor_time}</p><p class="muted">{_tr(language, 'Anche le bobine aggiunte manualmente dal sito Spoolman vengono rilevate mentre l’app è aperta. I profili mancanti vengono creati in Orca senza sovrascrivere quelli esistenti; una cancellazione manuale viene rispettata.', 'Spools added manually from the Spoolman website are also detected while the app is open. Missing Orca profiles are created without overwriting existing ones; manual deletion is respected.')}</p></div>
+<div class="card"><p><strong>{monitor_heading}</strong></p><p class="{monitor_class}">{html.escape(monitor_message)}{monitor_time}</p><p class="muted">{_tr(language, 'Anche le bobine aggiunte manualmente dal sito Spoolman vengono rilevate mentre l’app è aperta. I profili mancanti vengono creati in Orca senza sovrascrivere quelli esistenti; una cancellazione manuale viene rispettata.', 'Spools added manually from the Spoolman website are also detected while the app is open. Missing Orca profiles are created without overwriting existing ones; manual deletion is respected.')}</p></div>
 <div class="card"><p><strong>{_tr(language, 'Protezione attiva', 'Active protection')}</strong></p><p class="muted">{_tr(language, "Il pulsante di avvio appare solo dopo l'anteprima. Prima dell'invio vengono verificati stampante inattiva, macro caricate, profilo esatto e mapping dello slot.", 'The start button appears only after the preview. Before sending commands, the app verifies that the printer is idle, the macros are loaded, the exact profile exists and the slot mapping is correct.')}</p></div>"""
     body += f"""<div class="card"><p><strong>{_tr(language, 'Applicazione', 'Application')}</strong></p>
 <p class="muted">{_tr(language, "Chiude in sicurezza U1FA e il monitor Spoolman. L'operazione viene bloccata durante una calibrazione attiva.", 'Safely closes U1FA and the Spoolman monitor. Closing is blocked while a calibration is active.')}</p>
@@ -1090,6 +1101,9 @@ def _printer_setup_form(
     body = f"""
 <h1>{_tr(language, 'Configurazione U1 originale', 'Stock Snapmaker U1 setup')}</h1>
 <div class="card"><p class="warn"><strong>{_tr(language, 'Aggiornamenti firmware:', 'Firmware updates:')}</strong> {_tr(language, 'un aggiornamento può rimuovere U1FA AutoPA Mod. Esegui prima questo controllo in sola lettura. Il firmware U1 1.6.0 è in attesa di convalida: se compare un hash sconosciuto non applicare nulla.', 'an update may remove U1FA AutoPA Mod. Run this read-only check first. U1 firmware 1.6.0 is pending validation: if an unknown hash appears, do not apply anything.')}</p></div>
+<div class="card"><h2>{_tr(language, 'Avviso di sicurezza e responsabilità', 'Safety and liability notice')}</h2>
+<p class="warn">{_tr(language, "U1FA modifica file di configurazione e può avviare movimenti e riscaldamento durante la calibrazione. Utilizzala soltanto se comprendi le operazioni mostrate, mantieni backup verificati e sorveglia la stampante. Se hai dubbi, non procedere.", "U1FA modifies configuration files and can start movement and heating during calibration. Use it only if you understand the displayed operations, keep verified backups and supervise the printer. If you are unsure, do not proceed.")}</p>
+<p class="muted">{_tr(language, "Il software è fornito senza garanzia ai sensi della GPLv3. Nei limiti consentiti dalla legge, autori e contributori non rispondono di danni alla stampante o ad altri beni, perdita di dati o profili, stampe fallite, materiale consumato, perdita della garanzia, lesioni o danni a terzi derivanti dall'uso o uso improprio.", "The software is provided without warranty under GPLv3. To the extent permitted by law, the authors and contributors are not liable for damage to the printer or other property, loss of data or profiles, failed prints, consumed material, loss of warranty, injury or third-party damage resulting from use or misuse.")}</p></div>
 <div class="card"><h2>{_tr(language, 'Prima di continuare: abilita due funzioni dal display U1', 'Before continuing: enable two features on the U1 touchscreen')}</h2>
 <ol><li><strong>Fluidd:</strong> {_tr(language, 'Impostazioni → Manutenzione → Modalità avanzata → Accetto → Abilita', 'Settings → Maintenance → Advanced Mode → Agree → Enable')}.</li>
 <li><strong>SSH:</strong> {_tr(language, 'Impostazioni → Manutenzione → Accesso Root → Accetto → Apri', 'Settings → Maintenance → Root Access → Agree → Open')}.</li></ol>
@@ -1138,7 +1152,7 @@ def _printer_setup_preview(
 <input type="hidden" name="token" value="{token}"><input type="hidden" name="ticket" value="{prepared.ticket}">
 <label>{_tr(language, 'Password SSH U1 (reinserirla; non viene memorizzata)', 'U1 SSH password (enter it again; it is not stored)')}</label>
 <input name="ssh_password" type="password" maxlength="256" autocomplete="current-password">
-<label><input style="width:auto" type="checkbox" name="confirm" value="yes" required> {_tr(language, 'Confermo di aver letto le operazioni e che la U1 è inattiva', 'I confirm that I read the operations and that the U1 is idle')}</label>
+<label><input style="width:auto" type="checkbox" name="confirm" value="yes" required> {_tr(language, 'Confermo di aver letto e compreso le operazioni, che la U1 è inattiva e che procedo sotto la mia responsabilità', 'I confirm that I have read and understood the operations, that the U1 is idle, and that I proceed at my own responsibility')}</label>
 <p><button class="danger" type="submit">{_tr(language, 'Applica davvero la configurazione', 'Apply the setup')}</button> <a class="button secondary" href="/printer-setup">{_tr(language, 'Annulla', 'Cancel')}</a></p>
 </form>"""
     else:
@@ -1686,6 +1700,7 @@ def run_gui(
                 f"Connessioni da verificare: {exc}",
                 f"Connections need verification: {exc}",
             ))
+            controller.start_profile_monitor()
     elif spoolman_url:
         try:
             controller.refresh_profiles()
