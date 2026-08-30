@@ -53,6 +53,16 @@ avviarla. Se la build non è firmata, al primo avvio usare
 U1FA si apre in una normale finestra desktop con icona nel Dock; non richiede di
 usare Chrome o un altro browser.
 
+### Come chiudere correttamente U1FA
+
+Per terminare completamente l'app, dalla schermata iniziale scorrere fino alla
+sezione **Chiudi applicazione**, premere il pulsante omonimo e confermare con
+**Chiudi davvero U1FA**. In questo modo vengono arrestati insieme la finestra, il
+monitor Spoolman e il servizio interno. Attendere 2–3 secondi prima di riaprirla.
+
+La chiusura viene bloccata durante una calibrazione attiva, per evitare che il
+risultato PA non venga salvato nel profilo Orca.
+
 ### Windows 10/11 x64
 
 Avviare il file `Windows-x64-Setup.exe` e seguire l'installazione. Per configurare
@@ -151,6 +161,11 @@ running.
 
 After a U1 firmware update, run **Check printer setup** again. Unknown firmware or
 file hashes are blocked instead of being overwritten.
+
+To quit U1FA completely, use **Close application** on the Home screen and confirm
+with **Close U1FA**. This stops the desktop window, the Spoolman monitor and the
+internal service together. Wait 2–3 seconds before reopening it. Closing is
+blocked while a calibration is running so the PA result can be saved safely.
 
 ## Licenza, crediti e responsabilità
 
