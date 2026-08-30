@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "u1-filament-automation"
-version = "1.8.0b1"
+version = "1.8.0b2"
 description = "Safe Spoolman, Snapmaker Orca and Adaptive PA printer automation for Snapmaker U1"
 readme = "README.md"
 requires-python = ">=3.10"

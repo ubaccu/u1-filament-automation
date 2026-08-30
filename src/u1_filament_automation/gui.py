@@ -141,8 +141,7 @@ class PreparedSpoolCreation:
 @dataclass(frozen=True)
 class SpoolCreationReceipt:
     result: SpoolCreationResult
-    sandbox_profile_path: Path
-    real_profile_path: Path | None
+    real_profile_path: Path
 
 
 @dataclass(frozen=True)
@@ -639,12 +638,6 @@ class CalibrationController:
         return SpoolmanClient(self.spoolman_url, timeout=self.timeout)
 
     def _accept_inventory(self, inventory: SpoolmanInventory) -> tuple[ProfileCandidate, ...]:
-        sync_profiles(
-            inventory,
-            self.sandbox_dir,
-            system_dir=self.system_dir,
-            apply=True,
-        )
         candidates = profile_candidates(inventory)
         with self._lock:
             self._inventory = inventory
@@ -662,6 +655,11 @@ class CalibrationController:
         with self._lock:
             if self._job.state in {"checking", "running"}:
                 raise GUIError("Attendere la fine della calibrazione in corso")
+        if self.real_orca_dir is None:
+            raise GUIError(
+                "Cartella reale di Snapmaker Orca non configurata: "
+                "nessuna bobina verrà creata"
+            )
         inventory = self._spoolman_client().inventory()
         try:
             plan = plan_spool_creation(inventory, request)
@@ -712,23 +710,19 @@ class CalibrationController:
             try:
                 updated_inventory = client.inventory()
                 self._accept_inventory(updated_inventory)
-                sandbox_profile_path = find_profile_path(
-                    self.sandbox_dir,
+                if self.real_orca_dir is None:
+                    raise GUIError("Cartella reale di Snapmaker Orca non configurata")
+                sync_profiles(
+                    updated_inventory,
+                    self.real_orca_dir,
+                    system_dir=self.system_dir,
+                    apply=True,
+                    only_profile_names={result.plan.profile_name},
+                )
+                real_profile_path = find_profile_path(
+                    self.real_orca_dir,
                     result.plan.profile_name,
                 )
-                real_profile_path = None
-                if self.real_orca_dir is not None:
-                    sync_profiles(
-                        updated_inventory,
-                        self.real_orca_dir,
-                        system_dir=self.system_dir,
-                        apply=True,
-                        only_profile_names={result.plan.profile_name},
-                    )
-                    real_profile_path = find_profile_path(
-                        self.real_orca_dir,
-                        result.plan.profile_name,
-                    )
             except (ServiceError, PAProfileError, OSError, ValueError) as exc:
                 raise GUIError(
                     f"La bobina Spoolman ID {result.spool_id} è già stata creata, "
@@ -737,7 +731,6 @@ class CalibrationController:
                 ) from exc
             receipt = SpoolCreationReceipt(
                 result=result,
-                sandbox_profile_path=sandbox_profile_path,
                 real_profile_path=real_profile_path,
             )
             with self._lock:
@@ -766,7 +759,9 @@ class CalibrationController:
             ]
         if len(matches) != 1:
             raise GUIError("Profilo non presente nell'inventario Spoolman corrente")
-        find_profile_path(self.sandbox_dir, matches[0].profile_name)
+        if self.real_orca_dir is None:
+            raise GUIError("Cartella reale di Snapmaker Orca non configurata")
+        find_profile_path(self.real_orca_dir, matches[0].profile_name)
         return CalibrationSelection(
             profile_name=matches[0].profile_name,
             physical_slot=physical_slot,
@@ -854,24 +849,16 @@ class CalibrationController:
                     text = cached.text
                     suite_end = cached.suite_end
 
-                sandbox_report = update_pa_profile(
-                    self.sandbox_dir,
+                if self.real_orca_dir is None:
+                    raise GUIError("Cartella reale di Snapmaker Orca non configurata")
+                report = update_pa_profile(
+                    self.real_orca_dir,
                     selection.profile_name,
                     CalibrationIdentity(),
                     suite,
                     apply=True,
                     manual_profile=True,
                 )
-                report = sandbox_report
-                if self.real_orca_dir is not None:
-                    report = update_pa_profile(
-                        self.real_orca_dir,
-                        selection.profile_name,
-                        CalibrationIdentity(),
-                        suite,
-                        apply=True,
-                        manual_profile=True,
-                    )
                 self._set_job(
                     JobSnapshot(
                         "completed",
@@ -1056,7 +1043,7 @@ def _home(
 <p>{_tr(language, "Controlla e, solo dopo due conferme, installa U1FA AutoPA Mod, la modifica Bottega3DLab per la calibrazione automatica dell’Adaptive Pressure Advance sulla Snapmaker U1. Dopo ogni aggiornamento firmware usa di nuovo questo controllo: ripristina calibratore, macro e include soltanto se l’originale Snapmaker è compatibile, crea backup verificati e blocca file sconosciuti.", "Checks and, only after two confirmations, installs U1FA AutoPA Mod, the Bottega3DLab modification for automatic Adaptive Pressure Advance calibration on the Snapmaker U1. Run this check again after every firmware update: it restores the calibrator, macro and include only when the Snapmaker original is compatible, creates verified backups and blocks unknown files.")}</p>
 <p><a class="button secondary" href="/printer-setup">{_tr(language, 'Controlla configurazione stampante', 'Check printer setup')}</a></p></div>
 <div class="card">{error_box}<h2>{_tr(language, '1. Nuova bobina', '1. New spool')}</h2>
-<p>{_tr(language, "Inserisci i dati una volta sola: l'app crea o riusa vendor e filamento in Spoolman, crea la bobina e genera il nuovo profilo direttamente in Snapmaker Orca, mantenendo anche una copia nella sandbox.", "Enter the data once: the app creates or reuses the vendor and filament in Spoolman, creates the spool and generates the new profile directly in Snapmaker Orca, while keeping a sandbox copy.")}</p>
+<p>{_tr(language, "Inserisci i dati una volta sola: l'app crea o riusa vendor e filamento in Spoolman, crea la bobina e genera un solo nuovo profilo direttamente in Snapmaker Orca.", "Enter the data once: the app creates or reuses the vendor and filament in Spoolman, creates the spool and generates one new profile directly in Snapmaker Orca.")}</p>
 <p><a class="button danger" href="/new-spool">{_tr(language, 'Aggiungi nuova bobina', 'Add new spool')}</a></p></div>
 <div class="card"><h2>{_tr(language, '2. Calibra una bobina già presente', '2. Calibrate an existing spool')}</h2><p class="muted">{_tr(language, 'Durata indicativa della calibrazione Adaptive PA: circa 10 minuti.', 'Estimated Adaptive PA calibration time: approximately 10 minutes.')}</p>{calibration_form}</div>
 <div class="card"><p><strong>{_tr(language, 'Sincronizzazione automatica attiva', 'Automatic synchronization active')}</strong></p><p class="{monitor_class}">{html.escape(monitor_message)}{monitor_time}</p><p class="muted">{_tr(language, 'Anche le bobine aggiunte manualmente dal sito Spoolman vengono rilevate mentre l’app è aperta. I profili mancanti vengono creati in Orca senza sovrascrivere quelli esistenti; una cancellazione manuale viene rispettata.', 'Spools added manually from the Spoolman website are also detected while the app is open. Missing Orca profiles are created without overwriting existing ones; manual deletion is respected.')}</p></div>
@@ -1281,7 +1268,7 @@ def _new_spool_preview(
 <p><strong>{_tr(language, 'Profilo Snapmaker Orca', 'Snapmaker Orca profile')}:</strong> {html.escape(plan.profile_name)}</p>
 <p><strong>Base Snapmaker:</strong> {html.escape(plan.base_profile)}</p>
 <p><strong>{_tr(language, 'Calibrazione proposta', 'Proposed calibration')}:</strong> {item.nozzle_temperature} °C, {_tr(language, 'envelope U1 convalidato', 'validated U1 envelope')}</p>
-<p class="warn">{_tr(language, 'La conferma scrive in Spoolman, crea una copia di prova nella sandbox e crea lo stesso nuovo profilo in Snapmaker Orca. Un profilo Orca già esistente non viene mai sovrascritto. Non invia ancora alcun comando alla stampante.', 'Confirmation writes to Spoolman, creates a test copy in the sandbox and creates the same new profile in Snapmaker Orca. An existing Orca profile is never overwritten. No command is sent to the printer yet.')}</p>
+<p class="warn">{_tr(language, 'La conferma scrive in Spoolman e crea un solo nuovo profilo in Snapmaker Orca. Un profilo Orca già esistente non viene mai sovrascritto. Non invia ancora alcun comando alla stampante.', 'Confirmation writes to Spoolman and creates one new profile in Snapmaker Orca. An existing Orca profile is never overwritten. No command is sent to the printer yet.')}</p>
 <form method="post" action="/new-spool/create">
 <input type="hidden" name="token" value="{token}"><input type="hidden" name="ticket" value="{prepared.ticket}">
 <label><input style="width:auto" type="checkbox" name="confirm" value="yes" required> {_tr(language, 'Confermo i dati e voglio creare la bobina in Spoolman', 'I confirm the data and want to create the spool in Spoolman')}</label>
@@ -1306,9 +1293,7 @@ def _spool_created(
 {_tr(language, 'Filamento', 'Filament')} ID {html.escape(str(result.filament_id))}: {filament_note}<br>
 {_tr(language, 'Bobina Spoolman', 'Spoolman spool')} ID <strong>{html.escape(str(result.spool_id))}</strong>: {_tr(language, 'creata', 'created')}</p>
 <p><strong>{_tr(language, 'Profilo Snapmaker Orca', 'Snapmaker Orca profile')}:</strong> {html.escape(result.plan.profile_name)}<br>
-<span class="muted">{html.escape(str(receipt.real_profile_path or _tr(language, 'non configurato', 'not configured')))}</span></p>
-<p><strong>{_tr(language, 'Copia di sicurezza sandbox', 'Sandbox safety copy')}:</strong><br>
-<span class="muted">{html.escape(str(receipt.sandbox_profile_path))}</span></p></div>
+<span class="muted">{html.escape(str(receipt.real_profile_path))}</span></p></div>
 <div class="card"><h2>{_tr(language, 'Procedi con la calibrazione PA', 'Continue with PA calibration')}</h2>
 <form method="post" action="/preview"><input type="hidden" name="token" value="{token}">
 <input type="hidden" name="profile_name" value="{html.escape(result.plan.profile_name, quote=True)}">
@@ -1333,7 +1318,7 @@ def _preview(
 <p><strong>{_tr(language, 'Estrusore', 'Extruder')}:</strong> {_tr(language, 'slot fisico', 'physical slot')} {selection.physical_slot} → <strong>EXTRUDER={selection.internal_extruder}</strong></p>
 <p><strong>{_tr(language, 'Temperatura', 'Temperature')}:</strong> {selection.temperature} °C</p>
 <pre>{html.escape(envelope_command)}\n{html.escape(run_command)}</pre>
-<p class="warn">{_tr(language, "Avviando, la stampante selezionerà l'utensile indicato e scalderà l'ugello. Al termine l'app crea i backup e aggiorna la copia sandbox e il profilo Snapmaker Orca selezionato.", 'When started, the printer selects the specified tool and heats the nozzle. When complete, the app creates backups and updates both the sandbox copy and the selected Snapmaker Orca profile.')}</p>
+<p class="warn">{_tr(language, "Avviando, la stampante selezionerà l'utensile indicato e scalderà l'ugello. Al termine l'app crea un backup del profilo e aggiorna il profilo Snapmaker Orca selezionato.", 'When started, the printer selects the specified tool and heats the nozzle. When complete, the app backs up the profile and updates the selected Snapmaker Orca profile.')}</p>
 <p class="warn"><strong>{_tr(language, 'Durata indicativa: circa 10 minuti.', 'Estimated duration: approximately 10 minutes.')}</strong> {_tr(language, 'Il tempo può variare leggermente. Durante il test non spegnere o riavviare la U1 e non inviare altri comandi da Fluidd o dal display.', 'The time may vary slightly. During the test, do not power off or restart the U1 and do not send other commands from Fluidd or the touchscreen.')}</p>
 <form method="post" action="/start">
 <input type="hidden" name="token" value="{token}">
@@ -1715,7 +1700,6 @@ def run_gui(
     print("U1 Filament Automation — interfaccia locale")
     print(f"Aprire: {url}")
     print(f"Nuovi profili Orca: {real_user_dir} (nessuna sovrascrittura)")
-    print(f"Copia di prova: {sandbox_dir}")
     print("Per chiudere l'interfaccia: Ctrl-C")
     if open_browser:
         threading.Timer(0.4, lambda: webbrowser.open(url)).start()

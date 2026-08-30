@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0b2 — 2026-08-30
+
+- Rimossa dalla GUI la copia duplicata del profilo nella sandbox: per ogni
+  filamento viene creato un solo profilo reale in Snapmaker Orca.
+- Al termine della calibrazione PA viene aggiornato soltanto il profilo Orca
+  selezionato, dopo averne creato un backup verificato.
+- Le modalità sandbox dei comandi tecnici da terminale restano disponibili per
+  sviluppo e collaudo, ma non fanno parte del flusso desktop destinato agli utenti.
+
 ## 1.8.0b1 — 2026-08-29
 
 - Aggiunto il controllo automatico non bloccante delle release U1FA all'avvio.

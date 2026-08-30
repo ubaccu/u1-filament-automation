@@ -434,7 +434,7 @@ class GUISafetyTests(unittest.TestCase):
                         prepared.ticket, "seconda-password"
                     )
 
-    def test_completed_calibration_updates_sandbox_and_real_orca(self):
+    def test_completed_calibration_updates_only_real_orca(self):
         class FakeMoonraker:
             def run_gcode(self, script):
                 return None
@@ -462,13 +462,9 @@ class GUISafetyTests(unittest.TestCase):
                  patch("u1_filament_automation.gui.update_pa_profile", return_value=FakeReport()) as update:
                 controller._run_job(selection, [])
 
-            self.assertEqual(update.call_count, 2)
+            self.assertEqual(update.call_count, 1)
             self.assertEqual(
                 os.path.normcase(os.path.realpath(update.call_args_list[0].args[0])),
-                os.path.normcase(os.path.realpath(root / "sandbox")),
-            )
-            self.assertEqual(
-                os.path.normcase(os.path.realpath(update.call_args_list[1].args[0])),
                 os.path.normcase(os.path.realpath(root / "real-orca")),
             )
             self.assertEqual(controller.snapshot().state, "completed")
@@ -540,7 +536,7 @@ class GUISpoolCreationTests(unittest.TestCase):
             self.assertFalse(profile.exists())
             self.assertEqual(second.counts().get("dismissed"), 1)
 
-    def test_one_time_confirmation_creates_spool_sandbox_and_real_profile_once(self):
+    def test_one_time_confirmation_creates_only_real_profile_once(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             sandbox = root / "sandbox"
@@ -578,9 +574,8 @@ class GUISpoolCreationTests(unittest.TestCase):
             self.assertEqual(fake.calls, [])
             receipt = controller.create_prepared_spool(prepared.ticket)
 
-            self.assertTrue(receipt.sandbox_profile_path.is_file())
-            self.assertIsNotNone(receipt.real_profile_path)
             self.assertTrue(receipt.real_profile_path.is_file())
+            self.assertEqual(list(sandbox.glob("*.json")), [])
             self.assertEqual([kind for kind, _ in fake.calls], ["vendor", "filament", "spool"])
 
     def test_existing_real_profile_is_never_overwritten(self):
