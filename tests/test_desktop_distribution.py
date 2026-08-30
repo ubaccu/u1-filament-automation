@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 from u1_filament_automation.desktop_app import (
     ASKPASS_MODE_ENV,
     ASKPASS_PASSWORD_ENV,
+    DESKTOP_SELFTEST_ENV,
     DesktopRuntime,
     application_data_dir,
     desktop_log_path,
@@ -77,6 +78,20 @@ class DesktopDistributionTests(unittest.TestCase):
             os.close(read_fd)
             os.close(write_fd)
 
+    def test_desktop_selftest_mode_loads_native_runtime_without_starting_server(self):
+        fake_webview = MagicMock(create_window=object(), start=object())
+        with (
+            patch.dict(os.environ, {DESKTOP_SELFTEST_ENV: "1"}, clear=False),
+            patch(
+                "u1_filament_automation.desktop_app._load_webview",
+                return_value=fake_webview,
+            ) as load,
+            patch("u1_filament_automation.desktop_app.server_is_running") as server,
+        ):
+            self.assertEqual(main(), 0)
+        load.assert_called_once_with()
+        server.assert_not_called()
+
     def test_windows_installer_and_linux_appimage_are_defined(self):
         windows_script = self.root / "packaging" / "windows" / "build_installer.ps1"
         inno = self.root / "packaging" / "windows" / "U1FA.iss"
@@ -92,6 +107,7 @@ class DesktopDistributionTests(unittest.TestCase):
                 text=True,
             )
         self.assertIn("PyInstaller", windows_script.read_text(encoding="utf-8"))
+        self.assertIn("U1FA_DESKTOP_SELFTEST", windows_script.read_text(encoding="utf-8"))
         self.assertIn("Inno Setup", windows_script.read_text(encoding="utf-8"))
         self.assertIn("appimagetool", linux_script.read_text(encoding="utf-8"))
         self.assertIn("adaptive_pa_macro.cfg", windows_script.read_text(encoding="utf-8"))
