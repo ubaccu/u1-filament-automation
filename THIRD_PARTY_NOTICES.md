@@ -2,55 +2,57 @@
 
 ## U1FA AutoPA Mod
 
-- Sviluppo e integrazione della modifica: Ivan Riccelli / Bottega3DLab e
-  contributori U1FA.
-- Nome tecnico interno della catena: `CHAIN v6`.
-- Licenza del progetto e delle modifiche derivate: GNU GPL v3.0.
+- Development and integration: Ivan Riccelli / Bottega3DLab and U1FA
+  contributors.
+- Project and derivative-work licence: GNU General Public License v3.0.
 
-U1FA AutoPA Mod integra e adatta il flusso di calibrazione automatica alla
-Snapmaker U1. I crediti seguenti riguardano i componenti e il lavoro upstream da
-cui deriva una parte del sistema, non la paternità del nome o dell'integrazione
-U1FA AutoPA Mod.
+U1FA AutoPA Mod integrates and adapts the automatic calibration workflow for
+the Snapmaker U1. The following notices credit the upstream components and work
+from which part of the implementation is derived. They do not claim ownership
+of third-party projects or relicense them.
 
 ## U1 Adaptive Pressure Advance Auto Calibration
 
-- Autore/manutentore: djsplice e contributori
-- Sorgente: https://github.com/djsplice/u1-adaptive-pa-autocal
-- Licenza: GNU General Public License v3.0
+- Author and maintainer: djsplice and contributors
+- Source: https://github.com/djsplice/u1-adaptive-pa-autocal
+- Licence: GNU General Public License v3.0
 
-Il modulo Adaptive PA conserva il backup v6 recuperato e ne legge offline i
-risultati. Le modifiche derivate restano sotto GNU GPL v3.0 e mantengono questo
-avviso e i crediti upstream.
+The Adaptive PA integration is derived from this upstream project. Derivative
+changes remain under GNU GPL v3.0 and retain this notice and the upstream
+credits.
 
-Si riconoscono inoltre:
+Related work credited by the upstream project includes:
 
-- Snapmaker U1 flow calibrator e misura del residuo induttivo `area`;
+- the Snapmaker U1 flow calibrator and inductance-coil residual `area`
+  measurement;
 - OrcaSlicer Adaptive Pressure Advance;
-- CNC Kitchen e PrusaPATuner come ispirazioni metodologiche indicate dall'upstream.
+- CNC Kitchen and PrusaPATuner-style visualisation as methodological
+  inspirations.
 
-Klipper, firmware Snapmaker, Moonraker, OrcaSlicer e Spoolman rimangono soggetti alle
-rispettive licenze. Progetto indipendente e non affiliato ai soggetti citati.
+Klipper, Snapmaker firmware, Moonraker, OrcaSlicer and Spoolman remain subject
+to their own licences. U1FA is an independent community project and is not
+affiliated with or endorsed by those projects or companies.
 
-I file recuperati da firmware o progetti terzi sono inclusi esclusivamente per
-tracciabilità, confronto e applicazione della patch; questo repository non cambia né
-pretende di sostituire le rispettive licenze originarie.
+Firmware-derived and third-party files are included only where required for
+traceability, comparison and reproducible patch application. This repository
+does not replace or alter their original licences.
 
-## Strumenti e runtime della distribuzione desktop
+## Desktop distribution tools and runtimes
 
-I pacchetti desktop incorporano oppure usano in fase di build i seguenti progetti,
-che restano soggetti alle proprie licenze:
+Desktop packages include or use the following projects during the build. Each
+project remains under its own licence:
 
-- Python, Python Software Foundation License:
+- Python — Python Software Foundation License:
   https://docs.python.org/3/license.html
-- PyInstaller, GNU GPL con eccezione specifica per la distribuzione dei bootloader:
+- PyInstaller — GNU GPL with its bootloader distribution exception:
   https://pyinstaller.org/en/stable/license.html
-- pywebview, finestra desktop nativa multipiattaforma, licenza BSD 3-Clause:
+- pywebview — BSD 3-Clause License:
   https://github.com/r0x0r/pywebview/blob/master/LICENSE.md
-- AppImageKit/appimagetool e runtime AppImage, licenza MIT:
+- AppImageKit/appimagetool and the AppImage runtime — MIT License:
   https://github.com/AppImage/AppImageKit/blob/master/LICENSE
-- Inno Setup, usato per generare l'installer Windows secondo la propria licenza:
+- Inno Setup — used to generate the Windows installer under its own licence:
   https://jrsoftware.org/files/is/license.txt
 
-OpenSSH Client non viene incorporato né installato automaticamente. Su Windows e
-Linux U1FA utilizza il client già presente nel sistema esclusivamente per la
-configurazione protetta dei file sulla stampante.
+OpenSSH Client is neither bundled nor installed automatically. On Windows and
+Linux, U1FA uses the system-provided client only for the protected printer-file
+configuration workflow.
