@@ -49,6 +49,13 @@ $PyInstallerArgs += (Join-Path $ScriptDir "u1fa_bootstrap.py")
 & python @PyInstallerArgs
 if ($LASTEXITCODE -ne 0) { throw "Build PyInstaller Windows fallita" }
 
+$FrozenExe = Join-Path $AppDist "$AppName.exe"
+$SelfTestEnvironment = @{ U1FA_DESKTOP_SELFTEST = "1" }
+$SelfTest = Start-Process -FilePath $FrozenExe -Wait -PassThru -Environment $SelfTestEnvironment
+if ($SelfTest.ExitCode -ne 0) {
+    throw "Self-test applicazione Windows fallito con codice $($SelfTest.ExitCode)"
+}
+
 $IsccCandidates = @(
     "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
     "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
