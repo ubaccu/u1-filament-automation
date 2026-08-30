@@ -1,16 +1,20 @@
+# Lingua / Language
+
+[English](PRINTER_SETUP.md) | **Italiano**
+
 # Installazione del calibratore sulla Snapmaker U1
 
-Questa procedura installa **U1FA AutoPA Mod** sulla U1 Stock. Il nome tecnico
-interno `CHAIN v6` viene mantenuto nei file e nei comandi per compatibilità:
+Questa procedura installa **U1FA AutoPA Mod** sulla U1 Stock e gestisce in modo
+coordinato:
 
-- `flow_calibrator.py` CHAIN v6;
-- `adaptive_pa_macro.cfg` ULTRA v6;
+- il modulo attivo `flow_calibrator.py`;
+- la macro `adaptive_pa_macro.cfg`;
 - l'include della macro in `printer.cfg`, solo quando necessario.
 
 ## Configurazione degli indirizzi
 
-Dalla v1.4 non è presente alcun IP U1 preimpostato. Avviando la GUI senza
-`--moonraker-url`, la pagina **Connessioni** chiede:
+Non è presente alcun IP U1 preimpostato. Al primo avvio la pagina
+**Connessioni** chiede:
 
 - IP o hostname mostrato dalla Snapmaker U1;
 - indirizzo Spoolman facoltativo; lasciandolo vuoto viene rilevato automaticamente.
@@ -111,7 +115,7 @@ Ordine delle protezioni:
 4. blocco di qualunque calibratore o macro con SHA-256 sconosciuto;
 5. riconoscimento degli include esatti e glob in `printer.cfg`;
 6. backup esclusivi datati dei file esistenti da modificare;
-7. controllo sintattico Python della v6;
+7. controllo sintattico Python della modifica;
 8. scritture atomiche con permessi e proprietario coerenti;
 9. verifica SHA-256 e rollback automatico in caso di errore;
 10. richiesta esplicita di spegnimento completo e riaccensione.
@@ -120,7 +124,7 @@ I percorsi dei backup vengono stampati a fine operazione. Una macro già present
 ma sconosciuta non viene sovrascritta. Il master backup validato
 documenta che `RESTART` non ricarica `flow_calibrator.py` nella sessione U1 già
 attiva. Per questo l'app non invia riavvii: bisogna spegnere la U1, attendere 10–15
-secondi e riaccenderla prima di usare i comandi CHAIN.
+secondi e riaccenderla prima di usare U1FA AutoPA Mod.
 
 ## Ripristino
 
