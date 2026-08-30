@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.8.0b4 — 2026-08-30
+
+- Se Spoolman/Docker è spento all'avvio, il monitor resta in attesa e riprova
+  automaticamente ogni 10 secondi invece di dichiararsi attivo senza funzionare.
+- La home distingue chiaramente tra sincronizzazione attiva e sincronizzazione
+  in attesa.
+- Aggiunto un self-test del runtime desktop al pacchetto Windows compilato.
+- Documentazione pubblica organizzata con README inglese principale, README
+  italiano completo e istruzioni stampante separate nelle due lingue.
+- Aggiunto un avviso bilingue di sicurezza, assenza di garanzia e limitazione
+  di responsabilità nei README e prima di qualsiasi modifica della stampante.
+- Rimosse dalla documentazione pubblica le note interne sui vecchi esperimenti;
+  licenza, attribuzioni e crediti upstream restano completi.
+
 ## 1.8.0b3 — 2026-08-30
 
 - Sostituita l'apertura nel browser con una vera finestra desktop U1FA basata
