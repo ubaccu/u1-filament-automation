@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.0b5 — 2026-09-08
+
+- Sostituito l'envelope fisso della GUI con la modalità automatica consigliata,
+  calcolata dal `filament_max_volumetric_speed` realmente ereditato in Orca.
+- Aggiunti limiti lineari min/max facoltativi dichiarati dal produttore e una
+  modalità manuale avanzata entro i limiti U1FA.
+- L'anteprima mostra origine del flusso, fattore limitante, velocità, flussi dei
+  tre punti e un avviso quando un limite prudente può ridurre il segnale.
+- La selezione mantiene il materiale Spoolman e continua a verificare profilo,
+  slot fisico, temperatura e limiti prima di inviare comandi alla U1.
+
 ## 1.8.0b4 — 2026-08-30
 
 - Se Spoolman/Docker è spento all'avvio, il monitor resta in attesa e riprova

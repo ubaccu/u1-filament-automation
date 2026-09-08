@@ -18,6 +18,8 @@ Disponibile in italiano e inglese per macOS, Windows e Linux.
 - installa o ripristina in sicurezza **U1FA AutoPA Mod** sulla U1 Stock;
 - guida la calibrazione Adaptive PA e salva automaticamente il risultato nel
   profilo Orca selezionato;
+- calcola un envelope specifico per il filamento dal flusso volumetrico massimo
+  ereditato in Orca, con limiti facoltativi del produttore;
 - controlla la disponibilità di nuove versioni dell'app senza aggiornare il
   firmware della stampante.
 
@@ -29,9 +31,11 @@ PAXX oppure installato su un altro dispositivo della rete.
 1. Inserisci i dati della bobina nell'app.
 2. U1FA crea o riutilizza vendor e filamento, quindi crea la bobina in Spoolman.
 3. U1FA genera il relativo profilo nella cartella reale di Snapmaker Orca.
-4. Selezioni slot fisico e temperatura, controlli i comandi e confermi la
-   calibrazione.
-5. Al termine U1FA crea un backup del JSON e inserisce automaticamente nello
+4. Selezioni slot fisico e temperatura. La modalità automatica consigliata legge
+   da Orca il flusso volumetrico massimo ereditato dal profilo; eventuali
+   velocità min/max del produttore possono imporre un limite più prudente.
+5. Controlli velocità, flussi e comandi calcolati, quindi confermi la calibrazione.
+6. Al termine U1FA crea un backup del JSON e inserisce automaticamente nello
    stesso profilo PA statico, tabella Adaptive PA e PA ponti.
 
 Non è necessario copiare manualmente i risultati. Se Snapmaker Orca era già
@@ -134,6 +138,21 @@ Esempi:
 Un profilo Orca già esistente non viene sovrascritto durante la creazione. Prima
 di applicare i risultati PA al profilo selezionato viene sempre creato un backup
 datato.
+
+### Envelope di calibrazione
+
+Usare **Automatico dal profilo filamento** salvo esigenze specifiche. U1FA segue
+l'ereditarietà Orca fino a trovare `filament_max_volumetric_speed`, converte il
+limite di flusso usando la geometria della linea di calibrazione e non supera mai
+il limite macchina U1FA. Se il produttore dichiara un intervallo lineare di
+velocità di stampa, lo si può inserire come ulteriore limite più prudente. Prima
+dell'avvio la pagina di conferma mostra origine del dato, limite determinante,
+tre velocità e relativi flussi volumetrici.
+
+La modalità **Manuale avanzato** resta disponibile per collaudatori esperti e
+impone i massimi U1FA di 336 mm/s e 10.000 mm/s². La sola dicitura PLA/PETG non è
+considerata una velocità affidabile: il materiale seleziona la base corretta,
+mentre l'envelope deriva dal flusso del profilo.
 
 ## Sicurezza e privacy
 

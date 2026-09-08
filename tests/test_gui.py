@@ -14,6 +14,7 @@ from u1_filament_automation.gui import (
     UpdateSnapshot,
     VALIDATED_U1_ENVELOPE,
     _connections_form,
+    _envelope_controls,
     _home,
     _new_spool_form,
     _new_spool_request,
@@ -69,6 +70,81 @@ class GUISafetyTests(unittest.TestCase):
         )
         self.assertEqual(run, "APA_COIL_RUN_ULTRA EXTRUDER=2 TEMP=220")
         self.assertEqual(VALIDATED_U1_ENVELOPE.name, "U1 convalidato")
+
+    def test_envelope_controls_offer_safe_auto_and_advanced_manual_modes(self):
+        italian = _envelope_controls("it")
+        english = _envelope_controls("en")
+        self.assertIn("Automatico dal profilo filamento (consigliato)", italian)
+        self.assertIn('name="manufacturer_min_speed"', italian)
+        self.assertIn('name="manufacturer_max_speed"', italian)
+        self.assertIn("Automatic from filament profile (recommended)", english)
+        self.assertIn("Advanced manual", english)
+
+    def test_manual_envelope_above_u1fa_cap_is_blocked(self):
+        from u1_filament_automation.gui import Envelope
+
+        unsafe = Envelope("unsafe", 100, 218, 337, 2000, 6000, 10000)
+        with self.assertRaises(GUIError):
+            build_calibration_commands(1, 220, unsafe)
+
+    def test_controller_builds_deeplee_auto_envelope_from_orca_and_vendor_limits(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            user = root / "user"
+            system = root / "system"
+            user.mkdir()
+            system.mkdir()
+            profile_name = "DEEPLEE PLA BLU METALLICO @Snapmaker U1 (0.4 nozzle)"
+            (user / f"{profile_name}.json").write_text(
+                json.dumps({
+                    "name": profile_name,
+                    "inherits": "Snapmaker PLA Basic @U1",
+                }),
+                encoding="utf-8",
+            )
+            (system / "Snapmaker PLA Basic @U1.json").write_text(
+                json.dumps({
+                    "name": "Snapmaker PLA Basic @U1",
+                    "filament_max_volumetric_speed": ["15"],
+                }),
+                encoding="utf-8",
+            )
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                system,
+                real_orca_dir=user,
+            )
+            controller._accept_inventory(SpoolmanInventory(
+                url="http://spoolman.test",
+                vendors=[{"id": 3, "name": "DEEPLEE"}],
+                filaments=[{
+                    "id": 13,
+                    "vendor_id": 3,
+                    "material": "PLA",
+                    "name": "PLA BLU METALLICO",
+                }],
+                spools=[{"id": 12, "filament_id": 13}],
+            ))
+
+            selection = controller.selection(
+                profile_name,
+                4,
+                220,
+                manufacturer_min_speed=30,
+                manufacturer_max_speed=70,
+            )
+
+        self.assertEqual(selection.material, "PLA")
+        self.assertEqual(selection.max_volumetric_speed, 15)
+        self.assertEqual(selection.max_volumetric_source, "Orca: Snapmaker PLA Basic @U1")
+        self.assertEqual(selection.internal_extruder, 3)
+        self.assertEqual(
+            selection.commands[0],
+            "APA_COIL_SET_ENVELOPE LOW_SPEED=30 MID_SPEED=50 HIGH_SPEED=70 "
+            "LOW_ACCEL=2000 MID_ACCEL=6000 HIGH_ACCEL=10000",
+        )
 
     def test_home_exposes_new_spool_flow_even_with_empty_inventory(self):
         with tempfile.TemporaryDirectory() as temporary:

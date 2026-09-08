@@ -51,6 +51,8 @@ class CalibrationIdentity:
 class ProfileCandidate:
     profile_name: str
     spool_ids: tuple[int | str, ...]
+    material: str = ""
+    filament_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -123,7 +125,7 @@ def _spool_id_equal(left: Any, right: int) -> bool:
 
 
 def profile_candidates(inventory: SpoolmanInventory) -> tuple[ProfileCandidate, ...]:
-    grouped: dict[str, tuple[str, list[int | str]]] = {}
+    grouped: dict[str, tuple[str, list[int | str], str, str]] = {}
     for spool in inventory.spools:
         filament = _filament_for_spool(spool, inventory)
         vendor = _vendor_for_filament(filament, inventory)
@@ -134,13 +136,18 @@ def profile_candidates(inventory: SpoolmanInventory) -> tuple[ProfileCandidate, 
         profile_name = make_profile_name(vendor, material, name)
         key = profile_name.casefold()
         if key not in grouped:
-            grouped[key] = (profile_name, [])
+            grouped[key] = (profile_name, [], material, name)
         spool_id = spool.get("id")
         if spool_id is not None and spool_id not in grouped[key][1]:
             grouped[key][1].append(spool_id)
     return tuple(
-        ProfileCandidate(profile_name=name, spool_ids=tuple(spool_ids))
-        for name, spool_ids in grouped.values()
+        ProfileCandidate(
+            profile_name=profile_name,
+            spool_ids=tuple(spool_ids),
+            material=material,
+            filament_name=filament_name,
+        )
+        for profile_name, spool_ids, material, filament_name in grouped.values()
     )
 
 

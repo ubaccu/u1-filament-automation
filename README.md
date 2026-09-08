@@ -20,6 +20,8 @@ Available for macOS, Windows and Linux.
 - safely installs or restores **U1FA AutoPA Mod** on a Stock U1;
 - guides Adaptive PA calibration and writes the result automatically to the
   selected Orca profile;
+- calculates a filament-specific calibration envelope from Orca's inherited
+  maximum volumetric speed, with optional manufacturer limits;
 - checks for application updates without updating the printer firmware.
 
 PAXX and other plugins are not required. U1FA can, however, use a Spoolman
@@ -32,9 +34,11 @@ instance supplied by PAXX or hosted on another device on the local network.
    spool.
 3. U1FA generates the corresponding profile in the real Snapmaker Orca user
    directory.
-4. Select the physical tool slot and temperature, review the commands and
-   confirm calibration.
-5. When calibration finishes, U1FA backs up the JSON and writes static PA, the
+4. Select the physical tool slot and temperature. The recommended automatic
+   mode reads the filament's inherited maximum volumetric speed from Orca;
+   optional manufacturer min/max print speeds can impose a stricter limit.
+5. Review the calculated speeds, flows and commands, then confirm calibration.
+6. When calibration finishes, U1FA backs up the JSON and writes static PA, the
    Adaptive PA table and bridge PA to that same profile.
 
 No result needs to be copied manually. If Snapmaker Orca was already open, close
@@ -136,6 +140,21 @@ technical name. Examples:
 
 An existing Orca profile is never overwritten during creation. Before PA values
 are written to the selected profile, U1FA always creates a timestamped backup.
+
+### Calibration envelope
+
+Use **Automatic from filament profile** unless you have a specific reason not
+to. U1FA follows Orca inheritance until it finds
+`filament_max_volumetric_speed`, converts that flow limit using the calibration
+line geometry and never exceeds the U1FA machine cap. If the filament maker
+publishes a linear print-speed range, it can be entered as an additional,
+stricter limit. The confirmation page shows the source, limiting factor, three
+speeds and corresponding volumetric flows before the printer can start.
+
+**Advanced manual** mode remains available for experienced testers and enforces
+the U1FA limits of 336 mm/s and 10,000 mm/s². PLA/PETG alone is not treated as a
+reliable speed rating: material selects the correct base profile, while the
+actual envelope comes from that profile's flow setting.
 
 ## Safety and privacy
 

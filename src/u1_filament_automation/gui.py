@@ -19,6 +19,13 @@ from .config import (
     normalize_service_url,
     save_connection_config,
 )
+from .envelope import (
+    EnvelopeError,
+    PA_LINE_AREA_MM2,
+    U1_MAX_CALIBRATION_SPEED,
+    calculate_automatic_envelope,
+    resolve_max_volumetric_speed,
+)
 from .models import SpoolmanInventory
 from .orca import discover_orca
 from .pa import PAParseError, last_complete_suite_span
@@ -107,6 +114,47 @@ def _tr(language: str, italian: str, english: str) -> str:
     return english if language == "en" else italian
 
 
+def _optional_float(values: dict[str, str], name: str) -> float | None:
+    raw = values.get(name, "").strip().replace(",", ".")
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise GUIError(f"Valore numerico non valido: {name}") from exc
+
+
+def _selection_from_values(
+    controller: "CalibrationController",
+    values: dict[str, str],
+) -> "CalibrationSelection":
+    mode = values.get("envelope_mode", "auto")
+    manual = None
+    if mode == "manual":
+        try:
+            manual = Envelope(
+                name="Manuale / Manual",
+                low_speed=int(values.get("manual_low_speed", "0")),
+                mid_speed=int(values.get("manual_mid_speed", "0")),
+                high_speed=int(values.get("manual_high_speed", "0")),
+                low_accel=int(values.get("manual_low_accel", "0")),
+                mid_accel=int(values.get("manual_mid_accel", "0")),
+                high_accel=int(values.get("manual_high_accel", "0")),
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise GUIError("Valori dell'envelope manuale non validi") from exc
+    return controller.selection(
+        values.get("profile_name", ""),
+        int(values.get("physical_slot", "0")),
+        int(values.get("temperature", "0")),
+        envelope_mode=mode,
+        max_volumetric_speed=_optional_float(values, "max_volumetric_speed"),
+        manufacturer_min_speed=_optional_float(values, "manufacturer_min_speed"),
+        manufacturer_max_speed=_optional_float(values, "manufacturer_max_speed"),
+        manual_envelope=manual,
+    )
+
+
 @dataclass(frozen=True)
 class CalibrationSelection:
     profile_name: str
@@ -114,6 +162,15 @@ class CalibrationSelection:
     internal_extruder: int
     temperature: int
     envelope: Envelope = VALIDATED_U1_ENVELOPE
+    envelope_mode: str = "legacy"
+    material: str = ""
+    max_volumetric_speed: float | None = None
+    max_volumetric_source: str = ""
+    max_speed_from_flow: int | None = None
+    manufacturer_min_speed: float | None = None
+    manufacturer_max_speed: float | None = None
+    limiting_source: str = ""
+    weak_signal_warning: bool = False
 
     @property
     def commands(self) -> tuple[str, str]:
@@ -197,6 +254,12 @@ def build_calibration_commands(
         and 0 < envelope.low_accel <= envelope.mid_accel <= envelope.high_accel
     ):
         raise GUIError("Envelope non valido: comando bloccato")
+    if envelope.high_speed > U1_MAX_CALIBRATION_SPEED:
+        raise GUIError(
+            f"Envelope oltre il limite U1FA di {U1_MAX_CALIBRATION_SPEED} mm/s: comando bloccato"
+        )
+    if envelope.high_accel > 10000:
+        raise GUIError("Envelope oltre il limite U1FA di 10000 mm/s²: comando bloccato")
     envelope_command = (
         "APA_COIL_SET_ENVELOPE "
         f"LOW_SPEED={envelope.low_speed} "
@@ -756,6 +819,11 @@ class CalibrationController:
         profile_name: str,
         physical_slot: int,
         temperature: int,
+        envelope_mode: str = "auto",
+        max_volumetric_speed: float | None = None,
+        manufacturer_min_speed: float | None = None,
+        manufacturer_max_speed: float | None = None,
+        manual_envelope: Envelope | None = None,
     ) -> CalibrationSelection:
         normalized = profile_name.strip().casefold()
         with self._lock:
@@ -767,12 +835,73 @@ class CalibrationController:
             raise GUIError("Profilo non presente nell'inventario Spoolman corrente")
         if self.real_orca_dir is None:
             raise GUIError("Cartella reale di Snapmaker Orca non configurata")
-        find_profile_path(self.real_orca_dir, matches[0].profile_name)
+        profile_path = find_profile_path(self.real_orca_dir, matches[0].profile_name)
+        if envelope_mode not in {"auto", "manual"}:
+            raise GUIError("Modalità envelope non valida")
+
+        if envelope_mode == "manual":
+            if manual_envelope is None:
+                raise GUIError("Inserire tutti i valori dell'envelope manuale")
+            # Reuse the final command validator before showing any confirmation.
+            build_calibration_commands(physical_slot, temperature, manual_envelope)
+            envelope = manual_envelope
+            resolved_value = None
+            resolved_source = ""
+            max_speed_from_flow = None
+            limiting_source = "manual"
+            weak_signal_warning = envelope.high_speed < 100
+        else:
+            try:
+                resolved = resolve_max_volumetric_speed(
+                    profile_path,
+                    self.real_orca_dir,
+                    self.system_dir,
+                )
+                if max_volumetric_speed is None:
+                    if resolved is None:
+                        raise GUIError(
+                            "Max volumetric speed non trovato nel profilo Orca ereditato. "
+                            "Inserirlo nel campo di correzione manuale."
+                        )
+                    resolved_value = resolved.value
+                    resolved_source = f"Orca: {resolved.profile_name}"
+                else:
+                    resolved_value = max_volumetric_speed
+                    resolved_source = "correzione manuale"
+                calculated = calculate_automatic_envelope(
+                    resolved_value,
+                    manufacturer_min_speed,
+                    manufacturer_max_speed,
+                )
+            except EnvelopeError as exc:
+                raise GUIError(str(exc)) from exc
+            envelope = Envelope(
+                name=f"Automatico {matches[0].material or 'filamento'}",
+                low_speed=calculated.low_speed,
+                mid_speed=calculated.mid_speed,
+                high_speed=calculated.high_speed,
+                low_accel=2000,
+                mid_accel=6000,
+                high_accel=10000,
+            )
+            max_speed_from_flow = calculated.max_speed_from_flow
+            limiting_source = calculated.limiting_source
+            weak_signal_warning = calculated.weak_signal_warning
         return CalibrationSelection(
             profile_name=matches[0].profile_name,
             physical_slot=physical_slot,
             internal_extruder=physical_to_internal(physical_slot),
             temperature=validate_temperature(temperature),
+            envelope=envelope,
+            envelope_mode=envelope_mode,
+            material=matches[0].material,
+            max_volumetric_speed=resolved_value,
+            max_volumetric_source=resolved_source,
+            max_speed_from_flow=max_speed_from_flow,
+            manufacturer_min_speed=manufacturer_min_speed,
+            manufacturer_max_speed=manufacturer_max_speed,
+            limiting_source=limiting_source,
+            weak_signal_warning=weak_signal_warning,
         )
 
     def snapshot(self) -> JobSnapshot:
@@ -993,6 +1122,26 @@ def _updates_page(
     )
 
 
+def _envelope_controls(language: str) -> str:
+    return f"""
+<div class="card inset"><h3>{_tr(language, 'Envelope di calibrazione', 'Calibration envelope')}</h3>
+<label>{_tr(language, 'Modalità envelope', 'Envelope mode')}</label>
+<select name="envelope_mode" required>
+<option value="auto">{_tr(language, 'Automatico dal profilo filamento (consigliato)', 'Automatic from filament profile (recommended)')}</option>
+<option value="manual">{_tr(language, 'Manuale avanzato', 'Advanced manual')}</option>
+</select>
+<p class="muted">{_tr(language, "In automatico l’app legge il Max volumetric speed ereditato dal profilo Snapmaker Orca. PLA/PETG determina il profilo di base; il calcolo usa il limite reale del profilo, non una velocità indovinata dal solo nome del materiale.", "In automatic mode the app reads the Max volumetric speed inherited by the Snapmaker Orca profile. PLA/PETG selects the base profile; the calculation uses the profile's real limit rather than guessing a speed from the material name alone.")}</p>
+<div class="grid"><div><label>{_tr(language, 'Correzione flusso massimo mm³/s (facoltativa)', 'Max flow override mm³/s (optional)')}</label>
+<input name="max_volumetric_speed" type="number" min="0.1" max="100" step="0.1" placeholder="{_tr(language, 'Automatico da Orca', 'Automatic from Orca')}"></div>
+<div><label>{_tr(language, 'Velocità produttore min/max mm/s (facoltative)', 'Manufacturer min/max speed mm/s (optional)')}</label>
+<div class="grid"><input name="manufacturer_min_speed" type="number" min="1" max="1000" step="1" placeholder="min"><input name="manufacturer_max_speed" type="number" min="1" max="1000" step="1" placeholder="max"></div></div></div>
+<p class="muted">{_tr(language, 'I limiti del produttore sono velocità lineari di stampa: inseriscili solo quando sono dichiarati per quel filamento (esempio: 30–70 mm/s).', 'Manufacturer limits are linear print speeds: enter them only when they are specified for that filament (example: 30–70 mm/s).')}</p>
+<details><summary>{_tr(language, 'Valori manuali avanzati (usati soltanto scegliendo Manuale)', 'Advanced manual values (used only when Manual is selected)')}</summary>
+<div class="grid"><div><label>LOW / MID / HIGH mm/s</label><div class="grid"><input name="manual_low_speed" type="number" value="100"><input name="manual_mid_speed" type="number" value="218"><input name="manual_high_speed" type="number" value="336"></div></div>
+<div><label>LOW / MID / HIGH mm/s²</label><div class="grid"><input name="manual_low_accel" type="number" value="2000"><input name="manual_mid_accel" type="number" value="6000"><input name="manual_high_accel" type="number" value="10000"></div></div></div>
+<p class="warn">{_tr(language, 'Modalità esperta: i valori devono essere crescenti e non possono superare 336 mm/s o 10000 mm/s².', 'Expert mode: values must be ascending and cannot exceed 336 mm/s or 10000 mm/s².')}</p></details></div>"""
+
+
 def _home(
     controller: CalibrationController,
     token: str,
@@ -1041,7 +1190,7 @@ def _home(
 <option value="1">1 → {_tr(language, 'interno', 'internal')} 0</option><option value="2">2 → {_tr(language, 'interno', 'internal')} 1</option>
 <option value="3">3 → {_tr(language, 'interno', 'internal')} 2</option><option value="4">4 → {_tr(language, 'interno', 'internal')} 3</option>
 </select></div><div><label>{_tr(language, 'Temperatura', 'Temperature')} °C</label><input name="temperature" type="number" min="170" max="300" value="220" required></div></div>
-<label>Envelope</label><input value="{_tr(language, 'U1 convalidato', 'Validated U1')}: 100 / 218 / 336 mm/s — 2000 / 6000 / 10000 mm/s²" disabled>
+{_envelope_controls(language)}
 <p><button type="submit">{_tr(language, 'Controlla e mostra i comandi', 'Check and show commands')}</button></p>
 </form>""" if profiles else f"""<p class="muted">{_tr(language, 'Non ci sono ancora bobine utilizzabili. Creane una con il pulsante qui sopra.', 'There are no usable spools yet. Create one with the button above.')}</p>"""
     body = f"""
@@ -1281,7 +1430,7 @@ def _new_spool_preview(
 <p><strong>{_tr(language, 'Bobina', 'Spool')}:</strong> {_tr(language, 'crea nuova', 'create new')} · {_tr(language, 'nominale', 'nominal')} {item.filament_weight:g} g · {_tr(language, 'rimasto', 'remaining')} {item.remaining_weight:g} g · {_tr(language, 'usato', 'used')} {item.used_weight:g} g · {_tr(language, 'tara', 'empty spool')} {item.empty_spool_weight:g} g</p>
 <p><strong>{_tr(language, 'Profilo Snapmaker Orca', 'Snapmaker Orca profile')}:</strong> {html.escape(plan.profile_name)}</p>
 <p><strong>Base Snapmaker:</strong> {html.escape(plan.base_profile)}</p>
-<p><strong>{_tr(language, 'Calibrazione proposta', 'Proposed calibration')}:</strong> {item.nozzle_temperature} °C, {_tr(language, 'envelope U1 convalidato', 'validated U1 envelope')}</p>
+<p><strong>{_tr(language, 'Calibrazione proposta', 'Proposed calibration')}:</strong> {item.nozzle_temperature} °C, {_tr(language, 'envelope automatico dal profilo filamento', 'automatic envelope from the filament profile')}</p>
 <p class="warn">{_tr(language, 'La conferma scrive in Spoolman e crea un solo nuovo profilo in Snapmaker Orca. Un profilo Orca già esistente non viene mai sovrascritto. Non invia ancora alcun comando alla stampante.', 'Confirmation writes to Spoolman and creates one new profile in Snapmaker Orca. An existing Orca profile is never overwritten. No command is sent to the printer yet.')}</p>
 <form method="post" action="/new-spool/create">
 <input type="hidden" name="token" value="{token}"><input type="hidden" name="ticket" value="{prepared.ticket}">
@@ -1315,6 +1464,7 @@ def _spool_created(
 <option value="1">1 → {_tr(language, 'interno', 'internal')} 0</option><option value="2">2 → {_tr(language, 'interno', 'internal')} 1</option>
 <option value="3">3 → {_tr(language, 'interno', 'internal')} 2</option><option value="4">4 → {_tr(language, 'interno', 'internal')} 3</option></select></div>
 <div><label>{_tr(language, 'Temperatura', 'Temperature')} °C</label><input name="temperature" type="number" min="170" max="300" value="{item.nozzle_temperature}" required></div></div>
+{_envelope_controls(language)}
 <p><button type="submit">{_tr(language, 'Controlla e mostra i comandi PA', 'Check and show PA commands')}</button></p></form>
 <p class="muted">{_tr(language, 'La stampante non è stata ancora avviata. Il comando partirà soltanto dopo la successiva conferma.', 'The printer has not been started yet. The command will run only after the next confirmation.')}</p></div>"""
     return _page(_tr(language, "Bobina pronta", "Spool ready"), body, language=language)
@@ -1326,12 +1476,47 @@ def _preview(
     language: str = "it",
 ) -> str:
     envelope_command, run_command = selection.commands
+    envelope = selection.envelope
+    flows = (
+        envelope.low_speed * PA_LINE_AREA_MM2,
+        envelope.mid_speed * PA_LINE_AREA_MM2,
+        envelope.high_speed * PA_LINE_AREA_MM2,
+    )
+    if selection.envelope_mode == "auto":
+        limiting_labels = {
+            "machine": _tr(language, "limite U1FA", "U1FA limit"),
+            "volumetric_flow": _tr(language, "flusso volumetrico Orca", "Orca volumetric flow"),
+            "manufacturer": _tr(language, "velocità massima del produttore", "manufacturer maximum speed"),
+        }
+        manufacturer = _tr(language, "non specificato", "not specified")
+        if selection.manufacturer_min_speed is not None or selection.manufacturer_max_speed is not None:
+            low = "–" if selection.manufacturer_min_speed is None else f"{selection.manufacturer_min_speed:g}"
+            high = "–" if selection.manufacturer_max_speed is None else f"{selection.manufacturer_max_speed:g}"
+            manufacturer = f"{low}–{high} mm/s"
+        envelope_details = f"""
+<p><strong>{_tr(language, 'Materiale', 'Material')}:</strong> {html.escape(selection.material or _tr(language, 'non indicato', 'not specified'))}<br>
+<strong>Max volumetric speed:</strong> {selection.max_volumetric_speed:g} mm³/s <span class="muted">({html.escape(selection.max_volumetric_source)})</span><br>
+<strong>{_tr(language, 'Massimo equivalente dal flusso', 'Equivalent maximum from flow')}:</strong> {selection.max_speed_from_flow} mm/s<br>
+<strong>{_tr(language, 'Intervallo produttore', 'Manufacturer range')}:</strong> {manufacturer}<br>
+<strong>{_tr(language, 'Limite determinante', 'Limiting factor')}:</strong> {html.escape(limiting_labels.get(selection.limiting_source, selection.limiting_source))}</p>"""
+    else:
+        envelope_details = f"<p><strong>{_tr(language, 'Modalità envelope', 'Envelope mode')}:</strong> {_tr(language, 'manuale avanzata', 'advanced manual')}</p>"
+    weak_warning = ""
+    if selection.weak_signal_warning:
+        weak_warning = f"""<p class="warn"><strong>{_tr(language, 'Avviso segnale:', 'Signal warning:')}</strong> {_tr(language, 'il limite scelto mantiene HIGH sotto 100 mm/s. È più prudente per il filamento, ma il segnale di calibrazione può essere debole; l’app non deve salvare risultati incompleti.', 'the selected limit keeps HIGH below 100 mm/s. This is more conservative for the filament, but the calibration signal may be weak; the app must not save incomplete results.')}</p>"""
+    hidden_max_flow = "" if selection.max_volumetric_speed is None else f'<input type="hidden" name="max_volumetric_speed" value="{selection.max_volumetric_speed:g}">'
+    hidden_manufacturer_min = "" if selection.manufacturer_min_speed is None else f'<input type="hidden" name="manufacturer_min_speed" value="{selection.manufacturer_min_speed:g}">'
+    hidden_manufacturer_max = "" if selection.manufacturer_max_speed is None else f'<input type="hidden" name="manufacturer_max_speed" value="{selection.manufacturer_max_speed:g}">'
     body = f"""
 <h1>{_tr(language, 'Conferma calibrazione', 'Confirm calibration')}</h1><div class="card">
 <p><strong>{_tr(language, 'Profilo', 'Profile')}:</strong> {html.escape(selection.profile_name)}</p>
 <p><strong>{_tr(language, 'Estrusore', 'Extruder')}:</strong> {_tr(language, 'slot fisico', 'physical slot')} {selection.physical_slot} → <strong>EXTRUDER={selection.internal_extruder}</strong></p>
 <p><strong>{_tr(language, 'Temperatura', 'Temperature')}:</strong> {selection.temperature} °C</p>
+{envelope_details}
+<p><strong>Envelope:</strong> {envelope.low_speed} / {envelope.mid_speed} / {envelope.high_speed} mm/s — {envelope.low_accel} / {envelope.mid_accel} / {envelope.high_accel} mm/s²<br>
+<strong>{_tr(language, 'Flussi di prova', 'Test flows')}:</strong> {flows[0]:.2f} / {flows[1]:.2f} / {flows[2]:.2f} mm³/s</p>
 <pre>{html.escape(envelope_command)}\n{html.escape(run_command)}</pre>
+{weak_warning}
 <p class="warn">{_tr(language, "Avviando, la stampante selezionerà l'utensile indicato e scalderà l'ugello. Al termine l'app crea un backup del profilo e aggiorna il profilo Snapmaker Orca selezionato.", 'When started, the printer selects the specified tool and heats the nozzle. When complete, the app backs up the profile and updates the selected Snapmaker Orca profile.')}</p>
 <p class="warn"><strong>{_tr(language, 'Durata indicativa: circa 10 minuti.', 'Estimated duration: approximately 10 minutes.')}</strong> {_tr(language, 'Il tempo può variare leggermente. Durante il test non spegnere o riavviare la U1 e non inviare altri comandi da Fluidd o dal display.', 'The time may vary slightly. During the test, do not power off or restart the U1 and do not send other commands from Fluidd or the touchscreen.')}</p>
 <form method="post" action="/start">
@@ -1339,6 +1524,14 @@ def _preview(
 <input type="hidden" name="profile_name" value="{html.escape(selection.profile_name, quote=True)}">
 <input type="hidden" name="physical_slot" value="{selection.physical_slot}">
 <input type="hidden" name="temperature" value="{selection.temperature}">
+<input type="hidden" name="envelope_mode" value="{selection.envelope_mode}">
+{hidden_max_flow}{hidden_manufacturer_min}{hidden_manufacturer_max}
+<input type="hidden" name="manual_low_speed" value="{envelope.low_speed}">
+<input type="hidden" name="manual_mid_speed" value="{envelope.mid_speed}">
+<input type="hidden" name="manual_high_speed" value="{envelope.high_speed}">
+<input type="hidden" name="manual_low_accel" value="{envelope.low_accel}">
+<input type="hidden" name="manual_mid_accel" value="{envelope.mid_accel}">
+<input type="hidden" name="manual_high_accel" value="{envelope.high_accel}">
 <button class="danger" type="submit">{_tr(language, 'Avvia davvero la calibrazione', 'Start calibration')}</button>
 </form><p><a class="button" href="/">{_tr(language, 'Indietro', 'Back')}</a></p></div>"""
     return _page(_tr(language, "Conferma calibrazione", "Confirm calibration"), body, language=language)
@@ -1605,11 +1798,7 @@ def _handler(controller: CalibrationController, token: str):
                     self.end_headers()
                     return
 
-                selection = controller.selection(
-                    values.get("profile_name", ""),
-                    int(values.get("physical_slot", "0")),
-                    int(values.get("temperature", "0")),
-                )
+                selection = _selection_from_values(controller, values)
                 if path == "/preview":
                     self._send(_preview(selection, token, language))
                 elif path == "/start":
