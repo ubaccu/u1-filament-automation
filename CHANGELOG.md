@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.8.0b6 — 2026-09-08
+
+- Gli errori transitori di lettura Moonraker, compreso `HTTP 504`, vengono
+  ritentati con attese progressive senza reinviare i comandi di calibrazione.
+- Ridotto il carico sul registro Moonraker: 750 risposte ogni 3 secondi e timeout
+  breve per la singola richiesta, separato dal limite complessivo del test.
+- Aggiunto nella schermata d'errore il recupero dell'ultima calibrazione completa:
+  è una lettura sicura, non invia G-code e aggiorna soltanto il profilo selezionato
+  dopo aver creato il consueto backup.
+- Il recupero confronta l'orario della suite con l'avvio del test e blocca risultati
+  appartenenti a calibrazioni precedenti.
+- Rafforzati in GUI e documentazione gli avvisi bilingui per lasciare U1FA aperta
+  e Snapmaker Orca completamente chiuso fino al completamento.
+
 ## 1.8.0b5 — 2026-09-08
 
 - Sostituito l'envelope fisso della GUI con la modalità automatica consigliata,

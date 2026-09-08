@@ -41,8 +41,15 @@ instance supplied by PAXX or hosted on another device on the local network.
 6. When calibration finishes, U1FA backs up the JSON and writes static PA, the
    Adaptive PA table and bridge PA to that same profile.
 
-No result needs to be copied manually. If Snapmaker Orca was already open, close
-and reopen it after completion so that it reloads the profile.
+No result needs to be copied manually. Keep U1FA open and Snapmaker Orca
+completely closed throughout calibration. Reopen the slicer only after U1FA
+shows `calibration completed`, so it loads the newly updated profile.
+
+If Moonraker returns a temporary error, including `HTTP 504`, U1FA retries
+automatically without restarting calibration. If those attempts are exhausted,
+the status page provides **Recover latest calibration**. It reads the newly
+completed suite and updates the same profile after creating a backup, without
+sending G-code. Do not repeat the test or restart the U1 before trying recovery.
 
 A complete calibration takes approximately **10 minutes**. Do not power off or
 restart the U1 and do not send other commands from Fluidd or the touchscreen

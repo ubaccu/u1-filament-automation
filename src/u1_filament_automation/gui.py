@@ -104,6 +104,11 @@ VALIDATED_U1_ENVELOPE = Envelope(
     high_accel=10000,
 )
 LOGO_ASSET = Path(__file__).resolve().parent / "assets" / "u1fa_logo.png"
+ACTIVE_CALIBRATION_STATES = frozenset({"checking", "running", "recovering"})
+CALIBRATION_STORE_COUNT = 750
+MOONRAKER_READ_FAILURE_LIMIT = 8
+MOONRAKER_RECOVERY_ATTEMPTS = 4
+MOONRAKER_MAX_RETRY_DELAY = 30.0
 
 
 class GUIError(RuntimeError):
@@ -187,6 +192,7 @@ class JobSnapshot:
     message: str
     selection: CalibrationSelection | None = None
     report: dict[str, Any] | None = None
+    started_at: float | None = None
 
 
 @dataclass(frozen=True)
@@ -242,6 +248,12 @@ def validate_temperature(value: int) -> int:
     return value
 
 
+def _moonraker_retry_delay(failure_number: int, poll_interval: float) -> float:
+    """Backoff breve e limitato per errori transitori di Moonraker."""
+    exponent = max(0, min(failure_number - 1, 4))
+    return min(max(1.0, poll_interval) * (2 ** exponent), MOONRAKER_MAX_RETRY_DELAY)
+
+
 def build_calibration_commands(
     physical_slot: int,
     temperature: int,
@@ -283,7 +295,7 @@ class CalibrationController:
         sandbox_dir: Path,
         system_dir: Path,
         timeout: float = 5.0,
-        poll_interval: float = 2.0,
+        poll_interval: float = 3.0,
         spoolman_client_factory: Callable[[], SpoolmanClient] | None = None,
         real_orca_dir: Path | None = None,
         ssh_target: str | None = None,
@@ -645,7 +657,7 @@ class CalibrationController:
     def prepare_printer_setup(self, password: str) -> PreparedPrinterSetup:
         with self._setup_lock:
             with self._lock:
-                if self._job.state in {"checking", "running"}:
+                if self._job.state in ACTIVE_CALIBRATION_STATES:
                     raise GUIError("Attendere la fine della calibrazione in corso")
             try:
                 moonraker = MoonrakerClient(self.moonraker_url, timeout=self.timeout)
@@ -672,7 +684,7 @@ class CalibrationController:
                 if prepared is None or not secrets.compare_digest(prepared.ticket, ticket):
                     raise GUIError("Conferma installazione scaduta o già usata")
                 self._pending_setup = None
-                if self._job.state in {"checking", "running"}:
+                if self._job.state in ACTIVE_CALIBRATION_STATES:
                     raise GUIError("Attendere la fine della calibrazione in corso")
             try:
                 moonraker = MoonrakerClient(self.moonraker_url, timeout=self.timeout)
@@ -722,7 +734,7 @@ class CalibrationController:
         request: NewSpoolRequest,
     ) -> PreparedSpoolCreation:
         with self._lock:
-            if self._job.state in {"checking", "running"}:
+            if self._job.state in ACTIVE_CALIBRATION_STATES:
                 raise GUIError("Attendere la fine della calibrazione in corso")
         if self.real_orca_dir is None:
             raise GUIError(
@@ -757,7 +769,7 @@ class CalibrationController:
                         "Conferma scaduta o già usata: nessuna bobina creata"
                     )
                 self._pending_creation = None
-                if self._job.state in {"checking", "running"}:
+                if self._job.state in ACTIVE_CALIBRATION_STATES:
                     raise GUIError("Attendere la fine della calibrazione in corso")
 
             client = self._spoolman_client()
@@ -914,7 +926,7 @@ class CalibrationController:
 
     def start(self, selection: CalibrationSelection) -> None:
         with self._lock:
-            if self._job.state in {"checking", "running"}:
+            if self._job.state in ACTIVE_CALIBRATION_STATES:
                 raise GUIError("Una calibrazione è già in corso")
             self._job = JobSnapshot(
                 "checking",
@@ -932,7 +944,9 @@ class CalibrationController:
                 raise GUIError("Macro APA_COIL_SET_ENVELOPE non caricata")
             if not client.has_gcode_macro("APA_COIL_RUN_ULTRA"):
                 raise GUIError("Macro APA_COIL_RUN_ULTRA non caricata")
-            baseline = parse_gcode_store(client.gcode_store(1000))
+            baseline = parse_gcode_store(
+                client.gcode_store(CALIBRATION_STORE_COUNT)
+            )
         except (PrinterInstallError, PACaptureError, GUIError) as exc:
             self._set_job(JobSnapshot("blocked", str(exc), selection))
             raise GUIError(str(exc)) from exc
@@ -944,64 +958,125 @@ class CalibrationController:
             f"{selection.temperature} °C. "
             f"Stato iniziale: {status.print_state}/{status.idle_state}."
         )
-        self._set_job(JobSnapshot("running", message, selection))
+        started_at = time.time()
+        self._set_job(
+            JobSnapshot("running", message, selection, started_at=started_at)
+        )
         worker = threading.Thread(
             target=self._run_job,
-            args=(selection, baseline),
+            args=(selection, baseline, started_at),
             name="u1fa-calibration",
             daemon=True,
         )
         worker.start()
 
-    def _run_job(self, selection: CalibrationSelection, baseline) -> None:
+    def _complete_calibration(
+        self,
+        selection: CalibrationSelection,
+        suite: Any,
+        started_at: float,
+    ) -> None:
+        if self.real_orca_dir is None:
+            raise GUIError("Cartella reale di Snapmaker Orca non configurata")
+        report = update_pa_profile(
+            self.real_orca_dir,
+            selection.profile_name,
+            CalibrationIdentity(),
+            suite,
+            apply=True,
+            manual_profile=True,
+        )
+        self._set_job(
+            JobSnapshot(
+                "completed",
+                "Calibrazione completata; profilo Snapmaker Orca aggiornato con backup.",
+                selection,
+                report.to_dict(),
+                started_at,
+            )
+        )
+
+    def _run_job(
+        self,
+        selection: CalibrationSelection,
+        baseline,
+        started_at: float | None = None,
+    ) -> None:
         client = MoonrakerClient(
             self.moonraker_url,
-            timeout=max(3 * 60 * 60 + 60.0, self.timeout),
+            timeout=max(15.0, self.timeout),
         )
-        started_at = time.time()
+        started_at = time.time() if started_at is None else started_at
         previous = baseline
         captured = []
+        read_failures = 0
         try:
             envelope_command, run_command = selection.commands
             client.run_gcode(envelope_command)
             client.run_gcode(run_command)
             deadline = time.time() + 3 * 60 * 60
             while time.time() < deadline:
-                current = parse_gcode_store(client.gcode_store(1000))
+                try:
+                    current = parse_gcode_store(
+                        client.gcode_store(CALIBRATION_STORE_COUNT)
+                    )
+                except (PrinterInstallError, PACaptureError) as exc:
+                    read_failures += 1
+                    if read_failures >= MOONRAKER_READ_FAILURE_LIMIT:
+                        raise GUIError(
+                            "Moonraker non raggiungibile dopo "
+                            f"{read_failures} tentativi: {exc}"
+                        ) from exc
+                    delay = _moonraker_retry_delay(
+                        read_failures, self.poll_interval
+                    )
+                    self._set_job(
+                        JobSnapshot(
+                            "running",
+                            "Connessione Moonraker temporaneamente interrotta; "
+                            f"nuovo tentativo {read_failures + 1}/"
+                            f"{MOONRAKER_READ_FAILURE_LIMIT} tra {delay:g} secondi. "
+                            "La calibrazione non viene riavviata.",
+                            selection,
+                            started_at=started_at,
+                        )
+                    )
+                    time.sleep(delay)
+                    continue
+
+                if read_failures:
+                    self._set_job(
+                        JobSnapshot(
+                            "running",
+                            "Connessione Moonraker ripristinata; recupero dei risultati in corso.",
+                            selection,
+                            started_at=started_at,
+                        )
+                    )
+                    read_failures = 0
                 try:
                     captured.extend(new_gcode_entries(previous, current))
                     previous = current
                     text = response_text(captured)
-                    suite, _, suite_end = last_complete_suite_span(text)
+                    suite, _, _ = last_complete_suite_span(text)
                 except PAParseError:
                     time.sleep(self.poll_interval)
                     continue
                 except PACaptureError:
-                    cached = latest_cached_suite(current)
+                    try:
+                        cached = latest_cached_suite(current)
+                    except PACaptureError:
+                        captured = []
+                        previous = current
+                        time.sleep(self.poll_interval)
+                        continue
                     if cached.completed_at < started_at - 5:
-                        raise
+                        captured = []
+                        previous = current
+                        time.sleep(self.poll_interval)
+                        continue
                     suite = cached.suite
-                    text = cached.text
-                    suite_end = cached.suite_end
-
-                if self.real_orca_dir is None:
-                    raise GUIError("Cartella reale di Snapmaker Orca non configurata")
-                report = update_pa_profile(
-                    self.real_orca_dir,
-                    selection.profile_name,
-                    CalibrationIdentity(),
-                    suite,
-                    apply=True,
-                    manual_profile=True,
-                )
-                self._set_job(
-                    JobSnapshot(
-                        "completed",
-                        "Calibrazione completata; profilo Snapmaker Orca aggiornato con backup.",
-                        selection,
-                        report.to_dict(),
-                    )
-                )
+                self._complete_calibration(selection, suite, started_at)
                 return
             raise GUIError("Tempo massimo superato senza una suite ULTRA completa")
         except (GUIError, PrinterInstallError, PACaptureError, PAProfileError) as exc:
@@ -1010,8 +1085,92 @@ class CalibrationController:
                     "error",
                     f"{exc}. Controllare Fluidd: non viene inviato alcun riavvio automatico.",
                     selection,
+                    started_at=started_at,
                 )
             )
+
+    def start_recovery(self) -> None:
+        with self._lock:
+            job = self._job
+            if job.state in ACTIVE_CALIBRATION_STATES:
+                raise GUIError("Attendere l'operazione già in corso")
+            if (
+                job.state != "error"
+                or job.selection is None
+                or job.started_at is None
+            ):
+                raise GUIError("Nessuna calibrazione recente da recuperare")
+            selection = job.selection
+            started_at = job.started_at
+            self._job = JobSnapshot(
+                "recovering",
+                "Recupero dell'ultima suite completa da Moonraker; nessun G-code inviato.",
+                selection,
+                started_at=started_at,
+            )
+        threading.Thread(
+            target=self._run_recovery,
+            args=(selection, started_at),
+            name="u1fa-calibration-recovery",
+            daemon=True,
+        ).start()
+
+    def _run_recovery(
+        self,
+        selection: CalibrationSelection,
+        started_at: float,
+    ) -> None:
+        client = MoonrakerClient(
+            self.moonraker_url,
+            timeout=max(15.0, self.timeout),
+        )
+        last_error = ""
+        for attempt in range(1, MOONRAKER_RECOVERY_ATTEMPTS + 1):
+            try:
+                current = parse_gcode_store(
+                    client.gcode_store(CALIBRATION_STORE_COUNT)
+                )
+                cached = latest_cached_suite(current)
+                if cached.completed_at < started_at - 5:
+                    raise GUIError(
+                        "L'ultima suite completa è precedente alla calibrazione selezionata: "
+                        "recupero bloccato"
+                    )
+                self._complete_calibration(
+                    selection, cached.suite, started_at
+                )
+                return
+            except GUIError as exc:
+                last_error = str(exc)
+                break
+            except PAProfileError as exc:
+                last_error = str(exc)
+                break
+            except (PrinterInstallError, PACaptureError) as exc:
+                last_error = str(exc)
+                if attempt >= MOONRAKER_RECOVERY_ATTEMPTS:
+                    break
+                delay = _moonraker_retry_delay(attempt, self.poll_interval)
+                self._set_job(
+                    JobSnapshot(
+                        "recovering",
+                        f"Recupero non ancora riuscito ({attempt}/"
+                        f"{MOONRAKER_RECOVERY_ATTEMPTS}); nuovo tentativo tra "
+                        f"{delay:g} secondi. Nessun G-code inviato.",
+                        selection,
+                        started_at=started_at,
+                    )
+                )
+                time.sleep(delay)
+        self._set_job(
+            JobSnapshot(
+                "error",
+                f"Recupero non riuscito: {last_error}. Nessun G-code inviato; "
+                "la calibrazione non è stata ripetuta.",
+                selection,
+                started_at=started_at,
+            )
+        )
 
 
 def _page(
@@ -1205,7 +1364,7 @@ def _home(
 <div class="card">{error_box}<h2>{_tr(language, '1. Nuova bobina', '1. New spool')}</h2>
 <p>{_tr(language, "Inserisci i dati una volta sola: l'app crea o riusa vendor e filamento in Spoolman, crea la bobina e genera un solo nuovo profilo direttamente in Snapmaker Orca.", "Enter the data once: the app creates or reuses the vendor and filament in Spoolman, creates the spool and generates one new profile directly in Snapmaker Orca.")}</p>
 <p><a class="button danger" href="/new-spool">{_tr(language, 'Aggiungi nuova bobina', 'Add new spool')}</a></p></div>
-<div class="card"><h2>{_tr(language, '2. Calibra una bobina già presente', '2. Calibrate an existing spool')}</h2><p class="muted">{_tr(language, 'Durata indicativa della calibrazione Adaptive PA: circa 10 minuti.', 'Estimated Adaptive PA calibration time: approximately 10 minutes.')}</p>{calibration_form}</div>
+<div class="card"><h2>{_tr(language, '2. Calibra una bobina già presente', '2. Calibrate an existing spool')}</h2><p class="muted">{_tr(language, 'Durata indicativa della calibrazione Adaptive PA: circa 10 minuti.', 'Estimated Adaptive PA calibration time: approximately 10 minutes.')}</p><p class="warn"><strong>{_tr(language, 'Durante tutta la calibrazione lascia U1FA aperta e Snapmaker Orca completamente chiuso.', 'Keep U1FA open and Snapmaker Orca completely closed throughout the calibration.')}</strong></p>{calibration_form}</div>
 <div class="card"><p><strong>{monitor_heading}</strong></p><p class="{monitor_class}">{html.escape(monitor_message)}{monitor_time}</p><p class="muted">{_tr(language, 'Anche le bobine aggiunte manualmente dal sito Spoolman vengono rilevate mentre l’app è aperta. I profili mancanti vengono creati in Orca senza sovrascrivere quelli esistenti; una cancellazione manuale viene rispettata.', 'Spools added manually from the Spoolman website are also detected while the app is open. Missing Orca profiles are created without overwriting existing ones; manual deletion is respected.')}</p></div>
 <div class="card"><p><strong>{_tr(language, 'Protezione attiva', 'Active protection')}</strong></p><p class="muted">{_tr(language, "Il pulsante di avvio appare solo dopo l'anteprima. Prima dell'invio vengono verificati stampante inattiva, macro caricate, profilo esatto e mapping dello slot.", 'The start button appears only after the preview. Before sending commands, the app verifies that the printer is idle, the macros are loaded, the exact profile exists and the slot mapping is correct.')}</p></div>"""
     body += f"""<div class="card"><p><strong>{_tr(language, 'Applicazione', 'Application')}</strong></p>
@@ -1519,6 +1678,7 @@ def _preview(
 {weak_warning}
 <p class="warn">{_tr(language, "Avviando, la stampante selezionerà l'utensile indicato e scalderà l'ugello. Al termine l'app crea un backup del profilo e aggiorna il profilo Snapmaker Orca selezionato.", 'When started, the printer selects the specified tool and heats the nozzle. When complete, the app backs up the profile and updates the selected Snapmaker Orca profile.')}</p>
 <p class="warn"><strong>{_tr(language, 'Durata indicativa: circa 10 minuti.', 'Estimated duration: approximately 10 minutes.')}</strong> {_tr(language, 'Il tempo può variare leggermente. Durante il test non spegnere o riavviare la U1 e non inviare altri comandi da Fluidd o dal display.', 'The time may vary slightly. During the test, do not power off or restart the U1 and do not send other commands from Fluidd or the touchscreen.')}</p>
+<p class="warn"><strong>{_tr(language, 'Lascia U1FA aperta e Snapmaker Orca completamente chiuso finché non compare “calibrazione completata”.', 'Keep U1FA open and Snapmaker Orca completely closed until “calibration completed” appears.')}</strong></p>
 <form method="post" action="/start">
 <input type="hidden" name="token" value="{token}">
 <input type="hidden" name="profile_name" value="{html.escape(selection.profile_name, quote=True)}">
@@ -1537,9 +1697,13 @@ def _preview(
     return _page(_tr(language, "Conferma calibrazione", "Confirm calibration"), body, language=language)
 
 
-def _status(controller: CalibrationController, language: str = "it") -> str:
+def _status(
+    controller: CalibrationController,
+    language: str = "it",
+    token: str = "",
+) -> str:
     job = controller.snapshot()
-    refresh = 3 if job.state in {"checking", "running"} else None
+    refresh = 3 if job.state in ACTIVE_CALIBRATION_STATES else None
     selection = job.selection
     details = ""
     if selection is not None:
@@ -1565,15 +1729,30 @@ def _status(controller: CalibrationController, language: str = "it") -> str:
                 f"Calibration started: physical slot {selection.physical_slot} → "
                 f"EXTRUDER={selection.internal_extruder}, {selection.temperature} °C."
             )
+        elif job.state == "recovering":
+            message = "Recovering the completed calibration from Moonraker; no G-code is being sent."
         elif job.state == "completed":
             message = "Calibration completed; the Snapmaker Orca profile was updated after creating a backup."
         elif job.state in {"blocked", "error"}:
             message = f"Calibration blocked or failed. Technical detail: {job.message}"
+    recovery = ""
+    if (
+        job.state == "error"
+        and selection is not None
+        and job.started_at is not None
+        and token
+    ):
+        recovery = f"""<div class="card">
+<h2>{_tr(language, 'Recupera la calibrazione completata', 'Recover completed calibration')}</h2>
+<p>{_tr(language, 'Rilegge l’ultima suite completa da Moonraker e aggiorna esclusivamente il profilo indicato, creando prima un backup. Non avvia una nuova calibrazione e non invia alcun G-code.', 'Reads the latest complete suite from Moonraker and updates only the selected profile after creating a backup. It does not start another calibration or send any G-code.')}</p>
+<form method="post" action="/recover"><input type="hidden" name="token" value="{token}">
+<button type="submit">{_tr(language, 'Recupera ultima calibrazione', 'Recover latest calibration')}</button></form></div>"""
     body = f"""<h1>{_tr(language, 'Stato calibrazione', 'Calibration status')}</h1><div class="card">
 <p><strong>{_tr(language, 'Stato', 'Status')}:</strong> {html.escape(job.state)}</p>{details}
 <p>{html.escape(message)}</p>{report}
+<p class="warn"><strong>{_tr(language, 'Fino al completamento lascia U1FA aperta e Snapmaker Orca completamente chiuso.', 'Until completion, keep U1FA open and Snapmaker Orca completely closed.')}</strong></p>
 <p class="muted">{_tr(language, "Chiudere questa pagina non ferma una calibrazione già avviata. Per un'emergenza usare i controlli fisici/Fluidd della U1.", 'Closing this page does not stop a calibration that has already started. In an emergency, use the U1 physical controls or Fluidd.')}</p>
-<p><a class="button" href="/">{_tr(language, 'Torna alla schermata iniziale', 'Return to home')}</a></p></div>"""
+<p><a class="button" href="/">{_tr(language, 'Torna alla schermata iniziale', 'Return to home')}</a></p></div>{recovery}"""
     return _page(_tr(language, "Stato calibrazione", "Calibration status"), body, refresh=refresh, language=language)
 
 
@@ -1585,7 +1764,7 @@ def _shutdown_page(
 ) -> str:
     job = controller.snapshot()
     error_box = "" if not error else f'<p class="warn">{html.escape(error)}</p>'
-    if job.state in {"checking", "running"}:
+    if job.state in ACTIVE_CALIBRATION_STATES:
         content = f"""{error_box}<p class="warn"><strong>{_tr(language, 'Chiusura bloccata: è in corso una calibrazione. Attendi il completamento per non perdere l’applicazione del risultato PA.', 'Closing blocked: a calibration is running. Wait for completion so the PA result can be applied.')}</strong></p>
 <p><a class="button" href="/status">{_tr(language, 'Mostra stato calibrazione', 'Show calibration status')}</a></p>"""
     else:
@@ -1691,7 +1870,7 @@ def _handler(controller: CalibrationController, token: str):
                 else:
                     self._send(_spool_created(receipt, token, language))
             elif path == "/status":
-                self._send(_status(controller, language))
+                self._send(_status(controller, language, token))
             elif path == "/shutdown":
                 self._send(_shutdown_page(controller, token, language=language))
             elif path == "/assets/u1fa-logo.png":
@@ -1718,7 +1897,7 @@ def _handler(controller: CalibrationController, token: str):
                     self.end_headers()
                     return
                 if path == "/shutdown":
-                    if controller.snapshot().state in {"checking", "running"}:
+                    if controller.snapshot().state in ACTIVE_CALIBRATION_STATES:
                         raise GUIError(_tr(
                             language,
                             "Chiusura bloccata durante la calibrazione",
@@ -1797,6 +1976,12 @@ def _handler(controller: CalibrationController, token: str):
                     self.send_header("Location", "/spool-created")
                     self.end_headers()
                     return
+                if path == "/recover":
+                    controller.start_recovery()
+                    self.send_response(303)
+                    self.send_header("Location", "/status")
+                    self.end_headers()
+                    return
 
                 selection = _selection_from_values(controller, values)
                 if path == "/preview":
@@ -1821,6 +2006,8 @@ def _handler(controller: CalibrationController, token: str):
                     self._send(_printer_setup_form(token, str(exc), language), 400)
                 elif path.startswith("/updates"):
                     self._send(_updates_page(controller, token, str(exc), language), 400)
+                elif path == "/recover":
+                    self._send(_status(controller, language, token), 400)
                 else:
                     self._send(_home(controller, token, str(exc), language), 400)
 

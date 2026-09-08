@@ -20,6 +20,7 @@ from u1_filament_automation.gui import (
     _new_spool_request,
     _printer_setup_form,
     _printer_setup_preview,
+    _status,
     _shutdown_page,
     _updates_page,
     build_calibration_commands,
@@ -30,6 +31,7 @@ from u1_filament_automation.models import SpoolmanInventory
 from u1_filament_automation.printer import (
     AdaptivePAMacroStatus,
     CalibratorStatus,
+    PrinterInstallError,
     PrinterSetupPlan,
     PrinterSetupResult,
 )
@@ -161,6 +163,51 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn("Controlla configurazione stampante", page)
         self.assertIn("Chiudi applicazione", page)
         self.assertIn("Aggiornamenti U1FA", page)
+        self.assertIn("lascia U1FA aperta", page)
+
+    def test_calibration_status_repeats_keep_apps_warning_in_both_languages(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+            )
+            italian = _status(controller, language="it")
+            english = _status(controller, language="en")
+        self.assertIn("U1FA aperta", italian)
+        self.assertIn("Snapmaker Orca completamente chiuso", italian)
+        self.assertIn("keep U1FA open", english)
+        self.assertIn("Snapmaker Orca completely closed", english)
+
+    def test_error_status_offers_bilingual_read_only_recovery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+            )
+            selection = CalibrationSelection("Profilo", 4, 3, 220)
+            controller._job = JobSnapshot(
+                "error",
+                "HTTP Error 504",
+                selection,
+                started_at=100.0,
+            )
+            italian = _status(
+                controller, language="it", token="safe-token"
+            )
+            english = _status(
+                controller, language="en", token="safe-token"
+            )
+        self.assertIn('action="/recover"', italian)
+        self.assertIn("Recupera ultima calibrazione", italian)
+        self.assertIn("non invia alcun G-code", italian)
+        self.assertIn("Recover latest calibration", english)
+        self.assertIn("does not start another calibration", english)
 
     def test_update_banner_and_page_are_bilingual_and_verified(self):
         info = UpdateInfo(
@@ -577,6 +624,153 @@ class GUISafetyTests(unittest.TestCase):
                 os.path.normcase(os.path.realpath(root / "real-orca")),
             )
             self.assertEqual(controller.snapshot().state, "completed")
+
+    def test_transient_504_is_retried_without_restarting_calibration(self):
+        class FakeMoonraker:
+            def __init__(self):
+                self.store_calls = 0
+                self.scripts = []
+
+            def run_gcode(self, script):
+                self.scripts.append(script)
+
+            def gcode_store(self, count):
+                self.store_calls += 1
+                if self.store_calls == 1:
+                    raise PrinterInstallError(
+                        "Moonraker non raggiungibile: HTTP Error 504"
+                    )
+                return []
+
+        class FakeReport:
+            def to_dict(self):
+                return {"static_fallback": 0.01, "backup_path": "backup"}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+                real_orca_dir=root / "real-orca",
+                poll_interval=0.001,
+            )
+            selection = CalibrationSelection("Profilo", 4, 3, 220)
+            fake = FakeMoonraker()
+            with patch(
+                "u1_filament_automation.gui.MoonrakerClient",
+                return_value=fake,
+            ), patch(
+                "u1_filament_automation.gui.time.sleep"
+            ) as sleep, patch(
+                "u1_filament_automation.gui.parse_gcode_store",
+                return_value=[],
+            ), patch(
+                "u1_filament_automation.gui.new_gcode_entries",
+                return_value=[object()],
+            ), patch(
+                "u1_filament_automation.gui.response_text",
+                return_value="suite",
+            ), patch(
+                "u1_filament_automation.gui.last_complete_suite_span",
+                return_value=(object(), 0, 1),
+            ), patch(
+                "u1_filament_automation.gui.update_pa_profile",
+                return_value=FakeReport(),
+            ) as update:
+                controller._run_job(selection, [], started_at=100.0)
+
+        self.assertEqual(fake.store_calls, 2)
+        self.assertEqual(len(fake.scripts), 2)
+        self.assertEqual(update.call_count, 1)
+        self.assertTrue(sleep.called)
+        self.assertEqual(controller.snapshot().state, "completed")
+
+    def test_recovery_applies_only_suite_completed_after_selected_run(self):
+        class FakeMoonraker:
+            def __init__(self):
+                self.store_calls = 0
+
+            def gcode_store(self, count):
+                self.store_calls += 1
+                return []
+
+        class FakeCached:
+            completed_at = 101.0
+            suite = object()
+
+        class FakeReport:
+            def to_dict(self):
+                return {"static_fallback": 0.01, "backup_path": "backup"}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+                real_orca_dir=root / "real-orca",
+            )
+            selection = CalibrationSelection("Profilo", 4, 3, 220)
+            fake = FakeMoonraker()
+            with patch(
+                "u1_filament_automation.gui.MoonrakerClient",
+                return_value=fake,
+            ), patch(
+                "u1_filament_automation.gui.parse_gcode_store",
+                return_value=[],
+            ), patch(
+                "u1_filament_automation.gui.latest_cached_suite",
+                return_value=FakeCached(),
+            ), patch(
+                "u1_filament_automation.gui.update_pa_profile",
+                return_value=FakeReport(),
+            ) as update:
+                controller._run_recovery(selection, started_at=100.0)
+
+        self.assertEqual(fake.store_calls, 1)
+        self.assertEqual(update.call_count, 1)
+        self.assertEqual(update.call_args.args[1], "Profilo")
+        self.assertEqual(controller.snapshot().state, "completed")
+
+    def test_recovery_blocks_a_suite_from_an_older_calibration(self):
+        class FakeMoonraker:
+            def gcode_store(self, count):
+                return []
+
+        class OldCached:
+            completed_at = 90.0
+            suite = object()
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+                real_orca_dir=root / "real-orca",
+            )
+            selection = CalibrationSelection("Profilo", 4, 3, 220)
+            with patch(
+                "u1_filament_automation.gui.MoonrakerClient",
+                return_value=FakeMoonraker(),
+            ), patch(
+                "u1_filament_automation.gui.parse_gcode_store",
+                return_value=[],
+            ), patch(
+                "u1_filament_automation.gui.latest_cached_suite",
+                return_value=OldCached(),
+            ), patch(
+                "u1_filament_automation.gui.update_pa_profile"
+            ) as update:
+                controller._run_recovery(selection, started_at=100.0)
+
+        self.assertEqual(update.call_count, 0)
+        self.assertEqual(controller.snapshot().state, "error")
+        self.assertIn("precedente", controller.snapshot().message)
 
 
 class _GUIFakeSpoolman:

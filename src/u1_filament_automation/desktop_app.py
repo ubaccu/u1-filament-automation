@@ -21,7 +21,12 @@ from .config import (
     load_connection_config,
     normalize_service_url,
 )
-from .gui import CalibrationController, GUIError, run_gui
+from .gui import (
+    ACTIVE_CALIBRATION_STATES,
+    CalibrationController,
+    GUIError,
+    run_gui,
+)
 
 
 APP_NAME = "U1 Filament Automation"
@@ -198,7 +203,7 @@ def show_native_window(
 
     if controller is not None:
         def block_unsafe_close() -> bool:
-            if controller.snapshot().state in {"checking", "running"}:
+            if controller.snapshot().state in ACTIVE_CALIBRATION_STATES:
                 show_error(
                     "Chiusura bloccata durante la calibrazione / "
                     "closing is blocked during calibration"
