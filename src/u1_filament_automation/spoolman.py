@@ -299,7 +299,12 @@ def plan_spool_creation(
     if filament_matches and filament_id is None:
         raise ValueError("Il filamento Spoolman trovato non ha un ID valido")
 
-    base = choose_base(item.vendor, item.material, item.name)
+    base = choose_base(
+        item.vendor,
+        item.material,
+        item.name,
+        multicolor=len(item.multi_color_hexes) >= 2,
+    )
     if base is None:
         raise ValueError(
             "Materiale non ancora associato a un profilo base Snapmaker; creazione bloccata"

@@ -31,6 +31,10 @@ class SyncTests(unittest.TestCase):
             "Snapmaker PLA Silk",
         )
         self.assertEqual(
+            choose_base("Generic", "PLA", "Sunset Ember", multicolor=True),
+            "Snapmaker PLA Silk",
+        )
+        self.assertEqual(
             make_profile_name("Deeplee", "PLA", "Rapid Marrone"),
             "Deeplee PLA Rapid Marrone @Snapmaker U1 (0.4 nozzle)",
         )

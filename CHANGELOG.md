@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.0b8 — 2026-09-09
+
+- Aggiunti selettori grafici per i colori delle bobine multicolore: due colori
+  iniziali, pulsante per aggiungerne fino a otto e codici HEX sincronizzati.
+- Le bobine PLA multicolore usano automaticamente il profilo base **Snapmaker
+  PLA Silk**, anche quando il nome commerciale non contiene `Silk`.
+
 ## 1.8.0b7 — 2026-09-09
 
 - Aggiunto il materiale PLA Silk: il profilo base Silk viene scelto quando il

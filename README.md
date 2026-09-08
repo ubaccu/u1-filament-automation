@@ -43,8 +43,11 @@ instance supplied by PAXX or hosted on another device on the local network.
 6. When calibration finishes, U1FA backs up the JSON and writes static PA, the
    Adaptive PA table and bridge PA to that same profile.
 
-For a multicolour spool, select **Multicolor** in the new-spool form and enter
-the HEX codes separated by commas, in the order shown on the spool.
+For a multicolour spool, select **Multicolor** in the new-spool form. Choose
+the colours with the graphical colour pickers (two are shown initially), add
+up to eight colours if needed, and keep them in the order shown on the spool.
+The HEX values are kept in sync automatically. PLA multicolour spools use the
+Snapmaker PLA Silk base profile automatically.
 
 No result needs to be copied manually. Keep U1FA open and Snapmaker Orca
 completely closed throughout calibration. Reopen the slicer only after U1FA

@@ -40,8 +40,11 @@ PAXX oppure installato su un altro dispositivo della rete.
 6. Al termine U1FA crea un backup del JSON e inserisce automaticamente nello
    stesso profilo PA statico, tabella Adaptive PA e PA ponti.
 
-Per una bobina multicolore selezionare **Multicolore** nella creazione bobina e
-inserire i codici HEX separati da virgola nell'ordine mostrato sulla bobina.
+Per una bobina multicolore selezionare **Multicolore** nella creazione bobina.
+I selettori grafici mostrano già due colori: usare il selettore, aggiungere fino
+a otto colori con **Aggiungi colore** e mantenerli nell'ordine della bobina.
+I codici HEX vengono sincronizzati automaticamente. Le bobine PLA multicolore
+usano automaticamente il profilo base Snapmaker PLA Silk.
 
 Non è necessario copiare manualmente i risultati. Durante tutta la calibrazione
 lasciare U1FA aperta e Snapmaker Orca completamente chiuso. Riaprire lo slicer

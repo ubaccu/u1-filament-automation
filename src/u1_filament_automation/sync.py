@@ -54,7 +54,12 @@ def safe_filename(value: str) -> str:
     return value.replace("/", "-").replace(":", "-")
 
 
-def choose_base(vendor: str, material: str, name: str) -> str | None:
+def choose_base(
+    vendor: str,
+    material: str,
+    name: str,
+    multicolor: bool = False,
+) -> str | None:
     """Regole recuperate dal sincronizzatore Spoolman -> Snapmaker Orca."""
     text = f"{vendor} {material} {name}".lower()
     normalized = text.replace("-", " ").replace("_", " ")
@@ -80,10 +85,12 @@ def choose_base(vendor: str, material: str, name: str) -> str | None:
     if "pla" in normalized:
         if "cf" in tokens or "carbon fiber" in normalized or "carbon fibre" in normalized:
             return "Snapmaker PLA-CF @U1 0.4 nozzle"
-        if "silk" in normalized:
+        if "silk" in normalized or (multicolor and not fast):
             # Il profilo Silk U1 è nominato così nelle installazioni Orca
             # recenti; la risoluzione del file sotto gestisce anche il nome
-            # legacy con suffisso @U1.
+            # legacy con suffisso @U1. Le bobine PLA multicolore usano la
+            # stessa base Silk anche quando il nome commerciale non contiene
+            # esplicitamente la parola Silk.
             return "Snapmaker PLA Silk"
         if "wood" in tokens:
             return "Snapmaker PLA Wood @U1 0.4 nozzle"
@@ -330,7 +337,7 @@ def sync_profiles(
             )
             continue
 
-        base = choose_base(vendor, material, name)
+        base = choose_base(vendor, material, name, multicolor=len(colors) >= 2)
         profile_name = make_profile_name(vendor, material, name)
         if selected is not None and profile_name.casefold() not in selected:
             continue

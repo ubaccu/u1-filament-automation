@@ -409,6 +409,9 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn('id="color-sample"', page)
         self.assertIn('id="color-mode"', page)
         self.assertIn('name="multi_color_hexes"', page)
+        self.assertIn('id="multi-color-list"', page)
+        self.assertIn('id="add-multi-color"', page)
+        self.assertIn("multiColors=['#D9A62E','#D8494A']", page)
         self.assertIn("sample.style.backgroundColor=normalized", page)
 
     def test_selected_pink_hex_is_preserved_for_spoolman(self):
