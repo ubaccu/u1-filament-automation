@@ -66,7 +66,7 @@ from .spoolman import (
     first_working_inventory,
     plan_spool_creation,
 )
-from .sync import default_system_dir, sync_profiles
+from .sync import base_profile_path, default_system_dir, sync_profiles
 from .update import (
     UpdateError,
     UpdateInfo,
@@ -746,7 +746,7 @@ class CalibrationController:
             plan = plan_spool_creation(inventory, request)
         except ValueError as exc:
             raise GUIError(str(exc)) from exc
-        base_path = self.system_dir / f"{plan.base_profile}.json"
+        base_path = base_profile_path(self.system_dir, plan.base_profile)
         if not base_path.is_file():
             raise GUIError(
                 f"Profilo base Snapmaker non trovato: {plan.base_profile}. "
@@ -778,7 +778,7 @@ class CalibrationController:
                 current_plan = plan_spool_creation(inventory, prepared.plan.request)
             except ValueError as exc:
                 raise GUIError(str(exc)) from exc
-            base_path = self.system_dir / f"{current_plan.base_profile}.json"
+            base_path = base_profile_path(self.system_dir, current_plan.base_profile)
             if not base_path.is_file():
                 raise GUIError(
                     f"Profilo base Snapmaker non trovato: {current_plan.base_profile}. "
@@ -1528,7 +1528,9 @@ def _new_spool_form(
 <label>{_tr(language, 'Nome tecnico del filamento', 'Technical filament name')}</label><input name="name" maxlength="64" placeholder="{_tr(language, 'es. PLA PRO RAPID BLUE', 'e.g. PLA PRO RAPID BLUE')}" required>
 <div class="grid"><div><label>{_tr(language, 'Colore', 'Color')}</label><div class="color-control"><input id="color-picker" type="color" value="#2563eb" aria-label="{_tr(language, 'Selettore colore', 'Color picker')}">
 <input id="color-hex" name="color_hex" value="#2563EB" pattern="#?[0-9A-Fa-f]{{6}}" maxlength="7" aria-label="HEX" required>
-<span id="color-sample" class="color-sample" aria-hidden="true"></span></div><p class="muted">{_tr(language, 'Il codice HEX salvato in Spoolman è sempre visibile.', 'The HEX code saved in Spoolman is always visible.')}</p></div>
+<span id="color-sample" class="color-sample" aria-hidden="true"></span></div><p class="muted">{_tr(language, 'Il codice HEX salvato in Spoolman è sempre visibile.', 'The HEX code saved in Spoolman is always visible.')}</p>
+<label>{_tr(language, 'Tipo colore', 'Color type')}</label><select name="color_mode" id="color-mode"><option value="single">{_tr(language, 'Colore singolo', 'Single color')}</option><option value="multi">{_tr(language, 'Multicolore', 'Multicolor')}</option></select>
+<div id="multi-color-wrap" hidden><label>{_tr(language, 'Colori HEX (separati da virgola)', 'HEX colors (comma separated)')}</label><input id="multi-color-hexes" name="multi_color_hexes" placeholder="#D9A62E,#D8494A" pattern="#?[0-9A-Fa-f]{{6}}([,;\\s]+#?[0-9A-Fa-f]{{6}})+"><p class="muted">{_tr(language, 'Inserisci almeno 2 e massimo 8 colori, nell’ordine mostrato sulla bobina. Il primo colore è usato come colore principale.', 'Enter 2 to 8 colors in the order shown on the spool. The first color is used as the primary color.')}</p></div></div>
 <div><label>{_tr(language, 'Temperatura ugello', 'Nozzle temperature')} °C</label><input name="nozzle_temperature" id="nozzle-temp" type="number" min="170" max="300" value="220" required></div></div>
 <div class="grid"><div><label>{_tr(language, 'Temperatura piano', 'Bed temperature')} °C</label><input name="bed_temperature" id="bed-temp" type="number" min="0" max="150" value="60" required></div>
 <div><label>{_tr(language, 'Densità', 'Density')} g/cm³</label><input name="density" id="density" type="number" min="0.1" max="10" step="0.01" value="1.24" required></div></div>
@@ -1542,9 +1544,10 @@ def _new_spool_form(
 <p><button type="submit">{_tr(language, 'Mostra anteprima completa', 'Show full preview')}</button> <a class="button secondary" href="/">{_tr(language, 'Annulla', 'Cancel')}</a></p>
 </form></div>
 <script>
-var picker=document.getElementById('color-picker'),hexField=document.getElementById('color-hex'),sample=document.getElementById('color-sample');
+var picker=document.getElementById('color-picker'),hexField=document.getElementById('color-hex'),sample=document.getElementById('color-sample'),mode=document.getElementById('color-mode'),multiWrap=document.getElementById('multi-color-wrap'),multiField=document.getElementById('multi-color-hexes');
 function showColor(value){{var normalized=value.trim().toUpperCase();if(normalized.charAt(0)!=='#')normalized='#'+normalized;if(/^#[0-9A-F]{{6}}$/.test(normalized)){{picker.value=normalized;hexField.value=normalized;sample.style.backgroundColor=normalized;}}}}
 picker.addEventListener('input',function(){{showColor(this.value);}});hexField.addEventListener('input',function(){{showColor(this.value);}});showColor(picker.value);
+function updateColorMode(){{var multi=mode.value==='multi';multiWrap.hidden=!multi;multiField.required=multi;}} mode.addEventListener('change',updateColorMode);updateColorMode();
 document.getElementById('material').addEventListener('change',function(){{var p=this.value==='PETG'?['1.27','240','75']:['1.24','220','60'];document.getElementById('density').value=p[0];document.getElementById('nozzle-temp').value=p[1];document.getElementById('bed-temp').value=p[2];}});
 </script>"""
     return _page(_tr(language, "Nuova bobina", "New spool"), body, language=language)
@@ -1557,6 +1560,7 @@ def _new_spool_request(values: dict[str, str]) -> NewSpoolRequest:
             material=values.get("material", ""),
             name=values.get("name", ""),
             color_hex=values.get("color_hex", ""),
+            multi_color_hexes=(values.get("multi_color_hexes", "") if values.get("color_mode") == "multi" else ""),
             density=float(values.get("density", "nan")),
             diameter=float(values.get("diameter", "nan")),
             filament_weight=float(values.get("filament_weight", "nan")),
@@ -1582,10 +1586,12 @@ def _new_spool_preview(
     item = plan.request
     vendor_action = _tr(language, "riutilizza quello esistente", "reuse existing") if plan.vendor_id is not None else _tr(language, "crea nuovo", "create new")
     filament_action = _tr(language, "riutilizza quello esistente", "reuse existing") if plan.filament_id is not None else _tr(language, "crea nuovo", "create new")
+    color_values = item.multi_color_hexes or (item.color_hex,)
+    color_label = ", ".join(f"#{value}" for value in color_values)
     body = f"""
 <h1>{_tr(language, 'Conferma nuova bobina', 'Confirm new spool')}</h1><div class="card">
 <p><strong>Vendor:</strong> {html.escape(item.vendor)} — {vendor_action}</p>
-<p><strong>{_tr(language, 'Filamento', 'Filament')}:</strong> {html.escape(item.material)} · {html.escape(item.name)} · #{item.color_hex} — {filament_action}</p>
+<p><strong>{_tr(language, 'Filamento', 'Filament')}:</strong> {html.escape(item.material)} · {html.escape(item.name)} · {html.escape(color_label)} — {filament_action}</p>
 <p><strong>{_tr(language, 'Bobina', 'Spool')}:</strong> {_tr(language, 'crea nuova', 'create new')} · {_tr(language, 'nominale', 'nominal')} {item.filament_weight:g} g · {_tr(language, 'rimasto', 'remaining')} {item.remaining_weight:g} g · {_tr(language, 'usato', 'used')} {item.used_weight:g} g · {_tr(language, 'tara', 'empty spool')} {item.empty_spool_weight:g} g</p>
 <p><strong>{_tr(language, 'Profilo Snapmaker Orca', 'Snapmaker Orca profile')}:</strong> {html.escape(plan.profile_name)}</p>
 <p><strong>Base Snapmaker:</strong> {html.escape(plan.base_profile)}</p>

@@ -127,6 +127,10 @@ class NewSpoolRequest:
     location: str = ""
     lot_nr: str = ""
     comment: str = "Creato con U1 Filament Automation"
+    # Spoolman rappresenta le bobine multicolore con una stringa di HEX
+    # separati da virgole.  Manteniamo una tupla nel modello interno per non
+    # perdere l'ordine dei colori quando creiamo il profilo Orca.
+    multi_color_hexes: tuple[str, ...] = ()
 
     @property
     def used_weight(self) -> float:
@@ -138,9 +142,17 @@ class NewSpoolRequest:
         name = _required_text(self.name, "Nome tecnico")
         if len(vendor) > 64 or len(material) > 64 or len(name) > 64:
             raise ValueError("Marca, materiale e nome tecnico devono avere al massimo 64 caratteri")
-        color = self.color_hex.strip().lstrip("#").upper()
-        if not re.fullmatch(r"[0-9A-F]{6}", color):
-            raise ValueError("Il colore deve essere un valore esadecimale di 6 cifre")
+        color_values = _parse_color_values(self.multi_color_hexes)
+        if color_values:
+            if len(color_values) < 2 or len(color_values) > 8:
+                raise ValueError("Una bobina multicolore deve avere da 2 a 8 colori HEX")
+            colors = tuple(_normalize_color(value) for value in color_values)
+            if len(set(colors)) != len(colors):
+                raise ValueError("I colori HEX della bobina multicolore devono essere distinti")
+            color = colors[0]
+        else:
+            color = _normalize_color(self.color_hex)
+            colors = ()
         if not 0.1 <= float(self.density) <= 10:
             raise ValueError("La densità deve essere compresa tra 0.1 e 10 g/cm³")
         if not 1.0 <= float(self.diameter) <= 4.0:
@@ -175,6 +187,7 @@ class NewSpoolRequest:
             location=location,
             lot_nr=lot_nr,
             comment=comment,
+            multi_color_hexes=colors,
         )
 
 
@@ -183,6 +196,42 @@ def _required_text(value: str, label: str) -> str:
     if not result:
         raise ValueError(f"{label} obbligatorio")
     return result
+
+
+def _parse_color_values(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        values = re.split(r"[,;\s]+", value.strip())
+    else:
+        try:
+            values = list(value)
+        except TypeError:
+            values = [value]
+    return tuple(str(item).strip() for item in values if str(item).strip())
+
+
+def _normalize_color(value: Any) -> str:
+    color = str(value).strip().lstrip("#").upper()
+    if not re.fullmatch(r"[0-9A-F]{6}", color):
+        raise ValueError("Il colore deve essere un valore esadecimale di 6 cifre")
+    return color
+
+
+def _filament_colors(filament: dict[str, Any]) -> tuple[str, ...]:
+    values = _parse_color_values(filament.get("multi_color_hexes"))
+    if len(values) >= 2:
+        try:
+            return tuple(_normalize_color(value) for value in values)
+        except ValueError:
+            pass
+    color = filament.get("color_hex")
+    if color:
+        try:
+            return (_normalize_color(color),)
+        except ValueError:
+            return ()
+    return ()
 
 
 @dataclass(frozen=True)
@@ -236,12 +285,12 @@ def plan_spool_creation(
             filament_vendor_id = filament.get("vendor_id")
             if filament_vendor_id is None and isinstance(nested_vendor, dict):
                 filament_vendor_id = nested_vendor.get("id")
-            color = str(filament.get("color_hex", "")).strip().lstrip("#").upper()
+            filament_colors = _filament_colors(filament)
             if (
                 str(filament_vendor_id) == str(vendor_id)
                 and str(filament.get("material", "")).strip().casefold() == item.material.casefold()
                 and str(filament.get("name", "")).strip().casefold() == item.name.casefold()
-                and color == item.color_hex
+                and filament_colors == (item.multi_color_hexes or (item.color_hex,))
             ):
                 filament_matches.append(filament)
     if len(filament_matches) > 1:
@@ -294,9 +343,12 @@ def create_spool_from_plan(
                 "spool_weight": item.empty_spool_weight,
                 "settings_extruder_temp": item.nozzle_temperature,
                 "settings_bed_temp": item.bed_temperature,
-                "color_hex": item.color_hex,
                 "comment": item.comment,
             }
+            if item.multi_color_hexes:
+                filament_payload["multi_color_hexes"] = ",".join(item.multi_color_hexes)
+            else:
+                filament_payload["color_hex"] = item.color_hex
             filament = client.create_filament(filament_payload)
             filament_id = filament["id"]
             filament_created = True

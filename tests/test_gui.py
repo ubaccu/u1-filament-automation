@@ -407,6 +407,8 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn('id="color-picker"', page)
         self.assertIn('id="color-hex"', page)
         self.assertIn('id="color-sample"', page)
+        self.assertIn('id="color-mode"', page)
+        self.assertIn('name="multi_color_hexes"', page)
         self.assertIn("sample.style.backgroundColor=normalized", page)
 
     def test_selected_pink_hex_is_preserved_for_spoolman(self):
@@ -424,6 +426,25 @@ class GUISafetyTests(unittest.TestCase):
             "bed_temperature": "60",
         })
         self.assertEqual(request.color_hex, "D290DF")
+
+    def test_multicolor_spool_request_preserves_ordered_hexes(self):
+        request = _new_spool_request({
+            "vendor": "Snapmaker",
+            "material": "PLA",
+            "name": "Silk Sunset Ember",
+            "color_mode": "multi",
+            "color_hex": "#D9A62E",
+            "multi_color_hexes": "#D9A62E,#D8494A",
+            "density": "1.24",
+            "diameter": "1.75",
+            "filament_weight": "1000",
+            "empty_spool_weight": "0",
+            "remaining_weight": "1000",
+            "nozzle_temperature": "220",
+            "bed_temperature": "65",
+        })
+        self.assertEqual(request.color_hex, "D9A62E")
+        self.assertEqual(request.multi_color_hexes, ("D9A62E", "D8494A"))
 
     def test_setup_preview_requires_second_password_and_explicit_confirmation(self):
         plan = PrinterSetupPlan(

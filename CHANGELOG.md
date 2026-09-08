@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0b7 — 2026-09-09
+
+- Aggiunto il materiale PLA Silk: il profilo base Silk viene scelto quando il
+  nome del filamento contiene `Silk`, con compatibilità per i nomi Orca nuovi e legacy.
+- Aggiunto il tipo colore **Multicolore** nella creazione bobina: da 2 a 8 HEX
+  vengono salvati in Spoolman e riportati nell'ordine corretto nel profilo Orca.
+- La sincronizzazione automatica gestisce anche bobine multicolore create
+  direttamente dal sito Spoolman, senza sovrascrivere profili esistenti.
+
 ## 1.8.0b6 — 2026-09-08
 
 - Gli errori transitori di lettura Moonraker, compreso `HTTP 504`, vengono

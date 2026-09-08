@@ -15,6 +15,8 @@ Available for macOS, Windows and Linux.
 - creates or reuses vendors and filaments in Spoolman;
 - creates a spool with colour, weight, empty-spool weight, temperatures,
   location and lot information;
+- supports single-colour and multicolour spools (2 to 8 HEX colours),
+  preserving every colour in the Orca profile;
 - generates **one real filament profile** in Snapmaker Orca;
 - detects spools added directly from the Spoolman web interface;
 - safely installs or restores **U1FA AutoPA Mod** on a Stock U1;
@@ -40,6 +42,9 @@ instance supplied by PAXX or hosted on another device on the local network.
 5. Review the calculated speeds, flows and commands, then confirm calibration.
 6. When calibration finishes, U1FA backs up the JSON and writes static PA, the
    Adaptive PA table and bridge PA to that same profile.
+
+For a multicolour spool, select **Multicolor** in the new-spool form and enter
+the HEX codes separated by commas, in the order shown on the spool.
 
 No result needs to be copied manually. Keep U1FA open and Snapmaker Orca
 completely closed throughout calibration. Reopen the slicer only after U1FA

@@ -80,6 +80,11 @@ def choose_base(vendor: str, material: str, name: str) -> str | None:
     if "pla" in normalized:
         if "cf" in tokens or "carbon fiber" in normalized or "carbon fibre" in normalized:
             return "Snapmaker PLA-CF @U1 0.4 nozzle"
+        if "silk" in normalized:
+            # Il profilo Silk U1 è nominato così nelle installazioni Orca
+            # recenti; la risoluzione del file sotto gestisce anche il nome
+            # legacy con suffisso @U1.
+            return "Snapmaker PLA Silk"
         if "wood" in tokens:
             return "Snapmaker PLA Wood @U1 0.4 nozzle"
         if any(word in normalized for word in ("translucent", "transparent", "clear")):
@@ -175,9 +180,52 @@ def _vendor_for_filament(
     return clean(vendor.get("name"))
 
 
-def _profile_payload(profile_name: str, base: str, color: str, version: str) -> dict[str, Any]:
+def _filament_colors(filament: dict[str, Any]) -> tuple[str, ...]:
+    raw = filament.get("multi_color_hexes")
+    if isinstance(raw, str):
+        values = re.split(r"[,;\s]+", raw.strip())
+    elif isinstance(raw, (list, tuple)):
+        values = list(raw)
+    else:
+        values = []
+    colors: list[str] = []
+    for value in values:
+        color = clean(value).lstrip("#").upper()
+        if re.fullmatch(r"[0-9A-F]{6}", color) and color not in colors:
+            colors.append(color)
+    if len(colors) >= 2:
+        return tuple(colors)
+    color = clean(filament.get("color_hex")).lstrip("#").upper()
+    return (color,) if re.fullmatch(r"[0-9A-F]{6}", color) else ()
+
+
+def base_profile_path(system_dir: Path, base: str) -> Path:
+    candidates = [system_dir / f"{base}.json"]
+    if base == "Snapmaker PLA Silk":
+        candidates.append(system_dir / "Snapmaker PLA Silk @U1.json")
+    elif base == "Snapmaker PLA Silk @U1":
+        candidates.append(system_dir / "Snapmaker PLA Silk.json")
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
+def _profile_payload(
+    profile_name: str,
+    base: str,
+    colors: tuple[str, ...] | str,
+    version: str,
+) -> dict[str, Any]:
+    if isinstance(colors, str):
+        normalized_colors = (colors,) if colors else ()
+    else:
+        normalized_colors = tuple(colors)
     return {
-        "default_filament_colour": [f"#{color}" if color else "#FFFFFF"],
+        "default_filament_colour": [
+            f"#{color}" if color else "#FFFFFF"
+            for color in (normalized_colors or ("",))
+        ],
         "filament_settings_id": [profile_name],
         "from": "User",
         "inherits": base,
@@ -201,13 +249,18 @@ def _write_new_profile(
     system_dir: Path,
     profile_name: str,
     base: str,
-    color: str,
+    color: tuple[str, ...] | str,
 ) -> None:
-    base_file = system_dir / f"{base}.json"
+    base_file = base_profile_path(system_dir, base)
     filename = safe_filename(profile_name)
     json_path = user_dir / f"{filename}.json"
     info_path = user_dir / f"{filename}.info"
-    payload = _profile_payload(profile_name, base, color, _base_version(base_file))
+    payload = _profile_payload(
+        profile_name,
+        base_file.stem,
+        color,
+        _base_version(base_file),
+    )
     serialized = json.dumps(payload, indent=4, ensure_ascii=False) + "\n"
     json.loads(serialized)
 
@@ -254,7 +307,7 @@ def sync_profiles(
         if only_profile_names is None
         else {item.casefold() for item in only_profile_names}
     )
-    seen_spools: set[tuple[str, str, str, str]] = set()
+    seen_spools: set[tuple[str, str, str, str, tuple[str, ...]]] = set()
     planned_names: set[str] = set()
 
     for spool in inventory.spools:
@@ -262,10 +315,11 @@ def sync_profiles(
         vendor = _vendor_for_filament(filament, inventory)
         material = clean(filament.get("material"))
         name = clean(filament.get("name"))
-        color = clean(filament.get("color_hex")).lstrip("#").upper()
+        colors = _filament_colors(filament)
+        color = colors[0] if colors else ""
         spool_id = spool.get("id")
         spool_ids = () if spool_id is None else (spool_id,)
-        key = (vendor, material, name, color)
+        key = (vendor, material, name, color, colors)
         if key in seen_spools:
             continue
         seen_spools.add(key)
@@ -297,7 +351,7 @@ def sync_profiles(
                 )
             )
             continue
-        if not (effective_system_dir / f"{base}.json").is_file():
+        if not base_profile_path(effective_system_dir, base).is_file():
             actions.append(
                 SyncAction("skipped", profile_name, base, color, spool_ids, "base Snapmaker non trovata")
             )
@@ -316,7 +370,7 @@ def sync_profiles(
 
         if apply:
             try:
-                _write_new_profile(user_dir, effective_system_dir, profile_name, base, color)
+                _write_new_profile(user_dir, effective_system_dir, profile_name, base, colors)
             except FileExistsError:
                 actions.append(SyncAction("existing", profile_name, base, color, spool_ids))
                 continue

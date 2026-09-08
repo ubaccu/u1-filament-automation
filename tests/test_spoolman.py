@@ -225,6 +225,30 @@ class SpoolCreationTests(unittest.TestCase):
             plan_spool_creation(client.current, invalid)
         self.assertEqual(client.calls, [])
 
+    def test_multicolor_filament_uses_spoolman_multi_color_hexes(self):
+        request = NewSpoolRequest(
+            vendor="Snapmaker",
+            material="PLA",
+            name="Silk Sunset Ember",
+            color_hex="#D9A62E",
+            multi_color_hexes=("#D9A62E", "#D8494A"),
+            density=1.24,
+            diameter=1.75,
+            filament_weight=1000,
+            empty_spool_weight=0,
+            remaining_weight=1000,
+            nozzle_temperature=220,
+            bed_temperature=65,
+        )
+        inventory = SpoolmanInventory(url="http://spoolman.test")
+        client = _CreationClient(inventory)
+        plan = plan_spool_creation(inventory, request)
+        self.assertEqual(plan.base_profile, "Snapmaker PLA Silk")
+        create_spool_from_plan(client, plan)
+        filament_payload = client.calls[1][1]
+        self.assertNotIn("color_hex", filament_payload)
+        self.assertEqual(filament_payload["multi_color_hexes"], "D9A62E,D8494A")
+
 
 if __name__ == "__main__":
     unittest.main()

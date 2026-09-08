@@ -13,6 +13,8 @@ Disponibile in italiano e inglese per macOS, Windows e Linux.
 
 - crea o riutilizza vendor e filamenti in Spoolman;
 - crea la bobina con colore, peso, tara, temperature, posizione e lotto;
+- supporta bobine a colore singolo e multicolore (da 2 a 8 colori HEX),
+  mantenendo tutte le tinte nel profilo Orca;
 - genera **un solo profilo reale** in Snapmaker Orca;
 - rileva anche le bobine aggiunte direttamente dal sito di Spoolman;
 - installa o ripristina in sicurezza **U1FA AutoPA Mod** sulla U1 Stock;
@@ -37,6 +39,9 @@ PAXX oppure installato su un altro dispositivo della rete.
 5. Controlli velocità, flussi e comandi calcolati, quindi confermi la calibrazione.
 6. Al termine U1FA crea un backup del JSON e inserisce automaticamente nello
    stesso profilo PA statico, tabella Adaptive PA e PA ponti.
+
+Per una bobina multicolore selezionare **Multicolore** nella creazione bobina e
+inserire i codici HEX separati da virgola nell'ordine mostrato sulla bobina.
 
 Non è necessario copiare manualmente i risultati. Durante tutta la calibrazione
 lasciare U1FA aperta e Snapmaker Orca completamente chiuso. Riaprire lo slicer
