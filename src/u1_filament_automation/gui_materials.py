@@ -62,7 +62,8 @@ def enhance_new_spool_page(page: str, language: str = "it") -> str:
 
 def install_material_ui_patch(gui_module: Any) -> None:
     """Installa le estensioni desktop senza duplicarle."""
-    install_update_lifecycle_patch(gui_module)
+    if hasattr(gui_module, "_handler"):
+        install_update_lifecycle_patch(gui_module)
 
     current: Callable[..., str] = gui_module._new_spool_form
     if getattr(current, "_u1fa_material_ui_patch", False):
