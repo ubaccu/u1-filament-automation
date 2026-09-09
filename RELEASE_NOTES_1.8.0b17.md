@@ -16,6 +16,7 @@ Questa beta è pensata come release candidate prima della prima stabile 1.8.0.
 - Accesso rapido a **Nuova bobina** e **Aggiornamenti U1FA**.
 - Indicatore sintetico dello stato aggiornamenti.
 - Testo dell'updater allineato al nuovo comportamento: dopo l'apertura del pacchetto già verificato, U1FA si chiude automaticamente per evitare l'errore macOS «app in uso».
+- Il DMG macOS include **LEGGIMI PRIMA - macOS.html**, con i passaggi guidati per autorizzare il primo avvio tramite clic destro → Apri oppure Impostazioni di Sistema → Privacy e sicurezza → Apri comunque, senza disattivare Gatekeeper.
 
 ### Sicurezza
 
@@ -23,6 +24,7 @@ Questa beta è pensata come release candidate prima della prima stabile 1.8.0.
 - Nessuna modifica a firmware, configurazione U1, Klipper, Adaptive PA o profili Orca viene eseguita aprendo la dashboard.
 - L'apertura dell'installer resta bloccata durante una calibrazione attiva.
 - Download e verifica SHA-256 restano invariati.
+- La guida macOS non esegue script o comandi Terminale: è un semplice file HTML informativo incluso nel DMG.
 
 ### Materiali già disponibili
 
@@ -49,6 +51,7 @@ This beta is intended as a release candidate before the first 1.8.0 stable relea
 - Quick links to New spool and U1FA updates.
 - Compact update-status indicator.
 - Updater copy now matches the auto-close behavior after opening an already verified installer package.
+- The macOS DMG now includes **LEGGIMI PRIMA - macOS.html**, with first-launch Gatekeeper instructions using right-click → Open or System Settings → Privacy & Security → Open Anyway, without disabling Gatekeeper.
 
 ### Safety
 
@@ -56,3 +59,4 @@ This beta is intended as a release candidate before the first 1.8.0 stable relea
 - Opening the dashboard does not modify firmware, U1 configuration, Klipper, Adaptive PA or Orca profiles.
 - Opening an installer remains blocked while calibration is active.
 - Download and SHA-256 verification behavior is unchanged.
+- The macOS guide is a static HTML file and runs no script or Terminal command.
