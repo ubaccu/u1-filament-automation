@@ -9,6 +9,8 @@ Snapmaker Orca e la calibrazione Adaptive Pressure Advance della Snapmaker U1.
 
 Disponibile in italiano e inglese per macOS, Windows e Linux.
 
+<a href="https://www.buymeacoffee.com/riccelliiv9" target="_blank" rel="noopener noreferrer"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="60" width="217"></a>
+
 ## Cosa fa
 
 - crea o riutilizza vendor e filamenti in Spoolman;

@@ -10,6 +10,8 @@ Snapmaker U1.
 
 Available for macOS, Windows and Linux.
 
+<a href="https://www.buymeacoffee.com/riccelliiv9" target="_blank" rel="noopener noreferrer"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="60" width="217"></a>
+
 ## What it does
 
 - creates or reuses vendors and filaments in Spoolman;
