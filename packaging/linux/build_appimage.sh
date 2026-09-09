@@ -32,6 +32,7 @@ python3 -m PyInstaller \
     --windowed \
     --onedir \
     --name "$APP_NAME" \
+    --collect-data certifi \
     --add-data "$PROJECT_DIR/src/u1_filament_automation/assets/u1fa_logo.png:u1_filament_automation/assets" \
     --add-data "$PROJECT_DIR/src/u1_filament_automation/assets/flow_calibrator_stock.py:u1_filament_automation/assets" \
     --add-data "$PROJECT_DIR/src/u1_filament_automation/assets/flow_calibrator_v6.py:u1_filament_automation/assets" \
@@ -40,6 +41,8 @@ python3 -m PyInstaller \
     --specpath "$BUILD_ROOT" \
     --distpath "$DIST_DIR" \
     "$SCRIPT_DIR/u1fa_bootstrap.py"
+
+U1FA_DESKTOP_SELFTEST=1 "$DIST_DIR/$APP_NAME/$APP_NAME"
 
 mkdir -p "$APPDIR/usr/lib/u1fa" "$APPDIR/usr/share/applications" \
     "$APPDIR/usr/share/icons/hicolor/512x512/apps"
