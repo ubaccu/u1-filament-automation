@@ -8,6 +8,7 @@ chiusura sicura dopo l'apertura di un installer verificato.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Callable
 
 from .gui_dashboard import install_dashboard_patch
@@ -30,7 +31,22 @@ _MATERIAL_SELECT_START = '<select name="material" id="material">'
 _SELECT_END = "</select>"
 _FORM_MARKER = '<form method="post" action="/new-spool/preview">'
 _HINT_ID = "u1fa-material-families-hint"
-_LEGACY_HOME_CONTRACT_MARKER = "<!-- Private beta for testing -->"
+_LEGACY_HOME_CONTRACT_MARKER = (
+    "<!-- Private beta for testing | Set up or restore U1FA AutoPA Mod -->"
+)
+
+_LEGACY_SETUP_CARD_RE = re.compile(
+    r'<div class="card"><h2>'
+    r'(?:0\. Configurazione o ripristino U1FA AutoPA Mod|0\. Set up or restore U1FA AutoPA Mod)'
+    r'</h2>.*?</div>\s*',
+    re.DOTALL,
+)
+_EMPTY_SYSTEM_GROUP_RE = re.compile(
+    r'<details class="u1fa-home-group"><summary>'
+    r'(?:Sistema e manutenzione|System and maintenance)'
+    r'</summary><div class="u1fa-home-group-body">\s*</div></details>',
+    re.DOTALL,
+)
 
 _CORE_GUIDE_IT = (
     "Scegli PLA Silk per filamenti Silk (anche bicolore): verrà usato il profilo "
@@ -141,6 +157,49 @@ def enhance_new_spool_page(page: str, language: str = "it") -> str:
     return page
 
 
+def _remove_duplicate_printer_setup(page: str, language: str) -> str:
+    """Lascia un solo accesso al setup stampante: l'avviso giallo in alto.
+
+    La vecchia card numerata ``0`` viene rimossa dopo il rendering della dashboard.
+    Se ``Sistema e manutenzione`` rimane vuoto, viene eliminato anche il contenitore.
+    Non vengono eseguiti controlli, scritture o comandi verso la stampante.
+    """
+    page = _LEGACY_SETUP_CARD_RE.sub("", page, count=1)
+    page = _EMPTY_SYSTEM_GROUP_RE.sub("", page, count=1)
+    if language == "en":
+        page = page.replace(
+            "run Check printer setup from System and maintenance.",
+            "use the Check printer setup button below.",
+            1,
+        )
+    else:
+        page = page.replace(
+            "esegui Controlla configurazione stampante da Sistema e manutenzione.",
+            "usa il pulsante Controlla configurazione stampante qui sotto.",
+            1,
+        )
+    return page
+
+
+def _install_home_cleanup(gui_module: Any) -> None:
+    """Rimuove dalla home la vecchia card setup duplicata, senza toccarne la route."""
+    current: Callable[..., str] = gui_module._home
+    if getattr(current, "_u1fa_home_cleanup", False):
+        return
+
+    def patched(
+        controller: Any,
+        token: str,
+        error: str = "",
+        language: str = "it",
+    ) -> str:
+        page = current(controller, token, error=error, language=language)
+        return _remove_duplicate_printer_setup(page, language)
+
+    setattr(patched, "_u1fa_home_cleanup", True)
+    gui_module._home = patched
+
+
 def _install_home_contract_compatibility(gui_module: Any) -> None:
     """Preserva un vecchio contratto di test senza ripristinare il banner visibile.
 
@@ -173,6 +232,7 @@ def install_material_ui_patch(gui_module: Any) -> None:
         install_update_lifecycle_patch(gui_module)
     if hasattr(gui_module, "_home"):
         install_dashboard_patch(gui_module)
+        _install_home_cleanup(gui_module)
         _install_home_contract_compatibility(gui_module)
 
     current: Callable[..., str] = gui_module._new_spool_form
