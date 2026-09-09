@@ -1530,7 +1530,7 @@ def _new_spool_form(
 <input id="color-hex" name="color_hex" value="#2563EB" pattern="#?[0-9A-Fa-f]{{6}}" maxlength="7" aria-label="HEX" required>
 <span id="color-sample" class="color-sample" aria-hidden="true"></span></div><p class="muted">{_tr(language, 'Il codice HEX salvato in Spoolman è sempre visibile.', 'The HEX code saved in Spoolman is always visible.')}</p>
 <label>{_tr(language, 'Tipo colore', 'Color type')}</label><select name="color_mode" id="color-mode"><option value="single">{_tr(language, 'Colore singolo', 'Single color')}</option><option value="multi">{_tr(language, 'Multicolore', 'Multicolor')}</option></select>
-<div id="multi-color-wrap" hidden><label>{_tr(language, 'Colori della bobina', 'Spool colors')}</label><div id="multi-color-list"></div><input id="multi-color-hexes" type="hidden" name="multi_color_hexes"><button id="add-multi-color" type="button" class="secondary">{_tr(language, '＋ Aggiungi colore', '＋ Add color')}</button><p class="muted">{_tr(language, 'Scegli almeno 2 e massimo 8 colori nell’ordine mostrato sulla bobina. Il primo colore è usato come colore principale.', 'Choose 2 to 8 colors in the order shown on the spool. The first color is used as the primary color.')}</p></div></div>
+<div id="multi-color-wrap" hidden><label>{_tr(language, 'Colori della bobina', 'Spool colors')}</label><div id="multi-color-list"></div><input id="multi-color-hexes" type="hidden" name="multi_color_hexes"><button id="add-multi-color" type="button" class="secondary">{_tr(language, '＋ Aggiungi colore', '＋ Add color')}</button><p class="muted">{_tr(language, 'Scegli almeno 2 e massimo 8 colori nell’ordine mostrato sulla bobina. Il primo colore è usato come colore principale.', 'Choose 2 to 8 colors in the order shown on the spool. The first color is used as the primary color.')}</p><label>{_tr(language, 'Disposizione del multicolore', 'Multicolor arrangement')}</label><select name="multi_color_direction" id="multi-color-direction"><option value="coaxial">{_tr(language, 'Bicolore affiancati (coassiale)', 'Side-by-side bicolor (coaxial)')}</option><option value="longitudinal">{_tr(language, 'Cambio lungo il filo', 'Longitudinal color change')}</option></select><p class="muted">{_tr(language, 'Per Snapmaker Silk Sunset Ember usa “Bicolore affiancati (coassiale)”.', 'For Snapmaker Silk Sunset Ember use “Side-by-side bicolor (coaxial)”.')}</p></div></div>
 <div><label>{_tr(language, 'Temperatura ugello', 'Nozzle temperature')} °C</label><input name="nozzle_temperature" id="nozzle-temp" type="number" min="170" max="300" value="220" required></div></div>
 <div class="grid"><div><label>{_tr(language, 'Temperatura piano', 'Bed temperature')} °C</label><input name="bed_temperature" id="bed-temp" type="number" min="0" max="150" value="60" required></div>
 <div><label>{_tr(language, 'Densità', 'Density')} g/cm³</label><input name="density" id="density" type="number" min="0.1" max="10" step="0.01" value="1.24" required></div></div>
@@ -1565,6 +1565,7 @@ def _new_spool_request(values: dict[str, str]) -> NewSpoolRequest:
             name=values.get("name", ""),
             color_hex=values.get("color_hex", ""),
             multi_color_hexes=(values.get("multi_color_hexes", "") if values.get("color_mode") == "multi" else ""),
+            multi_color_direction=(values.get("multi_color_direction", "") if values.get("color_mode") == "multi" else ""),
             density=float(values.get("density", "nan")),
             diameter=float(values.get("diameter", "nan")),
             filament_weight=float(values.get("filament_weight", "nan")),
@@ -1592,10 +1593,20 @@ def _new_spool_preview(
     filament_action = _tr(language, "riutilizza quello esistente", "reuse existing") if plan.filament_id is not None else _tr(language, "crea nuovo", "create new")
     color_values = item.multi_color_hexes or (item.color_hex,)
     color_label = ", ".join(f"#{value}" for value in color_values)
+    direction_label = (
+        _tr(language, "Bicolore affiancati (coassiale)", "Side-by-side bicolor (coaxial)")
+        if item.multi_color_direction == "coaxial"
+        else _tr(language, "Cambio lungo il filo", "Longitudinal color change")
+    ) if item.multi_color_hexes else ""
+    direction_row = (
+        f'<p><strong>{_tr(language, "Disposizione multicolore", "Multicolor arrangement")}:</strong> {direction_label}</p>'
+        if item.multi_color_hexes else ""
+    )
     body = f"""
 <h1>{_tr(language, 'Conferma nuova bobina', 'Confirm new spool')}</h1><div class="card">
 <p><strong>Vendor:</strong> {html.escape(item.vendor)} — {vendor_action}</p>
 <p><strong>{_tr(language, 'Filamento', 'Filament')}:</strong> {html.escape(item.material)} · {html.escape(item.name)} · {html.escape(color_label)} — {filament_action}</p>
+{direction_row}
 <p><strong>{_tr(language, 'Bobina', 'Spool')}:</strong> {_tr(language, 'crea nuova', 'create new')} · {_tr(language, 'nominale', 'nominal')} {item.filament_weight:g} g · {_tr(language, 'rimasto', 'remaining')} {item.remaining_weight:g} g · {_tr(language, 'usato', 'used')} {item.used_weight:g} g · {_tr(language, 'tara', 'empty spool')} {item.empty_spool_weight:g} g</p>
 <p><strong>{_tr(language, 'Profilo Snapmaker Orca', 'Snapmaker Orca profile')}:</strong> {html.escape(plan.profile_name)}</p>
 <p><strong>Base Snapmaker:</strong> {html.escape(plan.base_profile)}</p>

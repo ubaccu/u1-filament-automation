@@ -47,7 +47,10 @@ For a multicolour spool, select **Multicolor** in the new-spool form. Choose
 the colours with the graphical colour pickers (two are shown initially), add
 up to eight colours if needed, and keep them in the order shown on the spool.
 The HEX values are kept in sync automatically. PLA multicolour spools use the
-Snapmaker PLA Silk base profile automatically.
+Snapmaker PLA Silk base profile automatically. Select the arrangement as well:
+**side-by-side bicolor (coaxial)** for Sunset Ember and other side-by-side
+two-colour filaments; **longitudinal color change** for filaments whose colour
+transitions along the strand.
 
 No result needs to be copied manually. Keep U1FA open and Snapmaker Orca
 completely closed throughout calibration. Reopen the slicer only after U1FA

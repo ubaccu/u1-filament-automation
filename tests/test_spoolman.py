@@ -248,6 +248,32 @@ class SpoolCreationTests(unittest.TestCase):
         filament_payload = client.calls[1][1]
         self.assertNotIn("color_hex", filament_payload)
         self.assertEqual(filament_payload["multi_color_hexes"], "D9A62E,D8494A")
+        self.assertEqual(filament_payload["multi_color_direction"], "coaxial")
+
+    def test_multicolor_direction_is_validated_and_sent(self):
+        request = NewSpoolRequest(
+            **{
+                **_new_blue().__dict__,
+                "multi_color_hexes": ("#D9A62E", "#D8494A"),
+                "multi_color_direction": "longitudinal",
+            }
+        )
+        inventory = SpoolmanInventory(url="http://spoolman.test")
+        client = _CreationClient(inventory)
+        plan = plan_spool_creation(inventory, request)
+        create_spool_from_plan(client, plan)
+        self.assertEqual(client.calls[1][1]["multi_color_direction"], "longitudinal")
+
+    def test_invalid_multicolor_direction_is_blocked_before_any_write(self):
+        invalid = NewSpoolRequest(
+            **{
+                **_new_blue().__dict__,
+                "multi_color_hexes": ("#D9A62E", "#D8494A"),
+                "multi_color_direction": "diagonal",
+            }
+        )
+        with self.assertRaises(ValueError):
+            invalid.validated()
 
 
 if __name__ == "__main__":

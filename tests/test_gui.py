@@ -409,6 +409,8 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn('id="color-sample"', page)
         self.assertIn('id="color-mode"', page)
         self.assertIn('name="multi_color_hexes"', page)
+        self.assertIn('name="multi_color_direction"', page)
+        self.assertIn('id="multi-color-direction"', page)
         self.assertIn('id="multi-color-list"', page)
         self.assertIn('id="add-multi-color"', page)
         self.assertIn("multiColors=['#D9A62E','#D8494A']", page)
@@ -438,6 +440,7 @@ class GUISafetyTests(unittest.TestCase):
             "color_mode": "multi",
             "color_hex": "#D9A62E",
             "multi_color_hexes": "#D9A62E,#D8494A",
+            "multi_color_direction": "coaxial",
             "density": "1.24",
             "diameter": "1.75",
             "filament_weight": "1000",
@@ -448,6 +451,7 @@ class GUISafetyTests(unittest.TestCase):
         })
         self.assertEqual(request.color_hex, "D9A62E")
         self.assertEqual(request.multi_color_hexes, ("D9A62E", "D8494A"))
+        self.assertEqual(request.multi_color_direction, "coaxial")
 
     def test_setup_preview_requires_second_password_and_explicit_confirmation(self):
         plan = PrinterSetupPlan(

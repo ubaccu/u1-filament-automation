@@ -44,7 +44,10 @@ Per una bobina multicolore selezionare **Multicolore** nella creazione bobina.
 I selettori grafici mostrano già due colori: usare il selettore, aggiungere fino
 a otto colori con **Aggiungi colore** e mantenerli nell'ordine della bobina.
 I codici HEX vengono sincronizzati automaticamente. Le bobine PLA multicolore
-usano automaticamente il profilo base Snapmaker PLA Silk.
+usano automaticamente il profilo base Snapmaker PLA Silk. Selezionare anche la
+disposizione: **bicolore affiancati (coassiale)** per Sunset Ember e filamenti
+con due colori affiancati; **cambio lungo il filo** per i filamenti con transizione
+longitudinale.
 
 Non è necessario copiare manualmente i risultati. Durante tutta la calibrazione
 lasciare U1FA aperta e Snapmaker Orca completamente chiuso. Riaprire lo slicer

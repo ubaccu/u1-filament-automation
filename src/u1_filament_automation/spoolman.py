@@ -131,6 +131,9 @@ class NewSpoolRequest:
     # separati da virgole.  Manteniamo una tupla nel modello interno per non
     # perdere l'ordine dei colori quando creiamo il profilo Orca.
     multi_color_hexes: tuple[str, ...] = ()
+    # Spoolman richiede anche la geometria del multicolore: coaxial (colori
+    # affiancati nella sezione) oppure longitudinal (cambio lungo il filo).
+    multi_color_direction: str = ""
 
     @property
     def used_weight(self) -> float:
@@ -150,9 +153,13 @@ class NewSpoolRequest:
             if len(set(colors)) != len(colors):
                 raise ValueError("I colori HEX della bobina multicolore devono essere distinti")
             color = colors[0]
+            direction = self.multi_color_direction.strip().lower() or "coaxial"
+            if direction not in {"coaxial", "longitudinal"}:
+                raise ValueError("La direzione multicolore deve essere coaxial o longitudinal")
         else:
             color = _normalize_color(self.color_hex)
             colors = ()
+            direction = ""
         if not 0.1 <= float(self.density) <= 10:
             raise ValueError("La densità deve essere compresa tra 0.1 e 10 g/cm³")
         if not 1.0 <= float(self.diameter) <= 4.0:
@@ -188,6 +195,7 @@ class NewSpoolRequest:
             lot_nr=lot_nr,
             comment=comment,
             multi_color_hexes=colors,
+            multi_color_direction=direction,
         )
 
 
@@ -352,6 +360,7 @@ def create_spool_from_plan(
             }
             if item.multi_color_hexes:
                 filament_payload["multi_color_hexes"] = ",".join(item.multi_color_hexes)
+                filament_payload["multi_color_direction"] = item.multi_color_direction or "coaxial"
             else:
                 filament_payload["color_hex"] = item.color_hex
             filament = client.create_filament(filament_payload)

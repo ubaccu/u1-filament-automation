@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.0b9 — 2026-09-09
+
+- Corretto l'errore Spoolman HTTP 422 nella creazione delle bobine multicolore:
+  ora viene inviata anche la direzione richiesta dall'API.
+- Aggiunta la scelta tra **bicolore affiancati (coassiale)** e **cambio lungo il
+  filo**. Per Snapmaker Silk Sunset Ember usare la prima opzione.
+
 ## 1.8.0b8 — 2026-09-09
 
 - Aggiunti selettori grafici per i colori delle bobine multicolore: due colori
