@@ -93,6 +93,7 @@ class DesktopDistributionTests(unittest.TestCase):
         server.assert_not_called()
 
     def test_windows_installer_and_linux_appimage_are_defined(self):
+        macos_script = self.root / "packaging" / "macos" / "build_dmg.sh"
         windows_script = self.root / "packaging" / "windows" / "build_installer.ps1"
         inno = self.root / "packaging" / "windows" / "U1FA.iss"
         linux_script = self.root / "packaging" / "linux" / "build_appimage.sh"
@@ -106,12 +107,19 @@ class DesktopDistributionTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
-        self.assertIn("PyInstaller", windows_script.read_text(encoding="utf-8"))
-        self.assertIn("U1FA_DESKTOP_SELFTEST", windows_script.read_text(encoding="utf-8"))
+        macos_source = macos_script.read_text(encoding="utf-8")
+        windows_source = windows_script.read_text(encoding="utf-8")
+        linux_source = linux_script.read_text(encoding="utf-8")
+        self.assertIn("PyInstaller", windows_source)
+        self.assertIn("U1FA_DESKTOP_SELFTEST", windows_source)
         self.assertIn("Inno Setup", windows_script.read_text(encoding="utf-8"))
-        self.assertIn("appimagetool", linux_script.read_text(encoding="utf-8"))
-        self.assertIn("adaptive_pa_macro.cfg", windows_script.read_text(encoding="utf-8"))
-        self.assertIn("adaptive_pa_macro.cfg", linux_script.read_text(encoding="utf-8"))
+        self.assertIn("appimagetool", linux_source)
+        self.assertIn("adaptive_pa_macro.cfg", windows_source)
+        self.assertIn("adaptive_pa_macro.cfg", linux_source)
+        for source in (macos_source, windows_source, linux_source):
+            self.assertIn("collect-data", source)
+            self.assertIn("certifi", source)
+            self.assertIn("U1FA_DESKTOP_SELFTEST", source)
 
     def test_desktop_distribution_embeds_a_native_window(self):
         pyproject = (self.root / "pyproject.toml").read_text(encoding="utf-8")
