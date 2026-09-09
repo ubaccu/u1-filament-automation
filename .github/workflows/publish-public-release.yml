@@ -35,6 +35,7 @@ concurrency:
 
 env:
   PUBLIC_RELEASE_REPOSITORY: ubaccu/u1-filament-automation
+  PUBLIC_SOURCE_BRANCH: release-source-current
 
 jobs:
   source-package-check:
@@ -80,6 +81,39 @@ jobs:
 
           print(f"Validated {archive} with {len(names)} entries")
           PY
+      - name: Validate isolated source snapshot tree
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          archives=(dist/*-Source.zip)
+          if [[ "${#archives[@]}" -ne 1 ]]; then
+            echo "Expected exactly one source archive." >&2
+            exit 1
+          fi
+
+          snapshot_dir="$(mktemp -d)"
+          trap 'rm -rf "$snapshot_dir"' EXIT
+          mkdir -p "$snapshot_dir/unpacked" "$snapshot_dir/repo"
+          unzip -q "${archives[0]}" -d "$snapshot_dir/unpacked"
+          mapfile -t roots < <(find "$snapshot_dir/unpacked" -mindepth 1 -maxdepth 1 -type d -print)
+          if [[ "${#roots[@]}" -ne 1 ]]; then
+            echo "Source archive must contain exactly one top-level directory." >&2
+            exit 1
+          fi
+          cp -a "${roots[0]}/." "$snapshot_dir/repo/"
+          if [[ -e "$snapshot_dir/repo/.github" || -e "$snapshot_dir/repo/tests" ]]; then
+            echo "Development-only content leaked into the source snapshot." >&2
+            exit 1
+          fi
+
+          git -C "$snapshot_dir/repo" init -q
+          git -C "$snapshot_dir/repo" checkout --orphan "$PUBLIC_SOURCE_BRANCH" >/dev/null 2>&1
+          git -C "$snapshot_dir/repo" config user.name "Bottega3DLab Release"
+          git -C "$snapshot_dir/repo" config user.email "riccelliivan@gmail.com"
+          git -C "$snapshot_dir/repo" add -A
+          git -C "$snapshot_dir/repo" commit -q -m "Validate isolated U1FA source snapshot"
+          git -C "$snapshot_dir/repo" fsck --full
+          echo "Validated isolated source tree $(git -C "$snapshot_dir/repo" rev-parse HEAD^{tree})"
       - uses: actions/upload-artifact@v4
         with:
           name: U1FA-Source
@@ -276,7 +310,7 @@ jobs:
           done
           (cd release-assets && sha256sum ./* > SHA256SUMS.txt)
           cat release-assets/SHA256SUMS.txt
-      - name: Publish only to public release repository
+      - name: Publish exact source snapshot and release
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
           TAG: ${{ needs.validate-release.outputs.tag }}
@@ -284,6 +318,9 @@ jobs:
           VERSION: ${{ needs.validate-release.outputs.version }}
           NOTES_FILE: ${{ needs.validate-release.outputs.notes_file }}
         run: |
+          set -euo pipefail
+          shopt -s nullglob
+
           if [[ -z "${GH_TOKEN:-}" ]]; then
             echo "PUBLIC_RELEASE_TOKEN is not configured." >&2
             exit 1
@@ -298,6 +335,50 @@ jobs:
             exit 1
           fi
 
+          source_archives=(release-assets/*-Source.zip)
+          if [[ "${#source_archives[@]}" -ne 1 ]]; then
+            echo "Expected exactly one corresponding-source archive." >&2
+            exit 1
+          fi
+
+          gh auth setup-git
+          snapshot_dir="$(mktemp -d)"
+          trap 'rm -rf "$snapshot_dir"' EXIT
+          mkdir -p "$snapshot_dir/unpacked" "$snapshot_dir/repo"
+          unzip -q "${source_archives[0]}" -d "$snapshot_dir/unpacked"
+          mapfile -t roots < <(find "$snapshot_dir/unpacked" -mindepth 1 -maxdepth 1 -type d -print)
+          if [[ "${#roots[@]}" -ne 1 ]]; then
+            echo "Source archive must contain exactly one top-level directory." >&2
+            exit 1
+          fi
+          cp -a "${roots[0]}/." "$snapshot_dir/repo/"
+
+          git -C "$snapshot_dir/repo" init -q
+          git -C "$snapshot_dir/repo" checkout --orphan "$PUBLIC_SOURCE_BRANCH" >/dev/null 2>&1
+          git -C "$snapshot_dir/repo" config user.name "Bottega3DLab Release"
+          git -C "$snapshot_dir/repo" config user.email "riccelliivan@gmail.com"
+          git -C "$snapshot_dir/repo" add -A
+          git -C "$snapshot_dir/repo" commit -q -m "U1FA $VERSION source snapshot"
+          source_commit="$(git -C "$snapshot_dir/repo" rev-parse HEAD)"
+          source_tree="$(git -C "$snapshot_dir/repo" rev-parse HEAD^{tree})"
+          git -C "$snapshot_dir/repo" remote add origin "https://github.com/$PUBLIC_RELEASE_REPOSITORY.git"
+
+          if git -C "$snapshot_dir/repo" ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Public tag $TAG already exists without a release; refusing to retarget it." >&2
+            exit 1
+          fi
+
+          git -C "$snapshot_dir/repo" push --force origin HEAD:"refs/heads/$PUBLIC_SOURCE_BRANCH"
+          git -C "$snapshot_dir/repo" tag "$TAG" "$source_commit"
+          git -C "$snapshot_dir/repo" push origin "refs/tags/$TAG"
+
+          remote_tag="$(git -C "$snapshot_dir/repo" ls-remote origin "refs/tags/$TAG" | awk '{print $1}')"
+          if [[ "$remote_tag" != "$source_commit" ]]; then
+            echo "Published tag does not point to the exact source snapshot." >&2
+            exit 1
+          fi
+          echo "Public source snapshot: $source_commit (tree $source_tree)"
+
           flags=()
           if [[ "$PRERELEASE" == "true" ]]; then
             flags+=(--prerelease)
@@ -305,9 +386,13 @@ jobs:
 
           gh release create "$TAG" release-assets/* \
             --repo "$PUBLIC_RELEASE_REPOSITORY" \
-            --target main \
             --title "U1 Filament Automation ${TAG#v}" \
             --notes-file "$NOTES_FILE" \
             "${flags[@]}"
 
+          release_tag_sha="$(gh api "repos/$PUBLIC_RELEASE_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha)"
+          if [[ "$release_tag_sha" != "$source_commit" ]]; then
+            echo "Release tag SHA does not match the exact source snapshot." >&2
+            exit 1
+          fi
           gh release view "$TAG" --repo "$PUBLIC_RELEASE_REPOSITORY" --json tagName,name,isPrerelease,url
