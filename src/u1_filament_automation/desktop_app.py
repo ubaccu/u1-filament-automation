@@ -27,6 +27,7 @@ from .gui import (
     GUIError,
     run_gui,
 )
+from .update import github_ssl_context
 
 
 APP_NAME = "U1 Filament Automation"
@@ -180,7 +181,9 @@ def _load_webview():
 def desktop_self_test() -> int:
     """Verifica che il pacchetto compilato contenga il runtime desktop."""
     webview = _load_webview()
-    return 0 if all(hasattr(webview, name) for name in ("create_window", "start")) else 1
+    if not all(hasattr(webview, name) for name in ("create_window", "start")):
+        return 1
+    return 0 if github_ssl_context().get_ca_certs() else 1
 
 
 def show_native_window(
