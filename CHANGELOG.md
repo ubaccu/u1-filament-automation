@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0b13 — 2026-09-09
+
+- Aumentato da 4 a 15 secondi il tempo disponibile per interrogare GitHub,
+  evitando falsi errori sulle connessioni più lente.
+- Il messaggio di errore degli aggiornamenti ora distingue timeout ed errori
+  HTTP, così un problema di rete non viene più mostrato senza spiegazione.
+- La schermata di errore offre direttamente il pulsante per riprovare il
+  controllo, senza obbligare a tornare prima alla home.
+
 ## 1.8.0b12 — 2026-09-09
 
 - La riparazione del campione bicolore viene eseguita anche sui profili già

@@ -278,6 +278,26 @@ class GUISafetyTests(unittest.TestCase):
         self.assertEqual(result.state, "available")
         self.assertEqual(result.info.version, "1.8.0")
 
+    def test_update_error_page_offers_direct_retry(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+            )
+            controller._update = UpdateSnapshot(
+                "error",
+                "Controllo non disponibile",
+                "Check unavailable",
+            )
+            italian = _updates_page(controller, "safe-token", language="it")
+            english = _updates_page(controller, "safe-token", language="en")
+        self.assertIn('action="/updates/check"', italian)
+        self.assertIn("Riprova il controllo", italian)
+        self.assertIn("Try checking again", english)
+
     def test_safe_shutdown_is_available_only_without_active_calibration(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

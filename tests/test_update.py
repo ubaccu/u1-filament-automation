@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from u1_filament_automation.update import (
+    DEFAULT_UPDATE_TIMEOUT,
     UpdateAsset,
     UpdateError,
     UpdateInfo,
@@ -131,6 +132,19 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(result.version, "1.8.0-beta.1")
         self.assertIn("/releases?per_page=10", captured["url"])
         self.assertNotIn("Authorization", captured["headers"])
+        self.assertEqual(captured["timeout"], DEFAULT_UPDATE_TIMEOUT)
+
+    def test_timeout_error_reports_the_effective_limit(self):
+        def opener(request, timeout):
+            raise TimeoutError("timed out")
+
+        with self.assertRaisesRegex(UpdateError, r"GitHub: timeout dopo 15 s"):
+            check_for_update(
+                "1.8.0b11",
+                system="Darwin",
+                machine="x86_64",
+                opener=opener,
+            )
 
     def test_download_is_kept_only_after_size_and_sha_match(self):
         payload = b"verified installer bytes"

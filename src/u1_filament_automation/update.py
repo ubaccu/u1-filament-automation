@@ -21,6 +21,7 @@ DEFAULT_GITHUB_REPOSITORY = "ubaccu/u1-filament-automation"
 GITHUB_API_VERSION = "2026-03-10"
 MAX_RELEASE_RESPONSE = 2 * 1024 * 1024
 MAX_UPDATE_SIZE = 500 * 1024 * 1024
+DEFAULT_UPDATE_TIMEOUT = 15.0
 _VERSION_RE = re.compile(
     r"^v?(\d+)\.(\d+)\.(\d+)(?:[-.]?(alpha|beta|rc|a|b)[.-]?(\d+))?$",
     re.IGNORECASE,
@@ -198,7 +199,7 @@ def check_for_update(
     current_version: str,
     repository: str = DEFAULT_GITHUB_REPOSITORY,
     channel: str | None = None,
-    timeout: float = 4.0,
+    timeout: float = DEFAULT_UPDATE_TIMEOUT,
     system: str | None = None,
     machine: str | None = None,
     opener: Callable[..., Any] = urllib.request.urlopen,
@@ -219,9 +220,14 @@ def check_for_update(
         with opener(request, timeout=timeout) as response:
             data = response.read(MAX_RELEASE_RESPONSE + 1)
     except (OSError, urllib.error.URLError, TimeoutError) as exc:
-        raise UpdateError(
-            "Controllo aggiornamenti non disponibile / Update check unavailable"
-        ) from exc
+        reason = getattr(exc, "reason", exc)
+        if isinstance(exc, urllib.error.HTTPError):
+            detail = f"HTTP {exc.code}"
+        elif isinstance(reason, TimeoutError) or "timed out" in str(reason).casefold():
+            detail = f"GitHub: timeout dopo {timeout:g} s / timeout after {timeout:g} s"
+        else:
+            detail = f"GitHub: {type(reason).__name__}"
+        raise UpdateError(detail) from exc
     if len(data) > MAX_RELEASE_RESPONSE:
         raise UpdateError("Risposta aggiornamenti troppo grande / Update response too large")
     try:
