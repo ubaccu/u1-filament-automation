@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.0b12 — 2026-09-09
+
+- La riparazione del campione bicolore viene eseguita anche sui profili già
+  gestiti da U1FA, mantenendo comunque rispettata la cancellazione manuale del
+  file da parte dell'utente.
+
 ## 1.8.0b11 — 2026-09-09
 
 - I profili multicolore riportano sia `default_filament_colour` sia

@@ -405,15 +405,29 @@ def sync_profiles(
                 SyncAction("skipped", profile_name, None, color, spool_ids, "nessuna base definita")
             )
             continue
+        filename = safe_filename(profile_name)
         if profile_name.casefold() in ignored:
+            # A profile deliberately deleted by the user must never be
+            # recreated.  If the file still exists, however, repair an
+            # obvious white placeholder so a previously-managed multicolor
+            # profile can be fixed after upgrading U1FA.
+            repaired = (
+                apply
+                and _profile_exists(user_dir, filename)
+                and repair_profile_colors(user_dir, profile_name, colors)
+            )
             actions.append(
                 SyncAction(
-                    "dismissed",
+                    "repaired" if repaired else "dismissed",
                     profile_name,
                     base,
                     color,
                     spool_ids,
-                    "già gestito; un'eventuale eliminazione manuale viene rispettata",
+                    (
+                        "colori predefiniti aggiornati"
+                        if repaired
+                        else "già gestito; un'eventuale eliminazione manuale viene rispettata"
+                    ),
                 )
             )
             continue
@@ -423,7 +437,6 @@ def sync_profiles(
             )
             continue
 
-        filename = safe_filename(profile_name)
         if _profile_exists(user_dir, filename):
             repaired = (
                 apply
