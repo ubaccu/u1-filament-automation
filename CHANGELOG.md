@@ -7,7 +7,7 @@
   controllare e scaricare le release GitHub tramite HTTPS senza disattivare la
   verifica di sicurezza.
 - Il self-test delle build verifica anche la presenza dei certificati prima di
-  creare i pacchetti desktop.
+  creare i pacchetti desktop e blocca la pubblicazione se non sono disponibili.
 - La schermata di errore degli aggiornamenti offre un collegamento diretto alle
   release GitHub come alternativa manuale, oltre al pulsante per riprovare.
 - Il collegamento esterno viene aperto separatamente e non modifica né aggiorna
