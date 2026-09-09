@@ -1,7 +1,7 @@
 """Desktop update lifecycle helpers.
 
 The update package is still opened only after the existing explicit confirmation
-and SHA-256 verification.  Once the verified installer/DMG has been opened, the
+and SHA-256 verification. Once the verified installer/DMG has been opened, the
 local U1FA service can stop itself so macOS/Windows can replace the running app.
 A running calibration always blocks this automatic close.
 """
@@ -17,6 +17,27 @@ from urllib.parse import urlsplit
 
 
 AUTO_CLOSE_DELAY_SECONDS = 1.0
+
+_OLD_UPDATE_COPY_IT = (
+    "U1FA non si sostituisce mentre è in esecuzione. Su macOS si apre il DMG, "
+    "su Windows l’installer e su Linux la cartella dell’AppImage; l’installazione "
+    "resta sempre una scelta dell’utente."
+)
+_NEW_UPDATE_COPY_IT = (
+    "Dopo la conferma U1FA apre il pacchetto già verificato e si chiude "
+    "automaticamente, così il sistema può sostituire l’app senza l’errore «in uso». "
+    "L’installazione resta sempre una scelta dell’utente."
+)
+_OLD_UPDATE_COPY_EN = (
+    "U1FA never replaces itself while it is running. On macOS it opens the DMG, "
+    "on Windows the installer, and on Linux the AppImage folder; installation always "
+    "remains the user's choice."
+)
+_NEW_UPDATE_COPY_EN = (
+    "After confirmation U1FA opens the already-verified package and closes "
+    "automatically, so the system can replace the app without an ‘in use’ error. "
+    "Installation always remains the user's choice."
+)
 
 
 def installer_open_allowed(job_state: str, active_states: set[str] | frozenset[str]) -> bool:
@@ -63,8 +84,28 @@ def _schedule_server_shutdown(server: Any, delay: float = AUTO_CLOSE_DELAY_SECON
     return thread
 
 
+def _install_update_copy_patch(gui_module: Any) -> None:
+    """Keep the update page copy aligned with the auto-close behavior."""
+    current = getattr(gui_module, "_updates_page", None)
+    if not callable(current) or getattr(current, "_u1fa_update_copy_patch", False):
+        return
+
+    def patched(*args: Any, **kwargs: Any) -> str:
+        page = current(*args, **kwargs)
+        return page.replace(_OLD_UPDATE_COPY_IT, _NEW_UPDATE_COPY_IT, 1).replace(
+            _OLD_UPDATE_COPY_EN,
+            _NEW_UPDATE_COPY_EN,
+            1,
+        )
+
+    setattr(patched, "_u1fa_update_copy_patch", True)
+    gui_module._updates_page = patched
+
+
 def install_update_lifecycle_patch(gui_module: Any) -> None:
-    """Patch only the verified-installer POST route used by the desktop app."""
+    """Patch only update UI/lifecycle paths used by the desktop app."""
+    _install_update_copy_patch(gui_module)
+
     current_factory = gui_module._handler
     if getattr(current_factory, "_u1fa_update_lifecycle_patch", False):
         return
