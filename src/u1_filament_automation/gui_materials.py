@@ -52,7 +52,7 @@ _OLD_MATERIAL_JS = (
 )
 _NEW_MATERIAL_JS = (
     "document.getElementById('material').addEventListener('change',function(){var v=this.value;"
-    "var p=v.indexOf('PETG')===0?['1.27','240','75']:v==='PLA Silk'?"
+    "var p=v.indexOf('PETG')===0?['1.27','240','75']:this.value==='PLA Silk'?"
     "['1.24','230','60']:['1.24','220','60'];document.getElementById('density').value=p[0];"
     "document.getElementById('nozzle-temp').value=p[1];document.getElementById('bed-temp').value=p[2];});"
 )
