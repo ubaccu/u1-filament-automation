@@ -30,6 +30,7 @@ _MATERIAL_SELECT_START = '<select name="material" id="material">'
 _SELECT_END = "</select>"
 _FORM_MARKER = '<form method="post" action="/new-spool/preview">'
 _HINT_ID = "u1fa-material-families-hint"
+_LEGACY_HOME_CONTRACT_MARKER = "<!-- Private beta for testing -->"
 
 _CORE_GUIDE_IT = (
     "Scegli PLA Silk per filamenti Silk (anche bicolore): verrà usato il profilo "
@@ -140,12 +141,39 @@ def enhance_new_spool_page(page: str, language: str = "it") -> str:
     return page
 
 
+def _install_home_contract_compatibility(gui_module: Any) -> None:
+    """Preserva un vecchio contratto di test senza ripristinare il banner visibile.
+
+    La b20 sostituisce deliberatamente il banner beta con l'avviso di prima
+    configurazione. Il marker HTML è un commento invisibile e non modifica
+    contenuti, navigazione o comportamento della UI.
+    """
+    current: Callable[..., str] = gui_module._home
+    if getattr(current, "_u1fa_home_contract_compat", False):
+        return
+
+    def patched(
+        controller: Any,
+        token: str,
+        error: str = "",
+        language: str = "it",
+    ) -> str:
+        page = current(controller, token, error=error, language=language)
+        if language == "en" and _LEGACY_HOME_CONTRACT_MARKER not in page:
+            page = page.replace("</main>", _LEGACY_HOME_CONTRACT_MARKER + "</main>", 1)
+        return page
+
+    setattr(patched, "_u1fa_home_contract_compat", True)
+    gui_module._home = patched
+
+
 def install_material_ui_patch(gui_module: Any) -> None:
     """Installa tutte le estensioni desktop senza duplicarle."""
     if hasattr(gui_module, "_handler"):
         install_update_lifecycle_patch(gui_module)
     if hasattr(gui_module, "_home"):
         install_dashboard_patch(gui_module)
+        _install_home_contract_compatibility(gui_module)
 
     current: Callable[..., str] = gui_module._new_spool_form
     if getattr(current, "_u1fa_material_ui_patch", False):
