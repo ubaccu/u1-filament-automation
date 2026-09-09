@@ -12,9 +12,12 @@ import re
 from typing import Any, Callable
 
 
-DASHBOARD_ID = "u1fa-dashboard-v19"
-_DASHBOARD_STYLE_ID = "u1fa-dashboard-style-v19"
-_HOME_GROUPS_ID = "u1fa-home-groups-v19"
+DASHBOARD_ID = "u1fa-dashboard-v20"
+_DASHBOARD_STYLE_ID = "u1fa-dashboard-style-v20"
+_HOME_GROUPS_ID = "u1fa-home-groups-v20"
+_SETUP_NOTICE_ID = "u1fa-first-setup-v20"
+_SUPPORT_ID = "u1fa-support-v20"
+BUY_ME_A_COFFEE_URL = "https://www.buymeacoffee.com/riccelliiv9"
 
 _DASHBOARD_CSS = f"""
 <style id="{_DASHBOARD_STYLE_ID}">
@@ -32,6 +35,9 @@ _DASHBOARD_CSS = f"""
 .u1fa-status-detail{{font-size:12px;color:#aeb9c8;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .u1fa-actions{{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}}
 .u1fa-dash-foot{{margin:12px 2px 0;color:#8290a3;font-size:12px}}
+.u1fa-setup-notice{{background:#211f18;border:1px solid #6b5921;border-radius:14px;padding:18px 20px;margin:14px 0}}
+.u1fa-setup-notice strong{{display:block;color:#ffd166;font-size:17px;margin-bottom:6px}}
+.u1fa-setup-notice p{{margin:6px 0 12px;color:#d4d9e1}}
 .u1fa-home-group{{background:#171d26;border:1px solid #303a48;border-radius:14px;margin:14px 0;overflow:hidden}}
 .u1fa-home-group>summary{{cursor:pointer;list-style:none;padding:16px 18px;font-size:18px;font-weight:800;user-select:none}}
 .u1fa-home-group>summary::-webkit-details-marker{{display:none}}
@@ -39,6 +45,10 @@ _DASHBOARD_CSS = f"""
 .u1fa-home-group[open]>summary::after{{transform:rotate(90deg)}}
 .u1fa-home-group-body{{padding:0 14px 14px}}
 .u1fa-home-group-body>.card{{margin:10px 0;background:#151b23}}
+.u1fa-support-card{{background:#171d26;border:1px solid #303a48;border-radius:14px;padding:18px 20px;margin:14px 0}}
+.u1fa-support-card strong{{display:block;font-size:17px;margin-bottom:5px}}
+.u1fa-support-card p{{margin:5px 0 12px;color:#aeb9c8}}
+.u1fa-coffee-button{{display:inline-block;background:#ffdd00;color:#111!important;border-radius:10px;padding:11px 16px;font-weight:800;text-decoration:none}}
 @media(max-width:900px){{.u1fa-status-grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}}}
 @media(max-width:620px){{.u1fa-dash-head{{display:block}}.u1fa-badge{{margin-top:10px}}.u1fa-status-grid{{grid-template-columns:1fr}}}}
 </style>
@@ -192,9 +202,66 @@ def build_dashboard(controller: Any, language: str = "it") -> str:
     )
 
 
+def _first_setup_notice(language: str) -> str:
+    if language == "en":
+        title = "⚠️ First printer setup"
+        text = (
+            "Before the first spool calibration, and again after every U1 firmware update, "
+            "run Check printer setup from System and maintenance. This verifies U1FA AutoPA "
+            "Mod and compatibility before calibration."
+        )
+        button = "Check printer setup"
+    else:
+        title = "⚠️ Prima configurazione della U1"
+        text = (
+            "Prima della prima calibrazione di una bobina, e dopo ogni aggiornamento firmware "
+            "della U1, esegui Controlla configurazione stampante da Sistema e manutenzione. "
+            "U1FA verifica AutoPA Mod e la compatibilità prima della calibrazione."
+        )
+        button = "Controlla configurazione stampante"
+    return (
+        f'<section id="{_SETUP_NOTICE_ID}" class="u1fa-setup-notice">'
+        f'<strong>{html.escape(title)}</strong><p>{html.escape(text)}</p>'
+        f'<a class="button danger" href="/printer-setup">{html.escape(button)}</a>'
+        '</section>'
+    )
+
+
+def _support_card(language: str) -> str:
+    if language == "en":
+        title = "☕ Support U1FA development"
+        text = (
+            "If U1FA is useful to you and you want to support continued development, "
+            "you can buy Bottega3DLab a coffee."
+        )
+    else:
+        title = "☕ Supporta lo sviluppo di U1FA"
+        text = (
+            "Se U1FA ti è utile e vuoi contribuire allo sviluppo del progetto, "
+            "puoi offrire un caffè a Bottega3DLab."
+        )
+    return (
+        f'<section id="{_SUPPORT_ID}" class="u1fa-support-card">'
+        f'<strong>{html.escape(title)}</strong><p>{html.escape(text)}</p>'
+        f'<a class="u1fa-coffee-button" href="{BUY_ME_A_COFFEE_URL}" '
+        'target="_blank" rel="noopener noreferrer">☕ Buy me a coffee</a>'
+        '</section>'
+    )
+
+
 def _remove_simple_legacy_card(page: str, heading: str) -> str:
     pattern = re.compile(
         r'<div class="card"><h2>' + re.escape(heading) + r'</h2>.*?</div>\s*',
+        re.DOTALL,
+    )
+    return pattern.sub("", page, count=1)
+
+
+def _remove_legacy_beta_box(page: str) -> str:
+    pattern = re.compile(
+        r'<div class="card"><p class="warn"><strong>'
+        r'(?:Versione beta privata per collaudo\.|Private beta for testing\.)'
+        r'</strong>.*?</p></div>\s*',
         re.DOTALL,
     )
     return pattern.sub("", page, count=1)
@@ -204,6 +271,8 @@ def _group_legacy_home(page: str, language: str) -> str:
     """Collapse legacy home cards into three useful groups without changing actions."""
     if f'id="{_HOME_GROUPS_ID}"' in page:
         return page
+
+    page = _remove_legacy_beta_box(page)
 
     # The Control Center already exposes updates and connection access/status.
     for heading in (
@@ -272,6 +341,8 @@ def _group_legacy_home(page: str, language: str) -> str:
     elif grouped:
         page = page.replace("</main>", close_group + "</main>", 1)
 
+    if f'id="{_SUPPORT_ID}"' not in page:
+        page = page.replace("</main>", _support_card(language) + "</main>", 1)
     return page
 
 
@@ -281,10 +352,12 @@ def enhance_home_page(page: str, controller: Any, language: str = "it") -> str:
     if f'id="{_DASHBOARD_STYLE_ID}"' not in page:
         page = page.replace("</head>", _DASHBOARD_CSS + "</head>", 1)
     dashboard = build_dashboard(controller, language)
+    setup_notice = _first_setup_notice(language)
+    header = dashboard + "\n" + setup_notice + "\n"
     if "<h1>" in page:
-        page = page.replace("<h1>", dashboard + "\n<h1>", 1)
+        page = page.replace("<h1>", header + "<h1>", 1)
     elif "<main>" in page:
-        page = page.replace("<main>", "<main>" + dashboard, 1)
+        page = page.replace("<main>", "<main>" + header, 1)
     return _group_legacy_home(page, language)
 
 
