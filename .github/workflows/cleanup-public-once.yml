@@ -1,0 +1,157 @@
+name: One-shot clean public distribution repo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/cleanup-public-once.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    if: github.event.head_commit.message == '[public-cleanup-approved] Clean public distribution repository'
+    runs-on: ubuntu-22.04
+    env:
+      PUBLIC_REPO: ubaccu/u1-filament-automation
+      KEEP_TAG: v1.8.0-beta.21
+      OBSOLETE_BRANCH: codex/beta14-ca-fix-20260909
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Preflight and preserve tag inventory
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "PUBLIC_RELEASE_TOKEN is not configured." >&2
+            exit 1
+          fi
+          resolved="$(gh api "repos/$PUBLIC_REPO" --jq .full_name)"
+          [[ "$resolved" == "$PUBLIC_REPO" ]] || { echo "Unexpected public repository: $resolved" >&2; exit 1; }
+
+          gh release view "$KEEP_TAG" --repo "$PUBLIC_REPO" --json tagName,name,isPrerelease,url >/tmp/keep-release.json
+          mapfile -t assets < <(gh api "repos/$PUBLIC_REPO/releases/tags/$KEEP_TAG" --jq '.assets[].name' | sort)
+          expected=(
+            "SHA256SUMS.txt"
+            "U1-Filament-Automation-v1.8.0b21-Linux-x86_64.AppImage"
+            "U1-Filament-Automation-v1.8.0b21-Source.zip"
+            "U1-Filament-Automation-v1.8.0b21-Windows-x64-Setup.exe"
+            "U1-Filament-Automation-v1.8.0b21-macOS-arm64.dmg"
+            "U1-Filament-Automation-v1.8.0b21-macOS-x86_64.dmg"
+          )
+          if [[ "$(printf '%s\n' "${assets[@]}")" != "$(printf '%s\n' "${expected[@]}" | sort)" ]]; then
+            echo "b21 release asset set is not the expected six files; aborting cleanup." >&2
+            printf 'Actual:\n%s\n' "${assets[*]}" >&2
+            exit 1
+          fi
+
+          gh api "repos/$PUBLIC_REPO/git/matching-refs/tags/" --jq '.[] | [.ref,.object.sha] | @tsv' | sort >/tmp/tags-before.tsv
+          grep -q $'^refs/tags/v1.8.0-beta.21\t' /tmp/tags-before.tsv || { echo "Keep tag missing." >&2; exit 1; }
+
+          for f in README.md README.it.md LICENSE THIRD_PARTY_NOTICES.md .github/FUNDING.yml .github/SECURITY.md \
+                   docs/AGGIORNAMENTI_APP.md docs/FIRMWARE_COMPATIBILITY.md docs/INSTALLAZIONE_STAMPANTE.md docs/PRINTER_SETUP.md; do
+            [[ -f "$f" ]] || { echo "Required public documentation file missing in private source: $f" >&2; exit 1; }
+          done
+
+      - name: Replace public main with clean orphan documentation branch
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          mkdir -p "$work/repo/.github" "$work/repo/docs"
+
+          cp README.md README.it.md LICENSE THIRD_PARTY_NOTICES.md "$work/repo/"
+          cp .github/FUNDING.yml .github/SECURITY.md "$work/repo/.github/"
+          cp docs/AGGIORNAMENTI_APP.md docs/FIRMWARE_COMPATIBILITY.md docs/INSTALLAZIONE_STAMPANTE.md docs/PRINTER_SETUP.md "$work/repo/docs/"
+
+          cat > "$work/repo/PUBLIC_RELEASE_REPOSITORY.md" <<'EOF'
+# U1FA public distribution repository
+
+This public repository is the release and documentation channel for U1 Filament Automation (U1FA).
+
+Development is maintained separately. Distributed binaries are published under GitHub Releases together with SHA-256 checksums and a version-matched GPL corresponding-source archive. Historical release tags are retained for source/history references.
+EOF
+
+          git -C "$work/repo" init -q
+          git -C "$work/repo" checkout --orphan main >/dev/null 2>&1
+          git -C "$work/repo" config user.name "Bottega3DLab Release"
+          git -C "$work/repo" config user.email "riccelliivan@gmail.com"
+          git -C "$work/repo" add -A
+          git -C "$work/repo" commit -q -m "Public distribution repository"
+          clean_commit="$(git -C "$work/repo" rev-parse HEAD)"
+          git -C "$work/repo" remote add origin "https://github.com/$PUBLIC_REPO.git"
+          git -C "$work/repo" push --force origin HEAD:refs/heads/main
+          echo "Clean public main commit: $clean_commit"
+
+      - name: Remove obsolete public branch
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/$PUBLIC_REPO/git/ref/heads/$OBSOLETE_BRANCH" >/dev/null 2>&1; then
+            gh api -X DELETE "repos/$PUBLIC_REPO/git/refs/heads/$OBSOLETE_BRANCH"
+          fi
+
+      - name: Delete old release pages and binaries but keep all tags
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$PUBLIC_REPO/releases?per_page=100" --jq '.[] | [.id,.tag_name] | @tsv' >/tmp/releases-before.tsv
+          while IFS=$'\t' read -r id tag; do
+            [[ -n "$id" ]] || continue
+            if [[ "$tag" != "$KEEP_TAG" ]]; then
+              echo "Deleting old release page/assets: $tag (release $id)"
+              gh api -X DELETE "repos/$PUBLIC_REPO/releases/$id"
+            fi
+          done </tmp/releases-before.tsv
+
+      - name: Verify clean public state and unchanged tags
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release view "$KEEP_TAG" --repo "$PUBLIC_REPO" --json tagName,name,isPrerelease,url >/tmp/keep-release-after.json
+          release_count="$(gh api --paginate "repos/$PUBLIC_REPO/releases?per_page=100" --jq '.[].tag_name' | wc -l | tr -d ' ')"
+          [[ "$release_count" == "1" ]] || { echo "Expected exactly one public release after cleanup, found $release_count" >&2; exit 1; }
+          only_release="$(gh api "repos/$PUBLIC_REPO/releases?per_page=100" --jq '.[0].tag_name')"
+          [[ "$only_release" == "$KEEP_TAG" ]] || { echo "Unexpected remaining release: $only_release" >&2; exit 1; }
+
+          gh api "repos/$PUBLIC_REPO/git/matching-refs/tags/" --jq '.[] | [.ref,.object.sha] | @tsv' | sort >/tmp/tags-after.tsv
+          diff -u /tmp/tags-before.tsv /tmp/tags-after.tsv
+
+          if gh api "repos/$PUBLIC_REPO/git/ref/heads/$OBSOLETE_BRANCH" >/dev/null 2>&1; then
+            echo "Obsolete public branch still exists." >&2
+            exit 1
+          fi
+
+          main_sha="$(gh api "repos/$PUBLIC_REPO/branches/main" --jq .commit.sha)"
+          mapfile -t files < <(gh api "repos/$PUBLIC_REPO/git/trees/$main_sha?recursive=1" --jq '.tree[] | select(.type=="blob") | .path' | sort)
+          expected_files=(
+            ".github/FUNDING.yml"
+            ".github/SECURITY.md"
+            "LICENSE"
+            "PUBLIC_RELEASE_REPOSITORY.md"
+            "README.it.md"
+            "README.md"
+            "THIRD_PARTY_NOTICES.md"
+            "docs/AGGIORNAMENTI_APP.md"
+            "docs/FIRMWARE_COMPATIBILITY.md"
+            "docs/INSTALLAZIONE_STAMPANTE.md"
+            "docs/PRINTER_SETUP.md"
+          )
+          if [[ "$(printf '%s\n' "${files[@]}")" != "$(printf '%s\n' "${expected_files[@]}" | sort)" ]]; then
+            echo "Public main contains unexpected files." >&2
+            printf 'Actual files:\n%s\n' "${files[*]}" >&2
+            exit 1
+          fi
+          echo "CLEAN_PUBLIC verification complete."
