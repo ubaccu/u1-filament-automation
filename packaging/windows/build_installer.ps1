@@ -38,6 +38,7 @@ $PyInstallerArgs = @(
     "--noconfirm", "--clean", "--windowed", "--onedir",
     "--name", $AppName,
     "--icon", $IconFile,
+    "--collect-data", "certifi",
     "--workpath", $PyInstallerWork,
     "--specpath", $BuildRoot,
     "--distpath", $DistDir
