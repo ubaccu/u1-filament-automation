@@ -23,24 +23,26 @@ class FakeController:
 
 
 class GUIDashboardTests(unittest.TestCase):
-    def test_dashboard_shows_services_and_four_toolheads(self):
+    def test_dashboard_shows_services_without_toolhead_assignment_cards(self):
         page = build_dashboard(FakeController(), "it")
         self.assertIn("U1FA Control Center", page)
         self.assertIn("U1 / Moonraker", page)
         self.assertIn("Spoolman", page)
         self.assertIn("Snapmaker Orca", page)
         self.assertIn("Adaptive PA", page)
-        self.assertIn("Configurato", page)
-        self.assertIn("Rilevato", page)
+        self.assertIn("Endpoint configurato", page)
+        self.assertIn("Profili rilevati", page)
+        self.assertNotIn("Pronto per assegnazione bobina", page)
         for index in range(4):
-            self.assertIn(f">T{index}<", page)
+            self.assertNotIn(f">T{index}<", page)
         self.assertIn("sola lettura", page)
 
     def test_dashboard_is_bilingual(self):
         page = build_dashboard(FakeController(), "en")
         self.assertIn("Quick status", page)
-        self.assertIn("Configured", page)
-        self.assertIn("Ready for spool assignment", page)
+        self.assertIn("Endpoint configured", page)
+        self.assertNotIn("Ready for spool assignment", page)
+        self.assertIn("Connections", page)
         self.assertIn("sends no command", page)
 
     def test_home_enhancement_is_idempotent(self):
@@ -49,7 +51,30 @@ class GUIDashboardTests(unittest.TestCase):
         twice = enhance_home_page(once, FakeController(), "it")
         self.assertEqual(once, twice)
         self.assertEqual(once.count(f'id="{DASHBOARD_ID}"'), 1)
-        self.assertEqual(once.count('id="u1fa-dashboard-style-v17"'), 1)
+        self.assertEqual(once.count('id="u1fa-dashboard-style-v19"'), 1)
+
+    def test_legacy_home_is_compacted_and_grouped(self):
+        base = """<!doctype html><html><head></head><body><main>
+<h1>U1 Filament Automation</h1>
+<p class="muted">Bobina Spoolman → profilo Snapmaker Orca → calibrazione Adaptive PA.</p>
+<div class="card"><h2>Aggiornamenti U1FA</h2><p>legacy update</p></div>
+<div class="card"><h2>Connessioni</h2><p>legacy connections</p></div>
+<div class="card"><h2>0. Configurazione o ripristino U1FA AutoPA Mod</h2><p>setup</p></div>
+<div class="card"><h2>1. Nuova bobina</h2><p>spool</p></div>
+<div class="card"><h2>2. Calibra una bobina già presente</h2><p>calibration</p></div>
+<div class="card"><p><strong>Sincronizzazione automatica attiva</strong></p></div>
+<div class="card"><p><strong>Protezione attiva</strong></p></div>
+<div class="card"><p><strong>Applicazione</strong></p></div>
+</main></body></html>"""
+        page = enhance_home_page(base, FakeController(), "it")
+        self.assertNotIn("legacy update", page)
+        self.assertNotIn("legacy connections", page)
+        self.assertIn("Sistema e manutenzione", page)
+        self.assertIn("Gestione filamenti", page)
+        self.assertIn("Sicurezza e applicazione", page)
+        self.assertIn('id="u1fa-filament-group"', page)
+        self.assertIn("2. Calibra una bobina già presente", page)
+        self.assertNotIn("<h1>U1 Filament Automation</h1>", page)
 
     def test_patch_installation_is_idempotent(self):
         def original(controller, token, error="", language="it"):
