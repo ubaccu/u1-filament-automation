@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.8.0b14 — 2026-09-09
+
+- Corretto `SSLCertVerificationError` nelle applicazioni compilate: U1FA unisce
+  i certificati attendibili del sistema con un archivio CA incorporato per
+  controllare e scaricare le release GitHub tramite HTTPS senza disattivare la
+  verifica di sicurezza.
+- Il self-test delle build verifica anche la presenza dei certificati prima di
+  creare i pacchetti desktop.
+- La schermata di errore degli aggiornamenti offre un collegamento diretto alle
+  release GitHub come alternativa manuale, oltre al pulsante per riprovare.
+- Il collegamento esterno viene aperto separatamente e non modifica né aggiorna
+  automaticamente l'app o il firmware della stampante.
+
 ## 1.8.0b13 — 2026-09-09
 
 - Aumentato da 4 a 15 secondi il tempo disponibile per interrogare GitHub,
@@ -8,7 +21,6 @@
   HTTP, così un problema di rete non viene più mostrato senza spiegazione.
 - La schermata di errore offre direttamente il pulsante per riprovare il
   controllo, senza obbligare a tornare prima alla home.
-- Verificato il controllo pubblico delle release senza token GitHub personali.
 
 ## 1.8.0b12 — 2026-09-09
 
