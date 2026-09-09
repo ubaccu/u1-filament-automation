@@ -137,8 +137,19 @@ jobs:
           fi
           cd release-assets
           sha256sum ./* > SHA256SUMS.txt
-          gh release create "$release_tag" ./* \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "U1 Filament Automation ${release_tag#v}" \
-            --generate-notes "${release_flags[@]}"
+          for attempt in 1 2 3 4 5; do
+            if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "Release $release_tag already exists; nothing more to do."
+              exit 0
+            fi
+            if gh release create "$release_tag" ./* \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "U1 Filament Automation ${release_tag#v}" \
+              --generate-notes "${release_flags[@]}"; then
+              exit 0
+            fi
+            echo "GitHub release creation failed (attempt $attempt/5); retrying..." >&2
+            sleep 15
+          done
+          exit 1
