@@ -297,6 +297,13 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn('action="/updates/check"', italian)
         self.assertIn("Riprova il controllo", italian)
         self.assertIn("Try checking again", english)
+        self.assertIn(
+            'href="https://github.com/ubaccu/u1-filament-automation/releases"',
+            italian,
+        )
+        self.assertIn("Apri manualmente le release GitHub", italian)
+        self.assertIn("Open GitHub releases manually", english)
+        self.assertIn('rel="noopener noreferrer"', english)
 
     def test_safe_shutdown_is_available_only_without_active_calibration(self):
         with tempfile.TemporaryDirectory() as temporary:
