@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Mapping, TextIO
 from urllib.parse import urlparse
 
+from . import gui as gui_module
 from .config import (
     ConfigError,
     default_connection_config_path,
@@ -27,6 +28,7 @@ from .gui import (
     GUIError,
     run_gui,
 )
+from .gui_materials import install_material_ui_patch
 from .update import github_ssl_context
 
 
@@ -35,6 +37,10 @@ APP_URL = "http://127.0.0.1:8765/"
 ASKPASS_MODE_ENV = "U1FA_ASKPASS_MODE"
 ASKPASS_PASSWORD_ENV = "U1FA_SSH_PASSWORD"
 DESKTOP_SELFTEST_ENV = "U1FA_DESKTOP_SELFTEST"
+
+# La build desktop applica soltanto un'estensione di rendering della pagina
+# nuova bobina. Nessuna scrittura su Orca/Spoolman/U1 avviene qui.
+install_material_ui_patch(gui_module)
 
 
 @dataclass(frozen=True)
