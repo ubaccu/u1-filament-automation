@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import re
+import ssl
 import subprocess
 import tempfile
 import urllib.error
@@ -15,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlsplit
+
+import certifi
 
 
 DEFAULT_GITHUB_REPOSITORY = "ubaccu/u1-filament-automation"
@@ -31,6 +34,27 @@ _SAFE_ASSET_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,199}$")
 
 class UpdateError(RuntimeError):
     pass
+
+
+def github_ssl_context() -> ssl.SSLContext:
+    """Trust both the operating system and U1FA's bundled CA store."""
+    context = ssl.create_default_context()
+    context.load_verify_locations(cafile=certifi.where())
+    return context
+
+
+def _open_https(
+    request: urllib.request.Request,
+    timeout: float,
+    opener: Callable[..., Any] | None,
+):
+    if opener is not None:
+        return opener(request, timeout=timeout)
+    return urllib.request.urlopen(
+        request,
+        timeout=timeout,
+        context=github_ssl_context(),
+    )
 
 
 @dataclass(frozen=True)
@@ -202,7 +226,7 @@ def check_for_update(
     timeout: float = DEFAULT_UPDATE_TIMEOUT,
     system: str | None = None,
     machine: str | None = None,
-    opener: Callable[..., Any] = urllib.request.urlopen,
+    opener: Callable[..., Any] | None = None,
 ) -> UpdateInfo | None:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
         raise UpdateError("Repository aggiornamenti non valido / Invalid update repository")
@@ -217,7 +241,7 @@ def check_for_update(
         },
     )
     try:
-        with opener(request, timeout=timeout) as response:
+        with _open_https(request, timeout, opener) as response:
             data = response.read(MAX_RELEASE_RESPONSE + 1)
     except (OSError, urllib.error.URLError, TimeoutError) as exc:
         reason = getattr(exc, "reason", exc)
@@ -255,7 +279,7 @@ def download_update(
     info: UpdateInfo,
     destination_dir: Path,
     timeout: float = 30.0,
-    opener: Callable[..., Any] = urllib.request.urlopen,
+    opener: Callable[..., Any] | None = None,
 ) -> Path:
     destination = destination_dir.expanduser().resolve()
     destination.mkdir(parents=True, exist_ok=True)
@@ -268,7 +292,7 @@ def download_update(
     )
     temporary_path: Path | None = None
     try:
-        with opener(request, timeout=timeout) as response, tempfile.NamedTemporaryFile(
+        with _open_https(request, timeout, opener) as response, tempfile.NamedTemporaryFile(
             mode="wb",
             prefix=".u1fa-update-",
             suffix=".part",
