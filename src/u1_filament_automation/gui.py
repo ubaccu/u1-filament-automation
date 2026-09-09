@@ -68,6 +68,7 @@ from .spoolman import (
 )
 from .sync import base_profile_path, default_system_dir, sync_profiles
 from .update import (
+    DEFAULT_GITHUB_REPOSITORY,
     UpdateError,
     UpdateInfo,
     check_for_update,
@@ -1277,9 +1278,12 @@ def _updates_page(
     error_box = "" if not error else f'<p class="warn">{html.escape(error)}</p>'
     content = f"<p>{html.escape(message)}</p>"
     if snapshot.state == "error":
+        releases_url = f"https://github.com/{DEFAULT_GITHUB_REPOSITORY}/releases"
         content += f"""<form method="post" action="/updates/check">
 <input type="hidden" name="token" value="{token}">
-<button class="secondary" type="submit">{_tr(language, 'Riprova il controllo', 'Try checking again')}</button></form>"""
+<button class="secondary" type="submit">{_tr(language, 'Riprova il controllo', 'Try checking again')}</button></form>
+<p><a class="button secondary" href="{html.escape(releases_url)}" target="_blank" rel="noopener noreferrer">{_tr(language, 'Apri manualmente le release GitHub', 'Open GitHub releases manually')}</a></p>
+<p class="muted">{_tr(language, "Usa questo collegamento soltanto come alternativa se il controllo automatico continua a non rispondere.", "Use this link only as a fallback if the automatic check keeps failing.")}</p>"""
     if snapshot.info is not None:
         info = snapshot.info
         notes = html.escape(info.notes or _tr(
