@@ -1,13 +1,15 @@
-"""Piccole estensioni della UI materiali per le build desktop.
+"""Piccole estensioni della UI desktop.
 
 La logica di associazione ai profili Snapmaker resta in ``sync.choose_base``.
-Questo modulo aggiunge soltanto opzioni guidate alla pagina di creazione bobina,
-senza modificare profili Orca, Spoolman o stampante durante il rendering.
+Questo modulo aggiunge opzioni guidate alla pagina di creazione bobina e installa
+il ciclo di chiusura sicura dopo l'apertura di un installer verificato.
 """
 
 from __future__ import annotations
 
 from typing import Any, Callable
+
+from .update_lifecycle import install_update_lifecycle_patch
 
 
 PLA_WOOD_OPTION = '<option value="PLA Wood">PLA Wood</option>'
@@ -59,7 +61,10 @@ def enhance_new_spool_page(page: str, language: str = "it") -> str:
 
 
 def install_material_ui_patch(gui_module: Any) -> None:
-    """Installa l'estensione sulla UI desktop senza duplicarla."""
+    """Installa le estensioni desktop senza duplicarle."""
+    if hasattr(gui_module, "_handler"):
+        install_update_lifecycle_patch(gui_module)
+
     current: Callable[..., str] = gui_module._new_spool_form
     if getattr(current, "_u1fa_material_ui_patch", False):
         return
