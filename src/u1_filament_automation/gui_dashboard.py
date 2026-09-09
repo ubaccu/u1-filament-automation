@@ -239,13 +239,12 @@ def enhance_home_page(page: str, controller: Any, language: str = "it") -> str:
         return page
     if f'id="{_DASHBOARD_STYLE_ID}"' not in page:
         page = page.replace("</head>", _DASHBOARD_CSS + "</head>", 1)
-    page = _group_legacy_home(page, language)
     dashboard = build_dashboard(controller, language)
     if "<h1>" in page:
-        return page.replace("<h1>", dashboard + "\n<h1>", 1)
-    if "<main>" in page:
-        return page.replace("<main>", "<main>" + dashboard, 1)
-    return page
+        page = page.replace("<h1>", dashboard + "\n<h1>", 1)
+    elif "<main>" in page:
+        page = page.replace("<main>", "<main>" + dashboard, 1)
+    return _group_legacy_home(page, language)
 
 
 def install_dashboard_patch(gui_module: Any) -> None:
