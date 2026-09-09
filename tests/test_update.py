@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import ssl
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ from u1_filament_automation.update import (
     asset_marker,
     check_for_update,
     download_update,
+    github_ssl_context,
     is_newer_version,
     open_update_package,
     select_update,
@@ -145,6 +147,31 @@ class UpdateTests(unittest.TestCase):
                 machine="x86_64",
                 opener=opener,
             )
+
+    def test_default_github_connection_uses_bundled_ca_context(self):
+        payload = json.dumps([
+            release(
+                "v1.8.0-beta.14",
+                "U1-Filament-Automation-v1.8.0b14-macOS-x86_64.dmg",
+                prerelease=True,
+            )
+        ]).encode()
+        with patch(
+            "u1_filament_automation.update.urllib.request.urlopen",
+            return_value=Response(payload),
+        ) as opener:
+            result = check_for_update(
+                "1.8.0b13",
+                system="Darwin",
+                machine="x86_64",
+            )
+        self.assertEqual(result.version, "1.8.0-beta.14")
+        context = opener.call_args.kwargs["context"]
+        self.assertIsInstance(context, ssl.SSLContext)
+        self.assertTrue(context.get_ca_certs())
+
+    def test_bundled_ca_context_contains_trusted_certificates(self):
+        self.assertTrue(github_ssl_context().get_ca_certs())
 
     def test_download_is_kept_only_after_size_and_sha_match(self):
         payload = b"verified installer bytes"
