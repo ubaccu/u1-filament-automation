@@ -67,18 +67,23 @@ def _job_status(controller: Any, language: str) -> tuple[str, str]:
     return ("Pronta" if language != "en" else "Ready", "ok")
 
 
-def _update_status(controller: Any, language: str) -> tuple[str, str]:
+def _update_status(controller: Any, language: str) -> tuple[str, str, str]:
     snapshot = _snapshot(controller, "update_snapshot")
     state = str(getattr(snapshot, "state", "idle") or "idle")
+    configured_message = str(
+        getattr(snapshot, "message_en" if language == "en" else "message_it", "") or ""
+    ).strip()
     if state == "available":
-        return ("Aggiornamento disponibile" if language != "en" else "Update available", "warn")
+        fallback = "New version available" if language == "en" else "Nuova versione disponibile"
+        return (configured_message or fallback, "warn", state)
     if state == "error":
-        return ("Controllo non disponibile" if language != "en" else "Check unavailable", "bad")
+        fallback = "Check unavailable" if language == "en" else "Controllo non disponibile"
+        return (configured_message or fallback, "bad", state)
     if state in {"checking", "downloading"}:
-        return ("Controllo in corso" if language != "en" else "Checking", "warn")
+        return ("Checking" if language == "en" else "Controllo in corso", "warn", state)
     if state in {"current", "downloaded"}:
-        return ("Aggiornata" if language != "en" else "Up to date", "ok")
-    return ("Pronta" if language != "en" else "Ready", "ok")
+        return ("Up to date" if language == "en" else "Aggiornata", "ok", state)
+    return ("Ready" if language == "en" else "Pronta", "ok", state)
 
 
 def _card(label: str, value: str, detail: str, tone: str) -> str:
@@ -98,47 +103,79 @@ def build_dashboard(controller: Any, language: str = "it") -> str:
     orca_dir = getattr(controller, "real_orca_dir", None)
 
     job_value, job_tone = _job_status(controller, language)
-    update_value, update_tone = _update_status(controller, language)
+    update_value, update_tone, update_state = _update_status(controller, language)
 
     if language == "en":
         title = "U1FA Control Center"
-        subtitle = "Quick status of the main U1FA services and functions."
+        subtitle = "Quick status: Spoolman spool → Snapmaker Orca profile → Adaptive PA calibration."
         configured = "Endpoint configured"
-        not_configured = "Needs setup"
+        moonraker_missing = "Connections need setup"
+        spoolman_missing = "Needs setup"
         detected = "Profiles detected"
         not_detected = "Not detected"
         no_url = "No endpoint configured"
         orca_detail = str(orca_dir) if orca_dir else "Snapmaker Orca user profiles not detected"
+        connection_label = "Connections" if moonraker else "Configure U1 and Spoolman"
+        update_label = "View update" if update_state == "available" else "U1FA updates"
         actions = (
             '<a class="button" href="/new-spool">＋ New spool</a>'
             '<a class="button secondary" href="#u1fa-filament-group">Calibration</a>'
-            '<a class="button secondary" href="/connections">Connections</a>'
-            '<a class="button secondary" href="/updates">U1FA updates</a>'
+            f'<a class="button secondary" href="/connections">{connection_label}</a>'
+            f'<a class="button secondary" href="/updates">{update_label}</a>'
         )
-        foot = "Read-only dashboard: opening this page sends no command to the Snapmaker U1."
+        foot = (
+            "Read-only dashboard: opening this page sends no command to the Snapmaker U1. "
+            "The update check does not update firmware or send printer commands."
+        )
     else:
         title = "U1FA Control Center"
-        subtitle = "Stato rapido dei principali servizi e funzioni di U1FA."
+        subtitle = "Bobina Spoolman → profilo Snapmaker Orca → calibrazione Adaptive PA."
         configured = "Endpoint configurato"
-        not_configured = "Da configurare"
+        moonraker_missing = "Connessioni da configurare"
+        spoolman_missing = "Da configurare"
         detected = "Profili rilevati"
         not_detected = "Non rilevato"
         no_url = "Nessun endpoint configurato"
         orca_detail = str(orca_dir) if orca_dir else "Profili utente Snapmaker Orca non rilevati"
+        connection_label = "Connessioni" if moonraker else "Configura U1 e Spoolman"
+        update_label = "Mostra aggiornamento" if update_state == "available" else "Aggiornamenti U1FA"
         actions = (
             '<a class="button" href="/new-spool">＋ Nuova bobina</a>'
             '<a class="button secondary" href="#u1fa-filament-group">Calibrazione</a>'
-            '<a class="button secondary" href="/connections">Connessioni</a>'
-            '<a class="button secondary" href="/updates">Aggiornamenti U1FA</a>'
+            f'<a class="button secondary" href="/connections">{connection_label}</a>'
+            f'<a class="button secondary" href="/updates">{update_label}</a>'
         )
-        foot = "Dashboard in sola lettura: aprire questa pagina non invia alcun comando alla Snapmaker U1."
+        foot = (
+            "Dashboard in sola lettura: aprire questa pagina non invia alcun comando alla Snapmaker U1. "
+            "Il controllo aggiornamenti non aggiorna il firmware e non invia comandi alla U1."
+        )
 
     status_cards = "".join(
         (
-            _card("U1 / Moonraker", configured if moonraker else not_configured, moonraker or no_url, "ok" if moonraker else "warn"),
-            _card("Spoolman", configured if spoolman else not_configured, spoolman or no_url, "ok" if spoolman else "warn"),
-            _card("Snapmaker Orca", detected if orca_dir else not_detected, orca_detail, "ok" if orca_dir else "warn"),
-            _card("Adaptive PA", job_value, "Calibration controller" if language == "en" else "Controller calibrazione", job_tone),
+            _card(
+                "U1 / Moonraker",
+                configured if moonraker else moonraker_missing,
+                moonraker or no_url,
+                "ok" if moonraker else "warn",
+            ),
+            _card(
+                "Spoolman",
+                configured if spoolman else spoolman_missing,
+                spoolman or no_url,
+                "ok" if spoolman else "warn",
+            ),
+            _card(
+                "Snapmaker Orca",
+                detected if orca_dir else not_detected,
+                orca_detail,
+                "ok" if orca_dir else "warn",
+            ),
+            _card(
+                "Adaptive PA",
+                job_value,
+                "Calibration controller" if language == "en" else "Controller calibrazione",
+                job_tone,
+            ),
         )
     )
     return (
@@ -222,7 +259,11 @@ def _group_legacy_home(page: str, language: str) -> str:
         page = page.replace(spool_marker, close_group + filament_open + spool_marker, 1)
         grouped = True
     elif spool_marker in page:
-        page = page.replace(spool_marker, f'<span id="{_HOME_GROUPS_ID}" hidden></span>' + filament_open + spool_marker, 1)
+        page = page.replace(
+            spool_marker,
+            f'<span id="{_HOME_GROUPS_ID}" hidden></span>' + filament_open + spool_marker,
+            1,
+        )
         grouped = True
 
     if grouped and protection_marker in page:
