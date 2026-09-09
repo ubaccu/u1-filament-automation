@@ -57,7 +57,7 @@ class GUIMaterialTests(unittest.TestCase):
     def test_petg_variants_keep_petg_family_defaults(self):
         page = enhance_new_spool_page(_new_spool_form("safe-token"), "it")
         self.assertIn("v.indexOf('PETG')===0?['1.27','240','75']", page)
-        self.assertIn("v==='PLA Silk'?['1.24','230','60']", page)
+        self.assertIn("this.value==='PLA Silk'?['1.24','230','60']", page)
         self.assertIn("['1.24','220','60']", page)
 
     def test_patch_installation_is_idempotent(self):
