@@ -8,6 +8,7 @@
   HTTP, così un problema di rete non viene più mostrato senza spiegazione.
 - La schermata di errore offre direttamente il pulsante per riprovare il
   controllo, senza obbligare a tornare prima alla home.
+- Verificato il controllo pubblico delle release senza token GitHub personali.
 
 ## 1.8.0b12 — 2026-09-09
 
