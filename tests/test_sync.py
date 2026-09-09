@@ -184,6 +184,42 @@ class SyncTests(unittest.TestCase):
             payload = json.loads(next(user_dir.glob("*.json")).read_text(encoding="utf-8"))
             self.assertEqual(payload["inherits"], "Snapmaker PLA Silk")
             self.assertEqual(payload["default_filament_colour"], ["#D9A62E", "#D8494A"])
+            self.assertEqual(payload["filament_colour"], ["#D9A62E", "#D8494A"])
+
+    def test_existing_u1fa_white_profile_repairs_spoolman_colors(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            user_dir = root / "user" / "default" / "filament"
+            system_dir = root / "system" / "Snapmaker" / "filament"
+            user_dir.mkdir(parents=True)
+            system_dir.mkdir(parents=True)
+            (system_dir / "Snapmaker PLA Silk.json").write_text(
+                json.dumps({"version": "2.2.53.2"}), encoding="utf-8"
+            )
+            profile_name = "Snapmaker PLA BICOLOR SUNSET EMBER @Snapmaker U1 (0.4 nozzle)"
+            profile_path = user_dir / f"{profile_name}.json"
+            profile_path.write_text(json.dumps({
+                "default_filament_colour": ["#FFFFFF"],
+                "filament_settings_id": [profile_name],
+                "from": "User",
+                "inherits": "Snapmaker PLA Silk",
+                "name": profile_name,
+            }), encoding="utf-8")
+            inventory = SpoolmanInventory(
+                url="http://spoolman.test",
+                vendors=[{"id": 7, "name": "Snapmaker"}],
+                filaments=[{
+                    "id": 8, "vendor_id": 7, "material": "PLA",
+                    "name": "BICOLOR SUNSET EMBER",
+                    "multi_color_hexes": "D9A62E,D8494A",
+                }],
+                spools=[{"id": 9, "filament_id": 8}],
+            )
+            report = sync_profiles(inventory, user_dir, system_dir, apply=True)
+            self.assertEqual(report.actions[0].status, "repaired")
+            payload = json.loads(profile_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["default_filament_colour"], ["#D9A62E", "#D8494A"])
+            self.assertEqual(payload["filament_colour"], ["#D9A62E", "#D8494A"])
 
 
 if __name__ == "__main__":

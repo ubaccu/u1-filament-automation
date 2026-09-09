@@ -228,11 +228,18 @@ def _profile_payload(
         normalized_colors = (colors,) if colors else ()
     else:
         normalized_colors = tuple(colors)
+    profile_colors = [
+        f"#{color}" if color else "#FFFFFF"
+        for color in (normalized_colors or ("",))
+    ]
     return {
-        "default_filament_colour": [
-            f"#{color}" if color else "#FFFFFF"
-            for color in (normalized_colors or ("",))
-        ],
+        # Orca uses default_filament_colour for the profile editor.  The
+        # filament_colour alias is also consumed by recent Snapmaker/Orca
+        # builds when they refresh the default swatch (including multicolor
+        # profiles).  Keep both in sync so a newly-created profile never
+        # falls back to white in the UI.
+        "default_filament_colour": profile_colors,
+        "filament_colour": profile_colors,
         "filament_settings_id": [profile_name],
         "from": "User",
         "inherits": base,
@@ -240,6 +247,58 @@ def _profile_payload(
         "name": profile_name,
         "version": version,
     }
+
+
+def repair_profile_colors(
+    user_dir: Path,
+    profile_name: str,
+    colors: tuple[str, ...] | str,
+) -> bool:
+    """Repair only an obvious white placeholder in a managed U1FA profile.
+
+    Orca can cache a newly-created profile while the Spoolman sync is
+    completing.  In that case it leaves the default swatch as ``#FFFFFF``
+    even though Spoolman contains the real (possibly multicolor) values.
+    We only touch profiles that have U1FA's normal profile identity fields and
+    only when the current colour is missing/white, preserving intentional
+    edits to an existing profile.
+    """
+    if isinstance(colors, str):
+        normalized = (colors,) if colors else ()
+    else:
+        normalized = tuple(colors)
+    desired = [f"#{value}" for value in normalized if value]
+    if not desired:
+        return False
+    path = user_dir / f"{safe_filename(profile_name)}.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("name") != profile_name:
+        return False
+    setting_id = payload.get("filament_settings_id")
+    if setting_id not in ([profile_name], (profile_name,)):
+        return False
+    current = payload.get("default_filament_colour")
+    if isinstance(current, str):
+        current_values = [current]
+    elif isinstance(current, (list, tuple)):
+        current_values = list(current)
+    else:
+        current_values = []
+    normalized_current = [str(value).upper() for value in current_values]
+    if normalized_current not in ([], ["#FFFFFF"]):
+        return False
+    payload["default_filament_colour"] = desired
+    payload["filament_colour"] = desired
+    path.write_text(
+        json.dumps(payload, indent=4, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return True
 
 
 def _base_version(base_file: Path) -> str:
@@ -366,7 +425,18 @@ def sync_profiles(
 
         filename = safe_filename(profile_name)
         if _profile_exists(user_dir, filename):
-            actions.append(SyncAction("existing", profile_name, base, color, spool_ids))
+            repaired = (
+                apply
+                and repair_profile_colors(user_dir, profile_name, colors)
+            )
+            actions.append(SyncAction(
+                "repaired" if repaired else "existing",
+                profile_name,
+                base,
+                color,
+                spool_ids,
+                "colori predefiniti aggiornati" if repaired else "",
+            ))
             continue
         if filename.casefold() in planned_names:
             actions.append(

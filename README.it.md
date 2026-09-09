@@ -148,9 +148,12 @@ modifica. Maggiori informazioni sono disponibili in
 ## Profili filamento
 
 La base Snapmaker viene scelta automaticamente dal materiale e dal nome tecnico.
+Nel modulo di creazione è disponibile anche **PLA Silk**: usa la base Snapmaker
+PLA Silk e propone 230 °C come temperatura ugello.
 Esempi:
 
 - PLA normale → Snapmaker PLA Basic;
+- PLA Silk → Snapmaker PLA Silk;
 - PLA Rapid, Hyper, High Speed, HS o HF → Snapmaker PLA SnapSpeed;
 - PETG → relativo profilo Snapmaker PETG compatibile.
 

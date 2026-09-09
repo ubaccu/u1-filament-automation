@@ -153,8 +153,12 @@ The Snapmaker base profile is selected automatically from the material and
 technical name. Examples:
 
 - standard PLA → Snapmaker PLA Basic;
+- PLA Silk → Snapmaker PLA Silk;
 - Rapid, Hyper, High Speed, HS or HF PLA → Snapmaker PLA SnapSpeed;
 - PETG → the corresponding compatible Snapmaker PETG profile.
+
+The new-spool form offers **PLA Silk** explicitly and proposes 230 °C as the
+nozzle temperature default.
 
 An existing Orca profile is never overwritten during creation. Before PA values
 are written to the selected profile, U1FA always creates a timestamped backup.

@@ -254,6 +254,21 @@ def _moonraker_retry_delay(failure_number: int, poll_interval: float) -> float:
     return min(max(1.0, poll_interval) * (2 ** exponent), MOONRAKER_MAX_RETRY_DELAY)
 
 
+def _is_moonraker_command_timeout(error: BaseException) -> bool:
+    """Return True when Moonraker may have accepted a long-running command."""
+    message = str(error).casefold()
+    return any(
+        marker in message
+        for marker in (
+            "timed out",
+            "timeout",
+            "http error 504",
+            "gateway time-out",
+            "gateway timeout",
+        )
+    )
+
+
 def build_calibration_commands(
     physical_slot: int,
     temperature: int,
@@ -1013,7 +1028,23 @@ class CalibrationController:
         try:
             envelope_command, run_command = selection.commands
             client.run_gcode(envelope_command)
-            client.run_gcode(run_command)
+            try:
+                client.run_gcode(run_command)
+            except PrinterInstallError as exc:
+                if not _is_moonraker_command_timeout(exc):
+                    raise
+                # The request can time out while Klipper is already executing
+                # the macro. Never resend it: polling below verifies whether a
+                # complete suite appears in gcode_store.
+                self._set_job(
+                    JobSnapshot(
+                        "running",
+                        "Moonraker non ha confermato il comando entro il timeout; "
+                        "verifico la calibrazione già avviata senza reinviarla.",
+                        selection,
+                        started_at=started_at,
+                    )
+                )
             deadline = time.time() + 3 * 60 * 60
             while time.time() < deadline:
                 try:
@@ -1520,11 +1551,11 @@ def _new_spool_form(
     error_box = "" if not error else f'<p class="warn">{html.escape(error)}</p>'
     body = f"""
 <h1>{_tr(language, 'Nuova bobina Spoolman', 'New Spoolman spool')}</h1><div class="card">{error_box}
-<p class="muted">{_tr(language, 'Per PLA+ o PLA veloce inserisci RAPID, HYPER, HS o HF nel nome: verrà usato il profilo SnapSpeed. Per PLA normale scrivi soltanto PLA: verrà usato PLA Basic.', 'For PLA+ or high-speed PLA include RAPID, HYPER, HS or HF in the name: the SnapSpeed profile will be used. For standard PLA use only PLA: PLA Basic will be used.')}</p>
+<p class="muted">{_tr(language, 'Scegli PLA Silk per filamenti Silk (anche bicolore): verrà usato il profilo Snapmaker PLA Silk e la temperatura predefinita sarà 230 °C. Per PLA+ o PLA veloce inserisci RAPID, HYPER, HS o HF nel nome: verrà usato il profilo SnapSpeed. Per PLA normale verrà usato PLA Basic.', 'Choose PLA Silk for Silk filaments (including bicolor): the Snapmaker PLA Silk profile will be used and the default temperature will be 230 °C. For PLA+ or high-speed PLA include RAPID, HYPER, HS or HF in the name: the SnapSpeed profile will be used. Standard PLA uses PLA Basic.')}</p>
 <form method="post" action="/new-spool/preview">
 <input type="hidden" name="token" value="{token}">
 <div class="grid"><div><label>{_tr(language, 'Marca / vendor', 'Brand / vendor')}</label><input name="vendor" maxlength="64" placeholder="{_tr(language, 'es. Deeplee', 'e.g. Deeplee')}" required></div>
-<div><label>{_tr(language, 'Materiale', 'Material')}</label><select name="material" id="material"><option value="PLA">PLA</option><option value="PETG">PETG</option></select></div></div>
+<div><label>{_tr(language, 'Materiale', 'Material')}</label><select name="material" id="material"><option value="PLA">PLA</option><option value="PLA Silk">PLA Silk</option><option value="PETG">PETG</option></select></div></div>
 <label>{_tr(language, 'Nome tecnico del filamento', 'Technical filament name')}</label><input name="name" maxlength="64" placeholder="{_tr(language, 'es. PLA PRO RAPID BLUE', 'e.g. PLA PRO RAPID BLUE')}" required>
 <div class="grid"><div><label>{_tr(language, 'Colore', 'Color')}</label><div class="color-control"><input id="color-picker" type="color" value="#2563eb" aria-label="{_tr(language, 'Selettore colore', 'Color picker')}">
 <input id="color-hex" name="color_hex" value="#2563EB" pattern="#?[0-9A-Fa-f]{{6}}" maxlength="7" aria-label="HEX" required>
@@ -1552,7 +1583,7 @@ function syncMulti(){{multiField.value=multiColors.map(validColor).join(',');}}
 function renderMulti(){{multiList.innerHTML='';multiColors.forEach(function(color,index){{var row=document.createElement('div');row.className='color-control';var swatch=document.createElement('input');swatch.type='color';swatch.value=validColor(color);swatch.setAttribute('aria-label','{_tr(language, 'Colore multicolore', 'Multicolor swatch')} '+(index+1));var hex=document.createElement('input');hex.type='text';hex.maxLength=7;hex.value=validColor(color);hex.setAttribute('aria-label','HEX '+(index+1));swatch.addEventListener('input',function(){{multiColors[index]=this.value.toUpperCase();hex.value=multiColors[index];syncMulti();}});hex.addEventListener('input',function(){{multiColors[index]=this.value;var normalized=validColor(this.value);if(normalized!=='#FFFFFF'||this.value.trim().length>=7){{swatch.value=normalized;}}syncMulti();}});row.appendChild(swatch);row.appendChild(hex);if(multiColors.length>2){{var remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='×';remove.setAttribute('aria-label','{_tr(language, 'Rimuovi colore', 'Remove color')}');remove.addEventListener('click',function(){{multiColors.splice(index,1);renderMulti();}});row.appendChild(remove);}}multiList.appendChild(row);}});syncMulti();}}
 addMulti.addEventListener('click',function(){{if(multiColors.length<8){{multiColors.push('#FFFFFF');renderMulti();}}}});
 function updateColorMode(){{var multi=mode.value==='multi';multiWrap.hidden=!multi;multiField.required=multi;if(multi)renderMulti();}} mode.addEventListener('change',updateColorMode);updateColorMode();
-document.getElementById('material').addEventListener('change',function(){{var p=this.value==='PETG'?['1.27','240','75']:['1.24','220','60'];document.getElementById('density').value=p[0];document.getElementById('nozzle-temp').value=p[1];document.getElementById('bed-temp').value=p[2];}});
+document.getElementById('material').addEventListener('change',function(){{var p=this.value==='PETG'?['1.27','240','75']:this.value==='PLA Silk'?['1.24','230','60']:['1.24','220','60'];document.getElementById('density').value=p[0];document.getElementById('nozzle-temp').value=p[1];document.getElementById('bed-temp').value=p[2];}});
 </script>"""
     return _page(_tr(language, "Nuova bobina", "New spool"), body, language=language)
 

@@ -416,6 +416,11 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn("multiColors=['#D9A62E','#D8494A']", page)
         self.assertIn("sample.style.backgroundColor=normalized", page)
 
+    def test_material_selector_offers_pla_silk_with_230_degree_default(self):
+        page = _new_spool_form("safe-token")
+        self.assertIn('<option value="PLA Silk">PLA Silk</option>', page)
+        self.assertIn("this.value==='PLA Silk'?['1.24','230','60']", page)
+
     def test_selected_pink_hex_is_preserved_for_spoolman(self):
         request = _new_spool_request({
             "vendor": "Bambu Lab",
@@ -713,6 +718,64 @@ class GUISafetyTests(unittest.TestCase):
         self.assertEqual(len(fake.scripts), 2)
         self.assertEqual(update.call_count, 1)
         self.assertTrue(sleep.called)
+        self.assertEqual(controller.snapshot().state, "completed")
+
+    def test_run_command_timeout_is_not_reported_as_calibration_failure(self):
+        class FakeMoonraker:
+            def __init__(self):
+                self.scripts = []
+
+            def run_gcode(self, script):
+                self.scripts.append(script)
+                if script.startswith("APA_COIL_RUN_ULTRA"):
+                    raise PrinterInstallError("Moonraker non raggiungibile: timed out")
+
+            def gcode_store(self, count):
+                return []
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+                real_orca_dir=root / "real-orca",
+                poll_interval=0.001,
+            )
+            selection = CalibrationSelection("Profilo", 1, 0, 220)
+            fake = FakeMoonraker()
+            with patch(
+                "u1_filament_automation.gui.MoonrakerClient",
+                return_value=fake,
+            ), patch(
+                "u1_filament_automation.gui.time.time",
+                side_effect=[100.0, 100.0, 100.0, 100.0, 100.0],
+            ), patch(
+                "u1_filament_automation.gui.time.sleep",
+                side_effect=lambda _: None,
+            ):
+                # The bounded loop is not allowed to spin forever in this
+                # unit test; replace the parser with a completed suite path.
+                with patch(
+                    "u1_filament_automation.gui.parse_gcode_store",
+                    return_value=[],
+                ), patch(
+                    "u1_filament_automation.gui.new_gcode_entries",
+                    return_value=[object()],
+                ), patch(
+                    "u1_filament_automation.gui.response_text",
+                    return_value="suite",
+                ), patch(
+                    "u1_filament_automation.gui.last_complete_suite_span",
+                    return_value=(object(), 0, 1),
+                ), patch(
+                    "u1_filament_automation.gui.update_pa_profile",
+                    return_value=type("Report", (), {"to_dict": lambda self: {}})(),
+                ):
+                    controller._run_job(selection, [], started_at=100.0)
+
+        self.assertEqual(len(fake.scripts), 2)
         self.assertEqual(controller.snapshot().state, "completed")
 
     def test_recovery_applies_only_suite_completed_after_selected_run(self):

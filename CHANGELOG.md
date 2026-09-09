@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.8.0b11 — 2026-09-09
+
+- I profili multicolore riportano sia `default_filament_colour` sia
+  `filament_colour`, così Orca/Snapmaker mostra i colori della bobina invece
+  del campione bianco predefinito.
+- Se un profilo U1FA esistente contiene ancora solo il campione bianco, la
+  sincronizzazione lo ripara usando i colori presenti in Spoolman senza
+  sovrascrivere modifiche colore già deliberate.
+
+## 1.8.0b10 — 2026-09-09
+
+- Un timeout HTTP durante l'avvio della macro Adaptive PA non viene più mostrato
+  come fallimento se la U1 può aver già accettato il comando: U1FA continua a
+  monitorare la calibrazione senza reinviare G-code e mantiene il recupero sicuro.
+- Aggiunto **PLA Silk** alla scelta del materiale, con profilo base Snapmaker PLA
+  Silk e temperatura ugello predefinita di 230 °C.
+
 ## 1.8.0b9 — 2026-09-09
 
 - Corretto l'errore Spoolman HTTP 422 nella creazione delle bobine multicolore:
