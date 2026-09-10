@@ -1,0 +1,123 @@
+name: Bug report
+description: Report a reproducible U1FA problem
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Please do not include SSH passwords, tokens, private keys, personal data or unredacted sensitive logs.
+
+  - type: input
+    id: u1fa_version
+    attributes:
+      label: U1FA version
+      description: Example: 1.8.0
+      placeholder: 1.8.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS Intel
+        - macOS Apple Silicon
+        - Windows 10/11 x64
+        - Linux x86_64
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: Operating system version
+      placeholder: Example: macOS 15.x / Windows 11 24H2 / Ubuntu 24.04
+
+  - type: input
+    id: firmware
+    attributes:
+      label: Snapmaker U1 firmware version
+      description: Required when the problem involves printer setup, calibration or Moonraker.
+      placeholder: Example: 1.6.0
+
+  - type: input
+    id: orca
+    attributes:
+      label: Snapmaker Orca version
+      description: Required when the problem involves filament profiles or PA write-back.
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Printer environment
+      options:
+        - Stock U1
+        - U1 with PAXX
+        - Not relevant / unknown
+
+  - type: textarea
+    id: action
+    attributes:
+      label: What were you trying to do?
+      description: Describe the action immediately before the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the exact error message if one was shown.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Keep the steps minimal and do not repeat risky printer actions just to reproduce a bug.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Click ...
+
+  - type: dropdown
+    id: writes
+    attributes:
+      label: Before the problem, did U1FA write anything?
+      options:
+        - No / preview only
+        - Spoolman only
+        - Snapmaker Orca profile only
+        - Printer configuration files
+        - Calibration / PA result
+        - Unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Screenshots or sanitized logs
+      description: Drag files here if useful. Remove credentials, personal data and unnecessary private IP addresses first.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I am using the latest available U1FA release or I have stated why I cannot update.
+          required: true
+        - label: I removed passwords, tokens, private keys and personal data from this report.
+          required: true
+        - label: If the printer is involved, I did not repeat unsafe actions just to reproduce the issue.
+          required: true
