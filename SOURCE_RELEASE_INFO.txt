@@ -1,0 +1,10 @@
+U1 Filament Automation (U1FA)
+Version: 1.8.0b22
+Build commit: d7f8d9da270cce299bdcfa71d3b5c9c16183ce21
+Public release repository: ubaccu/u1-filament-automation
+License: GNU GPLv3; see LICENSE and THIRD_PARTY_NOTICES.md
+
+This archive contains the source code and build/packaging scripts corresponding
+to the distributed desktop release. Development-only CI configuration, tests,
+Copilot instructions and unpublished planning material are not required to use,
+modify or rebuild the distributed program and are not included here.
