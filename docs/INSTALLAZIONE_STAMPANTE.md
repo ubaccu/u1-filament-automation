@@ -1,70 +1,67 @@
-# Lingua / Language
+# Installazione e ripristino U1FA AutoPA Mod
 
-[English](PRINTER_SETUP.md) | **Italiano**
+**Italiano** | [English](PRINTER_SETUP.md)
 
-# Installazione del calibratore sulla Snapmaker U1
+Questa guida descrive la configurazione protetta di **U1FA AutoPA Mod** sulla Snapmaker U1. U1FA gestisce in modo coordinato:
 
-Questa procedura installa **U1FA AutoPA Mod** sulla U1 Stock e gestisce in modo
-coordinato:
+- il modulo attivo `/home/lava/klipper/klippy/extras/flow_calibrator.py`;
+- la macro `/home/lava/printer_data/config/adaptive_pa_macro.cfg`;
+- il relativo include in `printer.cfg`, solo quando necessario.
 
-- il modulo attivo `flow_calibrator.py`;
-- la macro `adaptive_pa_macro.cfg`;
-- l'include della macro in `printer.cfg`, solo quando necessario.
+## Prima di iniziare
 
-## Configurazione degli indirizzi
+La stampante deve essere completamente inattiva. Non eseguire setup o ripristino durante una stampa o mentre una calibrazione è attiva.
 
-Non è presente alcun IP U1 preimpostato. Al primo avvio la pagina
-**Connessioni** chiede:
+Dal touchscreen della U1 abilita:
 
-- IP o hostname mostrato dalla Snapmaker U1;
-- indirizzo Spoolman facoltativo; lasciandolo vuoto viene rilevato automaticamente.
+1. **Impostazioni → Manutenzione → Modalità avanzata → Accetto → Abilita** — rende disponibile Fluidd/Moonraker;
+2. **Impostazioni → Manutenzione → Accesso Root → Accetto → Apri** — abilita SSH per backup e installazione protetta.
 
-Il rilevamento prova nell'ordine Spoolman sul computer corrente (`127.0.0.1`, che
-indica sempre il computer dell'utente), gli endpoint pubblicati da Moonraker/PAXX
-e la U1 sulla porta standard `7912`. Il campo resta disponibile per forzare un
-indirizzo o una porta non standard.
+Se non è stata modificata dall'utente, la password SSH predefinita è `snapmaker`. U1FA può mostrarla come promemoria, ma **non la salva**.
 
-Il pulsante **Verifica e salva** interroga Moonraker e Spoolman in sola lettura,
-non invia G-code e ricava automaticamente SSH come `root@HOST`. Vengono salvati
-soltanto i due indirizzi nel profilo personale del sistema operativo; la password
-SSH non viene memorizzata. La stessa pagina consente di aggiornare l'indirizzo se
-il router cambia l'IP della stampante.
+## Rilevamento U1 e Spoolman
 
-## Requisiti
+Al primo setup usa **Controlla configurazione stampante**.
 
-- stampa terminata e U1 completamente inattiva;
-- Moonraker raggiungibile;
-- accesso SSH attivo per l'utente `root`, con chiave oppure password;
-- file originale oppure v6 con SHA-256 riconosciuto.
+U1FA può cercare la Snapmaker U1 sulla rete locale soltanto quando l'utente avvia esplicitamente il rilevamento. La ricerca:
 
-Su Windows è richiesto **OpenSSH Client** soltanto per questa configurazione; si
-abilita dalle Funzionalità facoltative del sistema. Non occorre OpenSSH Server. Su
-Linux installare il pacchetto `openssh-client` se il comando `ssh` non è presente.
-macOS include già il client. U1FA rileva l'assenza prima dell'accesso e non tenta di
-installare componenti di sistema.
+- usa richieste HTTP Moonraker in sola lettura;
+- identifica Moonraker tramite `/server/info`;
+- conferma la presenza della U1 verificando gli oggetti stampante attesi;
+- non invia G-code, non avvia movimenti, non riscalda e non modifica file;
+- chiede conferma prima di salvare l'endpoint trovato.
 
-Prima di usare la GUI, abilitare dal display della U1 due funzioni distinte:
+La configurazione manuale di IP/hostname resta disponibile se il rilevamento automatico non trova la stampante.
 
-1. `Settings / Impostazioni → Maintenance / Manutenzione → Advanced Mode /
-   Modalità avanzata → Agree / Accetto → Enable / Abilita`: rende accessibile
-   Fluidd dall'indirizzo IP della stampante;
-2. `Settings / Impostazioni → Maintenance / Manutenzione → Root Access /
-   Accesso Root → Agree / Accetto → Open / Apri`: abilita il collegamento SSH
-necessario per backup e installazione.
+Dopo aver verificato la U1, U1FA può rilevare Spoolman controllando le sorgenti previste dalla configurazione locale/Moonraker/PAXX e la porta standard U1. È sempre possibile indicare manualmente un indirizzo o una porta non standard.
 
-Se non è stata modificata dall'utente, la password SSH predefinita è
-`snapmaker`. La GUI la indica come promemoria ma non la precompila e non la salva.
+## Requisiti del computer
 
-Il file modificato non è una copia separata: è il file originale usato da Klipper,
-`/home/lava/klipper/klippy/extras/flow_calibrator.py`. La GUI lo mostra prima
-della conferma e non lo sostituisce se SHA-256 o stato stampante non corrispondono
-alle condizioni validate.
+- **macOS:** il client SSH è già incluso;
+- **Windows:** serve **OpenSSH Client** soltanto per la configurazione protetta dei file stampante; OpenSSH Server non è richiesto;
+- **Linux:** installa `openssh-client` se il comando `ssh` non è disponibile.
 
-In alternativa alla chiave SSH, aggiungere `--ask-ssh-password`: la password viene
-chiesta in modo nascosto e non viene salvata. Questa modalità non aggiunge chiavi né
-modifica `/root/.ssh/authorized_keys` sulla U1.
+U1FA rileva l'assenza del client e non installa automaticamente componenti di sistema.
 
-## Controllo in sola lettura
+## Procedura desktop consigliata
+
+1. Apri U1FA con la stampante completamente inattiva.
+2. Verifica o rileva U1/Moonraker e Spoolman.
+3. Apri **Controlla configurazione stampante**.
+4. Conferma di avere abilitato Modalità avanzata e Accesso Root.
+5. Inserisci la password SSH soltanto quando richiesta.
+6. Esegui prima il **controllo in sola lettura**.
+7. Fermati se compare `unknown`, `unknown-blocked`, un SHA-256 inatteso o uno stato stampante non inattivo.
+8. Controlla attentamente file e operazioni mostrati nell'anteprima.
+9. Applica modifiche soltanto se tutti i componenti sono riconosciuti e dopo le conferme esplicite richieste dall'app.
+
+Prima di ogni scrittura U1FA ricontrolla lo stato stampante e gli hash dei file. I file esistenti ricevono backup esclusivi con timestamp; le scritture sono atomiche e verificate. In caso di errore, il flusso tenta il rollback previsto.
+
+U1FA **non invia** `RESTART` o `FIRMWARE_RESTART` per completare il setup. Dopo una vera installazione o un ripristino, spegni completamente la U1, attendi 10–15 secondi e riaccendila.
+
+## Controllo tecnico in sola lettura
+
+Per utenti avanzati, l'equivalente CLI del controllo è:
 
 ```bash
 u1fa printer-check \
@@ -73,19 +70,9 @@ u1fa printer-check \
   --ask-ssh-password
 ```
 
-Il controllo legge lo stato ufficiale Moonraker e lo SHA-256 del calibratore. Se la
-stampante sta stampando o è in pausa, il comando si ferma prima di leggere il file
-via SSH.
+Il controllo legge stato Moonraker/Snapmaker e SHA-256 dei componenti necessari. Non invia G-code e non scrive file.
 
-Controlla anche lo SHA-256 della macro personalizzata installata sulla U1 Stock in
-`/home/lava/printer_data/config/adaptive_pa_macro.cfg` e verifica tramite l'elenco
-oggetti Moonraker che `APA_COIL_RUN_ULTRA` sia effettivamente caricata da Klipper.
-Tutte queste operazioni sono in sola lettura.
-
-Nel firmware ufficiale Snapmaker lo stato macchina inattivo è
-`MachineMainState.IDLE = 0`: l'app accetta `0`/`IDLE` e blocca ogni altro valore.
-
-## Anteprima
+## Anteprima tecnica
 
 ```bash
 u1fa printer-install \
@@ -93,10 +80,9 @@ u1fa printer-install \
   --moonraker-url http://IP_DELLA_U1
 ```
 
-Mostra cosa verrebbe eseguito sui tre componenti, senza scrivere file e senza
-riavviare Klipper.
+Senza `--apply`, mostra le operazioni previste senza scrivere sulla stampante.
 
-## Applicazione reale
+## Applicazione tecnica protetta
 
 ```bash
 u1fa printer-install \
@@ -106,27 +92,20 @@ u1fa printer-install \
   --confirm-printer-write
 ```
 
-Ordine delle protezioni:
+Le protezioni includono:
 
-1. verifica `printer/info`, `print_stats`, `virtual_sdcard`, `idle_timeout` e lo
-   stato macchina Snapmaker quando disponibile;
+1. verifica stato Moonraker e stato macchina Snapmaker;
 2. lettura e confronto SHA-256;
-3. seconda verifica dello stato stampa;
-4. blocco di qualunque calibratore o macro con SHA-256 sconosciuto;
-5. riconoscimento degli include esatti e glob in `printer.cfg`;
-6. backup esclusivi datati dei file esistenti da modificare;
-7. controllo sintattico Python della modifica;
+3. seconda verifica dello stato prima della scrittura;
+4. blocco di calibratori o macro sconosciuti;
+5. riconoscimento degli include previsti in `printer.cfg`;
+6. backup esclusivi datati dei file da modificare;
+7. controllo sintattico del Python modificato;
 8. scritture atomiche con permessi e proprietario coerenti;
-9. verifica SHA-256 e rollback automatico in caso di errore;
-10. richiesta esplicita di spegnimento completo e riaccensione.
+9. verifica finale e rollback in caso di errore;
+10. richiesta di power-cycle completo soltanto dopo una scrittura effettiva.
 
-I percorsi dei backup vengono stampati a fine operazione. Una macro già presente
-ma sconosciuta non viene sovrascritta. Il master backup validato
-documenta che `RESTART` non ricarica `flow_calibrator.py` nella sessione U1 già
-attiva. Per questo l'app non invia riavvii: bisogna spegnere la U1, attendere 10–15
-secondi e riaccenderla prima di usare U1FA AutoPA Mod.
-
-## Ripristino
+## Ripristino tecnico
 
 ```bash
 u1fa printer-restore \
@@ -137,23 +116,20 @@ u1fa printer-restore \
   --confirm-printer-write
 ```
 
-Il backup deve avere lo SHA-256 dell'originale validato e deve essere:
+Il backup deve corrispondere a un originale validato e rispettare i criteri accettati da U1FA. Anche dopo un ripristino effettivo è necessario spegnere completamente la stampante, attendere 10–15 secondi e riaccenderla.
 
-- un backup creato dall'app con prefisso `flow_calibrator.py.U1FA_BACKUP_`; oppure
-- il backup storico `flow_calibrator.py.BACKUP_ORIGINALE_20260824` recuperato dal
-  progetto precedente.
+## Aggiornamenti firmware
 
-Anche dopo il ripristino occorre lo stesso spegnimento completo; un semplice
-`RESTART` di Klipper non è sufficiente.
+Dopo ogni aggiornamento firmware Snapmaker, non copiare manualmente il vecchio calibratore sopra il nuovo. Esegui di nuovo **Controlla configurazione stampante** e fermati al controllo in sola lettura se l'originale non è riconosciuto.
 
-## Sandbox locale
+Vedi [Compatibilità firmware U1](COMPATIBILITA_FIRMWARE.md).
 
-La sandbox è il solo comando da usare durante lo sviluppo. Se la U1 è occupata,
-non eseguire alcun comando reale:
+## Sandbox di sviluppo
+
+Durante sviluppo e test usa la sandbox locale invece della stampante reale:
 
 ```bash
 u1fa printer-install --sandbox-root ~/Downloads/u1fa-printer-sandbox --apply
 ```
 
-Replica i percorsi Linux della U1 dentro la cartella scelta e prova calibratore,
-macro e include. Non apre connessioni SSH o HTTP e non vede la stampante reale.
+La sandbox replica i percorsi necessari in una cartella locale e non apre connessioni SSH o HTTP verso la U1.

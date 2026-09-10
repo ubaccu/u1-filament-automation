@@ -1,45 +1,41 @@
-# Compatibilità firmware U1 / U1 firmware compatibility
+# Snapmaker U1 Firmware Compatibility
 
-Un aggiornamento firmware Snapmaker può sostituire:
+[Italiano](COMPATIBILITA_FIRMWARE.md) | **English**
+
+A Snapmaker firmware update can replace or change:
 
 - `/home/lava/klipper/klippy/extras/flow_calibrator.py`;
 - `/home/lava/printer_data/config/adaptive_pa_macro.cfg`;
-- l'include della macro in `printer.cfg`.
+- the corresponding include in `printer.cfg`.
 
-U1FA conserva nel proprio pacchetto la modifica e la macro, quindi non dipende dai
-backup rimasti sulla stampante. Non reinstalla però un vecchio calibratore sopra un
-originale nuovo e sconosciuto.
+U1FA carries its validated modification and macro in the release package, but it **does not install an older modified calibrator over a new unknown original**. Unknown firmware or file hashes remain blocked until they are reviewed and validated.
 
-A Snapmaker firmware update may replace the calibrator, Adaptive PA macro and its
-include. U1FA carries its validated assets, but it never installs an old modified
-calibrator over a new unknown original.
+## Current validation state
 
-## Stato corrente / Current status
-
-| Firmware | Stato | Azione |
+| Firmware / baseline | Status | Allowed action |
 |---|---|---|
-| Baseline originale pre-1.6 con SHA-256 `dcbc26d5…a816e894` | Convalidato | Installazione/ripristino consentiti dopo doppia conferma |
-| U1 1.6.0 (2026-08-25) | In verifica | Solo controllo in lettura; fermarsi se l'hash è sconosciuto |
+| Validated original pre-1.6 baseline, SHA-256 `dcbc26d5…a816e894` | Validated | Protected installation/recovery allowed after explicit confirmation |
+| Snapmaker U1 1.6.0 (2026-08-25) | Under verification | Read-only check only if the original hash is not already recognized |
 
-Snapmaker indica V1.6.0 come firmware corrente nelle note ufficiali:
+Snapmaker publishes current U1 firmware release notes here:
+
 https://wiki.snapmaker.com/en/snapmaker_u1/firmware/release_notes
 
-## Dopo ogni aggiornamento / After every update
+## After every firmware update
 
-1. Non reinstallare manualmente file provenienti dal vecchio firmware.
-2. Aprire U1FA con la stampante completamente inattiva.
-3. Selezionare **Configurazione o ripristino U1FA AutoPA Mod**.
-4. Eseguire soltanto il controllo in lettura.
-5. Se calibratore, macro e include sono ancora validi, non serve alcuna scrittura.
-6. Se compare l'originale Snapmaker con hash già convalidato, U1FA propone il
-   ripristino completo con backup e doppia conferma.
-7. Se compare `unknown-blocked`, fermarsi. Il nuovo originale deve essere acquisito
-   e confrontato; la patch va rifusa e testata su quel sorgente prima di aggiungere
-   la nuova coppia di hash alla release.
-8. Dopo un ripristino effettivo, spegnere completamente la U1, attendere 10–15
-   secondi e riaccenderla. Non usare un semplice `RESTART`.
+1. Do not manually copy a file from an older firmware release over the new one.
+2. Open U1FA while the printer is completely idle.
+3. Use **Check printer setup**.
+4. Run the read-only check first.
+5. If calibrator, macro and include are still valid, no write is required.
+6. If U1FA recognizes a validated Snapmaker original, it can offer the protected recovery flow with backup and explicit confirmation.
+7. If U1FA reports `unknown-blocked`, stop. The new original must be acquired, compared and validated before its hash is added to a future release.
+8. After an actual protected write, completely power off the U1, wait 10–15 seconds and power it on again. Do not rely on a simple Klipper `RESTART`.
 
-The English procedure is identical: never copy the previous firmware's Python file
-blindly; run the read-only check; restore only a recognized original; stop on
-`unknown-blocked`; validate and rebuild the patch for every changed Snapmaker
-source; power-cycle only after an actual write.
+## Why U1FA blocks unknown files
+
+Printer-file installation modifies active Klipper files. A firmware update may change Snapmaker's implementation, so blindly reapplying a patch made for an older file could break calibration or printer behavior.
+
+For this reason U1FA checks known SHA-256 values and intentionally fails closed when the source file is not recognized. Do not bypass this safeguard manually.
+
+See [Printer setup and recovery](PRINTER_SETUP.md) for the complete workflow.
