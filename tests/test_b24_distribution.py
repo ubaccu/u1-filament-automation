@@ -1,25 +1,16 @@
 import pathlib
 import unittest
 
-import u1_filament_automation
-
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class B24DistributionTests(unittest.TestCase):
-    def test_version_is_b24_everywhere(self):
-        self.assertEqual(u1_filament_automation.__version__, "1.8.0b24")
-        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        self.assertIn('version = "1.8.0b24"', pyproject)
+    def test_b24_release_contract_remains_available(self):
+        self.assertTrue(
+            (ROOT / "src" / "u1_filament_automation" / "desktop_app_b24.py").is_file()
+        )
         self.assertTrue((ROOT / "RELEASE_NOTES_1.8.0b24.md").is_file())
-
-    def test_desktop_packages_use_b24_entrypoint(self):
-        for platform_name in ("macos", "windows", "linux"):
-            bootstrap = (
-                ROOT / "packaging" / platform_name / "u1fa_bootstrap.py"
-            ).read_text(encoding="utf-8")
-            self.assertIn("desktop_app_b24", bootstrap)
 
     def test_b24_entrypoint_layers_b23_before_b24(self):
         entrypoint = (

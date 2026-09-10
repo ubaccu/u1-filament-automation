@@ -1,233 +1,149 @@
-# Language / Lingua
-
-**English** | [Italiano](README.it.md)
+<div align="center">
 
 # U1 Filament Automation
 
-A bilingual desktop community application by **Bottega3DLab** that connects
-Spoolman, Snapmaker Orca and Adaptive Pressure Advance calibration on the
-Snapmaker U1.
+### Spoolman → Snapmaker Orca → Adaptive Pressure Advance
 
-Available for macOS, Windows and Linux.
+**Desktop companion for Snapmaker U1 by Bottega3DLab**  
+Manage real filament spools, generate or safely reuse Orca profiles, guide Adaptive PA calibration, and keep application updates separate from printer firmware.
 
-<a href="https://www.buymeacoffee.com/riccelliiv9" target="_blank" rel="noopener noreferrer"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="60" width="217"></a>
+[![Release](https://img.shields.io/github/v/release/ubaccu/u1-filament-automation?label=release)](https://github.com/ubaccu/u1-filament-automation/releases)
+![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-4c8bf5)
+![License](https://img.shields.io/badge/license-GPL--3.0-blue)
+![Status](https://img.shields.io/badge/status-stable-brightgreen)
 
-## What it does
+**[Download U1FA](https://github.com/ubaccu/u1-filament-automation/releases)** · **[Report a bug](https://github.com/ubaccu/u1-filament-automation/issues/new/choose)** · **[Documentation](docs/PRINTER_SETUP.md)** · **[Italiano](README.it.md)**
 
-- creates or reuses vendors and filaments in Spoolman;
-- creates a spool with colour, weight, empty-spool weight, temperatures,
-  location and lot information;
-- supports single-colour and multicolour spools (2 to 8 HEX colours),
-  preserving every colour in the Orca profile;
-- generates **one real filament profile** in Snapmaker Orca;
-- detects spools added directly from the Spoolman web interface;
-- safely installs or restores **U1FA AutoPA Mod** on a Stock U1;
-- guides Adaptive PA calibration and writes the result automatically to the
-  selected Orca profile;
-- calculates a filament-specific calibration envelope from Orca's inherited
-  maximum volumetric speed, with optional manufacturer limits;
-- checks for application updates without updating the printer firmware.
+<a href="https://www.buymeacoffee.com/riccelliiv9" target="_blank" rel="noopener noreferrer"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" height="50"></a>
 
-PAXX and other plugins are not required. U1FA can, however, use a Spoolman
-instance supplied by PAXX or hosted on another device on the local network.
+</div>
 
-## Automatic workflow
+---
 
-1. Enter the spool data in U1FA.
-2. U1FA creates or reuses the vendor and filament, then creates the Spoolman
-   spool.
-3. U1FA generates the corresponding profile in the real Snapmaker Orca user
-   directory.
-4. Select the physical tool slot and temperature. The recommended automatic
-   mode reads the filament's inherited maximum volumetric speed from Orca;
-   optional manufacturer min/max print speeds can impose a stricter limit.
-5. Review the calculated speeds, flows and commands, then confirm calibration.
-6. When calibration finishes, U1FA backs up the JSON and writes static PA, the
-   Adaptive PA table and bridge PA to that same profile.
+## What is U1FA?
 
-For a multicolour spool, select **Multicolor** in the new-spool form. Choose
-the colours with the graphical colour pickers (two are shown initially), add
-up to eight colours if needed, and keep them in the order shown on the spool.
-The HEX values are kept in sync automatically. PLA multicolour spools use the
-Snapmaker PLA Silk base profile automatically. Select the arrangement as well:
-**side-by-side bicolor (coaxial)** for Sunset Ember and other side-by-side
-two-colour filaments; **longitudinal color change** for filaments whose colour
-transitions along the strand.
+U1 Filament Automation is an independent community desktop application for the **Snapmaker U1**. It connects the filament data stored in **Spoolman** with user profiles in **Snapmaker Orca**, then guides **Adaptive Pressure Advance** calibration and writes validated PA results back to the selected Orca profile after creating a backup.
 
-No result needs to be copied manually. Keep U1FA open and Snapmaker Orca
-completely closed throughout calibration. Reopen the slicer only after U1FA
-shows `calibration completed`, so it loads the newly updated profile.
+The public repository is the official **distribution, documentation and support channel**. Development is maintained separately. Public releases include installers for supported platforms, SHA-256 checksums and a version-matched GPL corresponding-source archive.
 
-If Moonraker returns a temporary error, including `HTTP 504`, U1FA retries
-automatically without restarting calibration. If those attempts are exhausted,
-the status page provides **Recover latest calibration**. It reads the newly
-completed suite and updates the same profile after creating a backup, without
-sending G-code. Do not repeat the test or restart the U1 before trying recovery.
+## Highlights
 
-A complete calibration takes approximately **10 minutes**. Do not power off or
-restart the U1 and do not send other commands from Fluidd or the touchscreen
-while calibration is running.
+- **Real Spoolman workflow** — create or reuse vendors and filaments, then create real spools with colour, weight, tare, temperatures, storage location and lot information.
+- **Single and multicolour spools** — 2 to 8 HEX colours are preserved in generated Orca profiles.
+- **Automatic U1 discovery** — the first-setup workflow can discover a compatible Snapmaker U1/Moonraker endpoint on the local network with read-only checks before anything is saved.
+- **Automatic Snapmaker Orca profile selection** — material and technical name determine the compatible Snapmaker base profile.
+- **Duplicate-safe profile handling** — an existing exact profile is reused; one conservatively recognized equivalent legacy profile can also be reused without creating a duplicate.
+- **Filament-specific calibration envelope** — automatic mode reads Orca's inherited maximum volumetric speed and can apply stricter manufacturer limits.
+- **Adaptive PA workflow** — guided calibration, automatic result recovery, profile backup and PA write-back.
+- **Printer setup checks** — U1FA AutoPA Mod installation and recovery are guarded by file validation, printer-state checks and explicit confirmation.
+- **Built-in updater** — application packages are selected by platform and verified with SHA-256. Updating U1FA does **not** update U1 firmware.
 
-## Download and installation
+## Download
 
-Download the package for your platform from
-[GitHub Releases](https://github.com/ubaccu/u1-filament-automation/releases).
+Open **[GitHub Releases](https://github.com/ubaccu/u1-filament-automation/releases)** and choose the package for your computer:
 
-### macOS
+| Platform | Package | Notes |
+|---|---|---|
+| macOS Apple Silicon | `macOS-arm64.dmg` | Apple Silicon Macs |
+| macOS Intel | `macOS-x86_64.dmg` | Intel Macs |
+| Windows | `Windows-x64-Setup.exe` | Windows 10/11 x64 |
+| Linux | `Linux-x86_64.AppImage` | x86_64 AppImage |
+| Source | `Source.zip` | Version-matched GPL corresponding source |
 
-- `macOS-arm64.dmg` for Apple Silicon Macs;
-- `macOS-x86_64.dmg` for Intel Macs.
+Every release also includes **`SHA256SUMS.txt`**.
 
-Open the DMG, drag **U1 Filament Automation** to **Applications** and launch it.
-Unsigned beta builds may require **right-click the app → Open → Open** on first
-launch. If macOS still blocks it, use **System Settings → Privacy & Security →
-Open Anyway**.
+### macOS first launch
 
-U1FA opens in its own desktop window and displays an icon in the Dock. Chrome or
-another external browser is not required.
+Current macOS packages are not Apple-notarized. After copying **U1 Filament Automation** to **Applications**, use **right-click / Control-click → Open → Open** on first launch. If macOS still blocks it, use **System Settings → Privacy & Security → Open Anyway**.
 
-### Closing U1FA correctly
-
-On the Home screen, scroll to **Close application**, select it and confirm with
-**Close U1FA**. The desktop window, Spoolman monitor and internal local service
-are stopped together. Wait 2–3 seconds before reopening the application.
-
-Closing is blocked during an active calibration so that the PA result can be
-saved safely to the Orca profile.
-
-### Windows 10/11 x64
-
-Run `Windows-x64-Setup.exe` and follow the installer. Configuring the printer
-modification requires the Windows **OpenSSH Client**; OpenSSH Server is not
-required.
-
-### Linux x86_64
-
-Make the AppImage executable and launch it:
+### Linux
 
 ```bash
 chmod +x U1-Filament-Automation-*-Linux-x86_64.AppImage
 ./U1-Filament-Automation-*-Linux-x86_64.AppImage
 ```
 
-The `openssh-client` package is required for printer configuration.
+`openssh-client` is required only for protected printer-configuration tasks.
+
+## How it works
+
+1. Enter or select the physical spool in U1FA.
+2. U1FA creates or reuses the Spoolman vendor and filament, then creates the spool.
+3. U1FA creates the matching Snapmaker Orca user profile only when needed. Existing exact profiles are reused; one safely recognized equivalent legacy profile can also be reused.
+4. U1FA calculates the recommended calibration envelope from the profile's inherited volumetric-flow limit.
+5. You review speeds, flow values and planned actions before explicitly confirming calibration.
+6. When calibration finishes, U1FA backs up the selected Orca JSON and writes the validated PA values to that same profile.
+
+For normal use, choose **Automatic from filament profile**. Advanced manual mode remains available for experienced users.
+
+## Safety by design
+
+U1FA can modify printer configuration files and can start calibration movements and heating, so safeguards are deliberately strict:
+
+- printer checks begin in **read-only** mode;
+- unknown firmware/files are blocked;
+- configuration changes require explicit confirmation and an idle printer;
+- original files are validated before replacement and backups are created first;
+- existing Orca profiles are not overwritten during spool/profile creation;
+- Orca profiles are backed up before PA values are written;
+- the SSH password is not stored;
+- application updates are verified by size and SHA-256;
+- updating U1FA never installs or modifies Snapmaker U1 firmware;
+- U1FA never performs an automatic printer restart during setup.
+
+Keep U1FA open and Snapmaker Orca closed during calibration. Do not send unrelated commands from Fluidd or the touchscreen while a calibration is active.
 
 ## First U1 setup
 
-Enable both features from the printer touchscreen:
+Before protected printer configuration, enable on the U1 touchscreen:
 
-1. **Settings → Maintenance → Advanced Mode → Agree → Enable**;
-2. **Settings → Maintenance → Root Access → Agree → Open**.
+1. **Settings → Maintenance → Advanced Mode → Agree → Enable**
+2. **Settings → Maintenance → Root Access → Agree → Open**
 
-Advanced Mode enables access to Fluidd. Root Access allows U1FA to create
-backups and configure the required files over SSH.
+Then use **Check printer setup** inside U1FA. The application can first discover the U1/Moonraker endpoint on the local network using read-only checks; manual configuration remains available. After any U1 firmware update, run the setup check again before calibrating.
 
-On first launch, U1FA asks for the printer IP address or hostname and verifies
-the connection. The Spoolman address can be left blank for automatic discovery
-or entered manually.
-
-The SSH password is never stored. If unchanged, the default password for this U1
-configuration is `snapmaker`.
-
-## U1FA AutoPA Mod
-
-The guided setup:
-
-- checks printer state in read-only mode;
-- verifies the original file using SHA-256;
-- creates a backup before replacement;
-- configures `flow_calibrator.py`;
-- installs `adaptive_pa_macro.cfg`;
-- adds the corresponding include to `printer.cfg`;
-- blocks unknown files and firmware;
-- never performs an automatic printer restart.
-
-Every write requires two confirmations and is blocked unless the printer is
-completely idle.
-
-After a U1 firmware update, run **Check printer setup** again. U1FA does not
-modify a new original file until that version has been validated. See
-[Firmware compatibility](docs/FIRMWARE_COMPATIBILITY.md).
-
-## Filament profiles
-
-The Snapmaker base profile is selected automatically from the material and
-technical name. Examples:
-
-- standard PLA → Snapmaker PLA Basic;
-- PLA Silk → Snapmaker PLA Silk;
-- Rapid, Hyper, High Speed, HS or HF PLA → Snapmaker PLA SnapSpeed;
-- PETG → the corresponding compatible Snapmaker PETG profile.
-
-The new-spool form offers **PLA Silk** explicitly and proposes 230 °C as the
-nozzle temperature default.
-
-An existing Orca profile is never overwritten during creation. Before PA values
-are written to the selected profile, U1FA always creates a timestamped backup.
-
-### Calibration envelope
-
-Use **Automatic from filament profile** unless you have a specific reason not
-to. U1FA follows Orca inheritance until it finds
-`filament_max_volumetric_speed`, converts that flow limit using the calibration
-line geometry and never exceeds the U1FA machine cap. If the filament maker
-publishes a linear print-speed range, it can be entered as an additional,
-stricter limit. The confirmation page shows the source, limiting factor, three
-speeds and corresponding volumetric flows before the printer can start.
-
-**Advanced manual** mode remains available for experienced testers and enforces
-the U1FA limits of 336 mm/s and 10,000 mm/s². PLA/PETG alone is not treated as a
-reliable speed rating: material selects the correct base profile, while the
-actual envelope comes from that profile's flow setting.
-
-## Safety and privacy
-
-- the interface is accessible only from the local computer;
-- passwords and credentials are never stored;
-- no user address or data is sent to Bottega3DLab;
-- unknown firmware and files are blocked;
-- app downloads are checked by file size and SHA-256;
-- updating U1FA never installs or modifies U1 firmware.
-
-## Documentation
+See the full guides:
 
 - [Printer setup and recovery](docs/PRINTER_SETUP.md)
 - [U1 firmware compatibility](docs/FIRMWARE_COMPATIBILITY.md)
-- [Application updates](docs/AGGIORNAMENTI_APP.md)
-- [Private beta testing](docs/BETA_TESTING.md)
+- [Application updates](docs/APP_UPDATES.md)
+- [Support and bug reporting](SUPPORT.md)
 
-## License, credits and disclaimer
+## Supported filament profile families
 
-U1 Filament Automation is distributed under the **GNU General Public License
-v3.0**. See [LICENSE](LICENSE).
+U1FA includes automatic mappings for supported PLA/PETG families used by Snapmaker Orca, including standard, rapid/high-speed, silk, wood, translucent and carbon-fibre variants where a compatible base profile is available.
 
-### Safety and liability notice
+Examples:
 
-U1FA modifies printer configuration files and can start calibration movements
-and heating. Use it only on a printer you own or are authorised to operate, and
-only if you understand the displayed operations. Keep verified backups, make
-sure the printer is idle, supervise every calibration and stop if anything is
-unclear.
+- standard PLA → **Snapmaker PLA Basic**
+- Rapid / Hyper / High Speed / HS / HF PLA → **Snapmaker PLA SnapSpeed**
+- PLA Silk → **Snapmaker PLA Silk**
+- PETG families → corresponding compatible **Snapmaker PETG** profile
 
-The software is provided **without warranty**, as stated in GPLv3 sections 15
-and 16. To the maximum extent permitted by applicable law, the authors and
-contributors accept no liability for damage to printers, computers or networks;
-data or profile loss; failed prints; consumed material; downtime; loss of
-warranty; personal injury; or damage to third parties caused by use or misuse
-of the software. This notice does not exclude rights or liabilities that cannot
-legally be excluded.
+Profile-equivalence matching is intentionally conservative. If more than one equivalent profile is found, U1FA blocks the automatic choice instead of guessing.
 
-The Adaptive PA integration is derived from
-[U1 Adaptive Pressure Advance Auto Calibration](https://github.com/djsplice/u1-adaptive-pa-autocal)
-by djsplice and contributors, distributed under GNU GPL v3.0.
+## Support and bug reports
 
-Credit is also retained for the Snapmaker U1 flow calibrator, OrcaSlicer
-Adaptive Pressure Advance and the methodological inspirations documented by the
-upstream project. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Found a bug? Use **[GitHub Issues](https://github.com/ubaccu/u1-filament-automation/issues/new/choose)** and include the U1FA version, operating system, U1 firmware version, Snapmaker Orca version, what you expected, what happened, and screenshots or sanitized logs when useful.
 
-Klipper, Snapmaker firmware, Moonraker, OrcaSlicer and Spoolman remain under
-their respective licences. This project does not relicense them.
+For security-sensitive problems, do **not** publish credentials, private IP addresses, complete logs or personal data. Follow [SECURITY.md](.github/SECURITY.md) instead.
 
-Independent community software for calibration and experimentation. Always
-verify results on your own printer and filament. This project is not affiliated
-with or endorsed by Snapmaker, OrcaSlicer or the other projects mentioned above.
+See [SUPPORT.md](SUPPORT.md) for the complete support policy.
+
+## Privacy
+
+U1FA is designed for local use. Credentials are not stored and user addresses or spool data are not sent to Bottega3DLab. Network access is used only for the services you configure and for the public application update channel.
+
+## License and credits
+
+U1 Filament Automation is distributed under the **GNU General Public License v3.0**. See [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The Adaptive PA integration is derived from [U1 Adaptive Pressure Advance Auto Calibration](https://github.com/djsplice/u1-adaptive-pa-autocal) by djsplice and contributors, also distributed under GNU GPL v3.0. Credit is retained for the Snapmaker U1 flow calibrator, OrcaSlicer Adaptive Pressure Advance and the upstream methodological work documented in the notices.
+
+Klipper, Snapmaker firmware, Moonraker, OrcaSlicer and Spoolman remain under their respective licences. This project does not relicense them.
+
+## Disclaimer
+
+U1FA is independent community software for calibration and experimentation. It is **not affiliated with or endorsed by Snapmaker, OrcaSlicer or the other projects mentioned above**.
+
+Use it only on a printer you own or are authorised to operate. Keep verified backups, make sure the printer is idle before configuration, supervise calibrations and stop if anything is unclear. The software is provided **without warranty** as described by GPLv3 sections 15 and 16.
