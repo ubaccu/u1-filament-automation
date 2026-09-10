@@ -12,10 +12,12 @@ U1FA include nel proprio pacchetto la modifica e la macro validate, ma **non ins
 
 ## Stato di validazione corrente
 
+**U1FA 1.8.0 è stato sviluppato e testato con firmware Snapmaker U1 1.5. Il flusso protetto di installazione/ripristino dei file stampante non è stato validato sul firmware 1.6.0.**
+
 | Firmware / baseline | Stato | Azione consentita |
 |---|---|---|
-| Baseline originale pre-1.6 con SHA-256 `dcbc26d5…a816e894` | Convalidato | Installazione/ripristino protetti consentiti dopo conferma esplicita |
-| Snapmaker U1 1.6.0 (2026-08-25) | In verifica | Solo controllo in lettura se l'hash originale non è già riconosciuto |
+| Firmware Snapmaker U1 1.5 — baseline convalidata, SHA-256 `dcbc26d5…a816e894` | Testato e convalidato | Installazione/ripristino protetti consentiti dopo conferma esplicita |
+| Firmware Snapmaker U1 1.6.0 (2026-08-25) | Non validato in U1FA 1.8.0 | Solo controllo configurazione in lettura; non forzare installazione/ripristino dei file stampante in presenza di stato sconosciuto o bloccato |
 
 Snapmaker pubblica le note ufficiali del firmware U1 qui:
 

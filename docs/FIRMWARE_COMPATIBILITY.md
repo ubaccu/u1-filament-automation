@@ -12,10 +12,12 @@ U1FA carries its validated modification and macro in the release package, but it
 
 ## Current validation state
 
+**U1FA 1.8.0 was developed and tested with Snapmaker U1 firmware 1.5. The protected printer-file installation/recovery path has not been validated on firmware 1.6.0.**
+
 | Firmware / baseline | Status | Allowed action |
 |---|---|---|
-| Validated original pre-1.6 baseline, SHA-256 `dcbc26d5…a816e894` | Validated | Protected installation/recovery allowed after explicit confirmation |
-| Snapmaker U1 1.6.0 (2026-08-25) | Under verification | Read-only check only if the original hash is not already recognized |
+| Snapmaker U1 firmware 1.5 — validated baseline, SHA-256 `dcbc26d5…a816e894` | Tested and validated | Protected installation/recovery allowed after explicit confirmation |
+| Snapmaker U1 firmware 1.6.0 (2026-08-25) | Not validated in U1FA 1.8.0 | Read-only setup check only; do not force printer-file installation/recovery on an unknown or blocked state |
 
 Snapmaker publishes current U1 firmware release notes here:
 
