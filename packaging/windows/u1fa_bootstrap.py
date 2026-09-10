@@ -1,4 +1,4 @@
-from u1_filament_automation.desktop_app import main
+from u1_filament_automation.desktop_app_b23 import main
 
 
 if __name__ == "__main__":
