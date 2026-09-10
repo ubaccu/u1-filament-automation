@@ -8,10 +8,12 @@ chiusura sicura dopo l'apertura di un installer verificato.
 
 from __future__ import annotations
 
+import html
 import re
 from typing import Any, Callable
 
 from .gui_dashboard import install_dashboard_patch
+from .orca_profile_discovery import ProfileRecommendation, recommend_installed_profile
 from .update_lifecycle import install_update_lifecycle_patch
 
 
@@ -34,6 +36,7 @@ _HINT_ID = "u1fa-material-families-hint"
 _LEGACY_HOME_CONTRACT_MARKER = (
     "<!-- Private beta for testing | Set up or restore U1FA AutoPA Mod -->"
 )
+_PROFILE_RECOMMENDATIONS: dict[str, ProfileRecommendation] = {}
 
 _LEGACY_SETUP_CARD_RE = re.compile(
     r'<div class="card"><h2>'
@@ -181,6 +184,126 @@ def _remove_duplicate_printer_setup(page: str, language: str) -> str:
     return page
 
 
+def _remember_recommendation(ticket: str, recommendation: ProfileRecommendation) -> None:
+    # I ticket sono monouso. Manteniamo soltanto una piccola cache di anteprime
+    # per evitare stato persistente o qualsiasi scrittura dentro Orca.
+    if len(_PROFILE_RECOMMENDATIONS) >= 128:
+        oldest = next(iter(_PROFILE_RECOMMENDATIONS), None)
+        if oldest is not None:
+            _PROFILE_RECOMMENDATIONS.pop(oldest, None)
+    _PROFILE_RECOMMENDATIONS[ticket] = recommendation
+
+
+def _recommendation_html(
+    recommendation: ProfileRecommendation,
+    language: str,
+) -> str:
+    expected = html.escape(recommendation.expected_profile)
+    if recommendation.confidence == "exact" and recommendation.suggested_profile:
+        found = html.escape(recommendation.suggested_profile)
+        if language == "en":
+            return (
+                '<p class="ok"><strong>Installed Orca profile check:</strong> '
+                f'exact match found: <strong>{found}</strong>. Read-only check.</p>'
+            )
+        return (
+            '<p class="ok"><strong>Controllo profili Orca installati:</strong> '
+            f'corrispondenza esatta trovata: <strong>{found}</strong>. Controllo in sola lettura.</p>'
+        )
+
+    if recommendation.confidence == "smart" and recommendation.suggested_profile:
+        found = html.escape(recommendation.suggested_profile)
+        if language == "en":
+            return (
+                '<p class="warn"><strong>b22 smart suggestion:</strong> '
+                f'<strong>{found}</strong> looks compatible with {expected}. '
+                'This suggestion is read-only and is not applied automatically; '
+                'the validated base shown above remains unchanged.</p>'
+            )
+        return (
+            '<p class="warn"><strong>Suggerimento intelligente b22:</strong> '
+            f'<strong>{found}</strong> risulta compatibile con {expected}. '
+            'Il suggerimento è in sola lettura e non viene applicato automaticamente; '
+            'la base convalidata mostrata sopra resta invariata.</p>'
+        )
+
+    if recommendation.confidence == "ambiguous" and recommendation.candidates:
+        choices = ", ".join(html.escape(value) for value in recommendation.candidates)
+        if language == "en":
+            return (
+                '<p class="warn"><strong>Installed Orca profile check:</strong> '
+                f'multiple compatible profiles were found ({choices}). '
+                'U1FA does not choose automatically.</p>'
+            )
+        return (
+            '<p class="warn"><strong>Controllo profili Orca installati:</strong> '
+            f'trovati più profili compatibili ({choices}). '
+            'U1FA non sceglie automaticamente.</p>'
+        )
+
+    if language == "en":
+        return (
+            '<p class="muted"><strong>Installed Orca profile check:</strong> '
+            f'no alternative profile was confidently identified for {expected}. '
+            'No files were modified.</p>'
+        )
+    return (
+        '<p class="muted"><strong>Controllo profili Orca installati:</strong> '
+        f'nessun profilo alternativo è stato identificato con sufficiente affidabilità per {expected}. '
+        'Nessun file è stato modificato.</p>'
+    )
+
+
+def _install_profile_discovery(gui_module: Any) -> None:
+    """Aggiunge alla preview bobina un controllo profili strettamente read-only."""
+    controller_cls = getattr(gui_module, "CalibrationController", None)
+    preview = getattr(gui_module, "_new_spool_preview", None)
+    if controller_cls is None or preview is None:
+        return
+
+    current_prepare = controller_cls.prepare_spool_creation
+    if not getattr(current_prepare, "_u1fa_profile_discovery", False):
+        def prepare_with_discovery(controller: Any, request: Any):
+            prepared = current_prepare(controller, request)
+            recommendation = recommend_installed_profile(
+                controller.system_dir,
+                prepared.plan.base_profile,
+            )
+            _remember_recommendation(prepared.ticket, recommendation)
+            return prepared
+
+        setattr(prepare_with_discovery, "_u1fa_profile_discovery", True)
+        controller_cls.prepare_spool_creation = prepare_with_discovery
+
+    current_preview = gui_module._new_spool_preview
+    if getattr(current_preview, "_u1fa_profile_discovery", False):
+        return
+
+    def preview_with_discovery(
+        prepared: Any,
+        token: str,
+        language: str = "it",
+    ) -> str:
+        page = current_preview(prepared, token, language=language)
+        recommendation = _PROFILE_RECOMMENDATIONS.get(prepared.ticket)
+        if recommendation is None:
+            return page
+        base_line = (
+            f'<p><strong>Base Snapmaker:</strong> '
+            f'{html.escape(prepared.plan.base_profile)}</p>'
+        )
+        if base_line not in page:
+            return page
+        return page.replace(
+            base_line,
+            base_line + "\n" + _recommendation_html(recommendation, language),
+            1,
+        )
+
+    setattr(preview_with_discovery, "_u1fa_profile_discovery", True)
+    gui_module._new_spool_preview = preview_with_discovery
+
+
 def _install_home_cleanup(gui_module: Any) -> None:
     """Rimuove dalla home la vecchia card setup duplicata, senza toccarne la route."""
     current: Callable[..., str] = gui_module._home
@@ -234,6 +357,7 @@ def install_material_ui_patch(gui_module: Any) -> None:
         install_dashboard_patch(gui_module)
         _install_home_cleanup(gui_module)
         _install_home_contract_compatibility(gui_module)
+    _install_profile_discovery(gui_module)
 
     current: Callable[..., str] = gui_module._new_spool_form
     if getattr(current, "_u1fa_material_ui_patch", False):
