@@ -26,6 +26,8 @@ U1 Filament Automation is an independent community desktop application for the *
 
 The public repository is the official **distribution, documentation and support channel**. Development is maintained separately. Public releases include installers for supported platforms, SHA-256 checksums and a version-matched GPL corresponding-source archive.
 
+> **Firmware compatibility:** U1FA 1.8.0 and its protected printer-configuration / AutoPA Mod workflow were tested on **Snapmaker U1 firmware 1.5**. **Firmware 1.6.0 has not been validated for printer-file installation/recovery in this release.** Do not assume compatibility after updating the printer; run the read-only setup check and stop if U1FA reports an unknown or blocked state. See [U1 firmware compatibility](docs/FIRMWARE_COMPATIBILITY.md).
+
 ## Highlights
 
 - **Real Spoolman workflow** — create or reuse vendors and filaments, then create real spools with colour, weight, tare, temperatures, storage location and lot information.
@@ -100,7 +102,7 @@ Before protected printer configuration, enable on the U1 touchscreen:
 1. **Settings → Maintenance → Advanced Mode → Agree → Enable**
 2. **Settings → Maintenance → Root Access → Agree → Open**
 
-Then use **Check printer setup** inside U1FA. The application can first discover the U1/Moonraker endpoint on the local network using read-only checks; manual configuration remains available. After any U1 firmware update, run the setup check again before calibrating.
+Then use **Check printer setup** inside U1FA. The application can first discover the U1/Moonraker endpoint on the local network using read-only checks; manual configuration remains available. **The protected printer-file workflow in U1FA 1.8.0 is validated on firmware 1.5; firmware 1.6.0 is not yet validated.** After any U1 firmware update, run the setup check again before calibrating and do not force a blocked installation.
 
 See the full guides:
 
