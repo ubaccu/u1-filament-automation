@@ -26,6 +26,8 @@ U1 Filament Automation è un'applicazione desktop community indipendente per **S
 
 Il repository pubblico è il canale ufficiale per **distribuzione, documentazione e supporto**. Lo sviluppo viene mantenuto separatamente. Le release pubbliche includono installer per le piattaforme supportate, checksum SHA-256 e un archivio sorgente GPL corrispondente alla stessa versione.
 
+> **Compatibilità firmware:** U1FA 1.8.0 e il relativo flusso protetto di configurazione stampante / AutoPA Mod sono stati testati su **firmware Snapmaker U1 1.5**. **Il firmware 1.6.0 non è stato validato per installazione/ripristino dei file stampante in questa release.** Dopo un aggiornamento non dare per scontata la compatibilità: esegui il controllo in sola lettura e fermati se U1FA segnala uno stato sconosciuto o bloccato. Vedi [Compatibilità firmware U1](docs/COMPATIBILITA_FIRMWARE.md).
+
 ## Funzioni principali
 
 - **Workflow Spoolman reale** — crea o riutilizza vendor e filamenti, poi crea bobine reali con colore, peso, tara, temperature, posizione di stoccaggio e lotto.
@@ -100,7 +102,7 @@ Prima della configurazione protetta abilita dal touchscreen:
 1. **Impostazioni → Manutenzione → Modalità avanzata → Accetto → Abilita**
 2. **Impostazioni → Manutenzione → Accesso Root → Accetto → Apri**
 
-Poi usa **Controlla configurazione stampante** dentro U1FA. L'app può prima rilevare automaticamente in rete locale l'endpoint U1/Moonraker tramite controlli in sola lettura; la configurazione manuale resta disponibile. Dopo ogni aggiornamento firmware U1, esegui nuovamente il controllo prima di calibrare.
+Poi usa **Controlla configurazione stampante** dentro U1FA. L'app può prima rilevare automaticamente in rete locale l'endpoint U1/Moonraker tramite controlli in sola lettura; la configurazione manuale resta disponibile. **Il flusso protetto sui file stampante di U1FA 1.8.0 è validato sul firmware 1.5; il firmware 1.6.0 non è ancora validato.** Dopo ogni aggiornamento firmware U1, esegui nuovamente il controllo prima di calibrare e non forzare un'installazione bloccata.
 
 Guide complete:
 
