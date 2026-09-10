@@ -47,7 +47,7 @@ project remains under its own licence:
 - PyInstaller — GNU GPL with its bootloader distribution exception:
   https://pyinstaller.org/en/stable/license.html
 - pywebview — BSD 3-Clause License:
-  https://github.com/r0x0r/pywebview/blob/master/LICENSE.md
+  https://github.com/r0x0r/pywebview/blob/master/LICENSE
 - AppImageKit/appimagetool and the AppImage runtime — MIT License:
   https://github.com/AppImage/AppImageKit/blob/master/LICENSE
 - Inno Setup — used to generate the Windows installer under its own licence:
