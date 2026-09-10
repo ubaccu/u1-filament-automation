@@ -8,14 +8,27 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
 
 permissions:
   contents: read
 
 jobs:
+  tests:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package
+        run: python -m pip install .
+      - name: Run tests
+        run: python -m unittest discover -s tests
+
   macos:
+    if: github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +60,7 @@ jobs:
           if-no-files-found: error
 
   windows:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +88,7 @@ jobs:
           if-no-files-found: error
 
   linux:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -103,59 +118,3 @@ jobs:
           name: U1FA-Linux-x86_64
           path: dist/*.AppImage
           if-no-files-found: error
-
-  release:
-    # Legacy self-release is kept only for compatibility with the original
-    # public repository. It is permanently blocked in the private dev repo.
-    if: >-
-      github.repository == 'ubaccu/u1-filament-automation' &&
-      (startsWith(github.ref, 'refs/tags/') ||
-      (github.ref == 'refs/heads/main' &&
-      contains(github.event.head_commit.message, '[publish-release]')))
-    needs: [macos, windows, linux]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download desktop packages
-        uses: actions/download-artifact@v4
-        with:
-          pattern: U1FA-*
-          path: release-assets
-          merge-multiple: true
-      - name: Create one GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            release_tag="$GITHUB_REF_NAME"
-          else
-            version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml | head -n 1)"
-            if [[ "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)b([0-9]+)$ ]]; then
-              release_tag="v${BASH_REMATCH[1]}-beta.${BASH_REMATCH[2]}"
-            else
-              release_tag="v$version"
-            fi
-          fi
-
-          release_flags=()
-          if [[ "$release_tag" == *-* ]]; then
-            release_flags+=(--prerelease)
-          fi
-          cd release-assets
-          sha256sum ./* > SHA256SUMS.txt
-          for attempt in 1 2 3 4 5; do
-            if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              echo "Release $release_tag already exists; nothing more to do."
-              exit 0
-            fi
-            if gh release create "$release_tag" ./* \
-              --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" \
-              --title "U1 Filament Automation ${release_tag#v}" \
-              --generate-notes "${release_flags[@]}"; then
-              exit 0
-            fi
-            echo "GitHub release creation failed (attempt $attempt/5); retrying..." >&2
-            sleep 15
-          done
-          exit 1

@@ -171,16 +171,20 @@ class DesktopDistributionTests(unittest.TestCase):
         server.shutdown.assert_called_once_with()
         service_thread.join.assert_called_once_with(timeout=5.0)
 
-    def test_single_workflow_builds_every_platform_and_one_release(self):
+    def test_private_ci_is_lightweight_until_manual_full_build(self):
         source = self.workflow.read_text(encoding="utf-8")
         self.assertIn("macos-15-intel", source)
+        self.assertIn("macos-14", source)
         self.assertIn("windows-2025", source)
         self.assertIn("ubuntu-22.04", source)
-        self.assertIn("--prerelease", source)
-        self.assertIn("[publish-release]", source)
-        self.assertIn('--target "$GITHUB_SHA"', source)
-        self.assertIn('release_tag="v${BASH_REMATCH[1]}-beta.${BASH_REMATCH[2]}"', source)
-        self.assertEqual(source.count("gh release create"), 1)
+        self.assertIn("workflow_dispatch", source)
+        self.assertIn("if: github.event_name != 'workflow_dispatch'", source)
+        self.assertGreaterEqual(
+            source.count("if: github.event_name == 'workflow_dispatch'"),
+            3,
+        )
+        self.assertNotIn("gh release create", source)
+        self.assertNotIn("[publish-release]", source)
         self.assertNotIn("192.168.1.51", source)
         self.assertNotIn("ivanriccelli", source.casefold())
 

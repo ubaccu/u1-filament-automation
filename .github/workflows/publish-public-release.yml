@@ -396,3 +396,10 @@ jobs:
             exit 1
           fi
           gh release view "$TAG" --repo "$PUBLIC_RELEASE_REPOSITORY" --json tagName,name,isPrerelease,url
+
+          git -C "$snapshot_dir/repo" push origin --delete "$PUBLIC_SOURCE_BRANCH"
+          if git -C "$snapshot_dir/repo" ls-remote --exit-code --heads origin "refs/heads/$PUBLIC_SOURCE_BRANCH" >/dev/null 2>&1; then
+            echo "Temporary public source branch still exists after cleanup." >&2
+            exit 1
+          fi
+          echo "Removed temporary public source branch $PUBLIC_SOURCE_BRANCH after verified release."
