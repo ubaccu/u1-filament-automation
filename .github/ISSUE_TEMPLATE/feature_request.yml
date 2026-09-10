@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest a focused improvement for U1FA
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Please keep requests focused on U1FA's scope: Snapmaker U1 filament management, Spoolman, Snapmaker Orca, calibration workflow, safety and application distribution.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or limitation
+      description: What problem would this feature solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed improvement
+      description: Describe the behavior you would like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety or compatibility considerations
+      description: If this could affect printer files, calibration, Spoolman data or Orca profiles, explain how you think it should remain safe.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Spoolman / inventory
+        - Snapmaker Orca profiles
+        - Adaptive PA / calibration
+        - U1 connection / printer setup
+        - Updates / installers
+        - User interface
+        - Documentation / support
+        - Other
+    validations:
+      required: true
