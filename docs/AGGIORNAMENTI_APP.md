@@ -27,18 +27,20 @@ the exact package for the current OS and architecture, downloads it to a tempora
 file, verifies both size and SHA-256, and opens it only after a second explicit
 confirmation. U1FA never replaces its running executable.
 
-## Repository privato / Private repository
+## Canale pubblico di distribuzione / Public distribution channel
 
-L'aggiornamento integrato non memorizza token GitHub. Per questo motivo, durante
-il collaudo da un repository privato, il controllo può mostrare che il servizio
-non è disponibile. È intenzionale: i tester ricevono manualmente le prime build.
-Quando le release saranno pubbliche, l'avviso funzionerà senza configurazioni o
-account GitHub per gli utenti finali.
+Lo sviluppo di U1FA viene mantenuto separatamente dal repository pubblico.
+Il repository pubblico contiene documentazione e release destinate agli utenti
+finali. Ogni release distribuita include i pacchetti per le piattaforme supportate,
+`SHA256SUMS.txt` e l'archivio del sorgente GPL corrispondente alla stessa versione.
+L'updater integrato legge esclusivamente questo canale pubblico e non richiede
+token o account GitHub.
 
-The updater never stores a GitHub token. It may therefore be unavailable while
-testing from a private repository; early builds are delivered manually. Once the
-releases are public, end users receive notifications without configuration or a
-GitHub account.
+U1FA development is maintained separately from the public repository. The public
+repository contains end-user documentation and releases. Each distributed release
+includes packages for the supported platforms, `SHA256SUMS.txt`, and the matching
+GPL corresponding-source archive. The built-in updater reads only this public
+channel and does not require a GitHub token or account.
 
 ## Aggiornamenti firmware U1 / U1 firmware updates
 
