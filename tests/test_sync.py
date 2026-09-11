@@ -91,7 +91,16 @@ class SyncTests(unittest.TestCase):
             user_dir.mkdir(parents=True)
             system_dir.mkdir(parents=True)
             base = system_dir / "Snapmaker PLA SnapSpeed @U1.json"
-            base.write_text(json.dumps({"version": "9.9"}), encoding="utf-8")
+            base.write_text(
+                json.dumps(
+                    {
+                        "version": "9.9",
+                        "filament_type": ["PLA"],
+                        "filament_max_volumetric_speed": ["20"],
+                    }
+                ),
+                encoding="utf-8",
+            )
 
             report = sync_profiles(self._inventory(), user_dir, system_dir, apply=True)
             self.assertEqual(report.actions[0].status, "created")
@@ -100,8 +109,12 @@ class SyncTests(unittest.TestCase):
             self.assertEqual(len(json_files), 1)
             self.assertEqual(len(info_files), 1)
             payload = json.loads(json_files[0].read_text(encoding="utf-8"))
-            self.assertEqual(payload["inherits"], "Snapmaker PLA SnapSpeed @U1")
+            self.assertNotIn("inherits", payload)
             self.assertEqual(payload["version"], "9.9")
+            self.assertEqual(payload["filament_vendor"], ["Deeplee"])
+            self.assertEqual(payload["filament_type"], ["PLA"])
+            self.assertTrue(payload["filament_id"].startswith("P"))
+            self.assertEqual(len(payload["filament_id"]), 8)
             before_hash = hashlib.sha256(json_files[0].read_bytes()).hexdigest()
 
             second = sync_profiles(self._inventory(), user_dir, system_dir, apply=True)
@@ -167,7 +180,13 @@ class SyncTests(unittest.TestCase):
             user_dir.mkdir(parents=True)
             system_dir.mkdir(parents=True)
             (system_dir / "Snapmaker PLA Silk.json").write_text(
-                json.dumps({"version": "2.2.53.2"}), encoding="utf-8"
+                json.dumps(
+                    {
+                        "version": "2.2.53.2",
+                        "filament_type": ["PLA"],
+                    }
+                ),
+                encoding="utf-8",
             )
             inventory = SpoolmanInventory(
                 url="http://spoolman.test",
@@ -182,7 +201,7 @@ class SyncTests(unittest.TestCase):
             report = sync_profiles(inventory, user_dir, system_dir, apply=True)
             self.assertEqual(report.actions[0].status, "created")
             payload = json.loads(next(user_dir.glob("*.json")).read_text(encoding="utf-8"))
-            self.assertEqual(payload["inherits"], "Snapmaker PLA Silk")
+            self.assertNotIn("inherits", payload)
             self.assertEqual(payload["default_filament_colour"], ["#D9A62E", "#D8494A"])
             self.assertEqual(payload["filament_colour"], ["#D9A62E", "#D8494A"])
 

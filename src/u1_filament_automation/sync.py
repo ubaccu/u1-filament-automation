@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import SpoolmanInventory
+from .orca_profile import ProfileMaterializationError, build_detached_profile_payload
 
 
 @dataclass(frozen=True)
@@ -218,37 +219,6 @@ def base_profile_path(system_dir: Path, base: str) -> Path:
     return candidates[0]
 
 
-def _profile_payload(
-    profile_name: str,
-    base: str,
-    colors: tuple[str, ...] | str,
-    version: str,
-) -> dict[str, Any]:
-    if isinstance(colors, str):
-        normalized_colors = (colors,) if colors else ()
-    else:
-        normalized_colors = tuple(colors)
-    profile_colors = [
-        f"#{color}" if color else "#FFFFFF"
-        for color in (normalized_colors or ("",))
-    ]
-    return {
-        # Orca uses default_filament_colour for the profile editor.  The
-        # filament_colour alias is also consumed by recent Snapmaker/Orca
-        # builds when they refresh the default swatch (including multicolor
-        # profiles).  Keep both in sync so a newly-created profile never
-        # falls back to white in the UI.
-        "default_filament_colour": profile_colors,
-        "filament_colour": profile_colors,
-        "filament_settings_id": [profile_name],
-        "from": "User",
-        "inherits": base,
-        "is_custom_defined": "0",
-        "name": profile_name,
-        "version": version,
-    }
-
-
 def repair_profile_colors(
     user_dir: Path,
     profile_name: str,
@@ -315,15 +285,17 @@ def _write_new_profile(
     system_dir: Path,
     profile_name: str,
     base: str,
+    vendor: str,
     color: tuple[str, ...] | str,
 ) -> None:
     base_file = base_profile_path(system_dir, base)
     filename = safe_filename(profile_name)
     json_path = user_dir / f"{filename}.json"
     info_path = user_dir / f"{filename}.info"
-    payload = _profile_payload(
+    payload = build_detached_profile_payload(
+        base_file,
         profile_name,
-        base_file.stem,
+        vendor,
         color,
         _base_version(base_file),
     )
@@ -460,9 +432,28 @@ def sync_profiles(
 
         if apply:
             try:
-                _write_new_profile(user_dir, effective_system_dir, profile_name, base, colors)
+                _write_new_profile(
+                    user_dir,
+                    effective_system_dir,
+                    profile_name,
+                    base,
+                    vendor,
+                    colors,
+                )
             except FileExistsError:
                 actions.append(SyncAction("existing", profile_name, base, color, spool_ids))
+                continue
+            except ProfileMaterializationError as exc:
+                actions.append(
+                    SyncAction(
+                        "skipped",
+                        profile_name,
+                        base,
+                        color,
+                        spool_ids,
+                        str(exc),
+                    )
+                )
                 continue
             status = "created"
         else:

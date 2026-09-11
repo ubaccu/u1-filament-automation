@@ -7,14 +7,14 @@ import u1_filament_automation
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
-class Final180DistributionTests(unittest.TestCase):
-    def test_version_is_final_1_8_0_everywhere(self):
-        self.assertEqual(u1_filament_automation.__version__, "1.8.0")
+class Final181DistributionTests(unittest.TestCase):
+    def test_version_is_1_8_1_everywhere(self):
+        self.assertEqual(u1_filament_automation.__version__, "1.8.1")
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        self.assertIn('version = "1.8.0"', pyproject)
-        self.assertTrue((ROOT / "RELEASE_NOTES_1.8.0.md").is_file())
+        self.assertIn('version = "1.8.1"', pyproject)
+        self.assertTrue((ROOT / "RELEASE_NOTES_1.8.1.md").is_file())
 
-    def test_desktop_packages_use_final_entrypoint(self):
+    def test_desktop_packages_keep_stable_entrypoint(self):
         for platform_name in ("macos", "windows", "linux"):
             bootstrap = (
                 ROOT / "packaging" / platform_name / "u1fa_bootstrap.py"
@@ -22,7 +22,7 @@ class Final180DistributionTests(unittest.TestCase):
             self.assertIn("desktop_app_v180", bootstrap)
             self.assertNotIn("desktop_app_b24", bootstrap)
 
-    def test_final_entrypoint_layers_patches_in_release_order(self):
+    def test_stable_entrypoint_layers_patches_in_release_order(self):
         entrypoint = (
             ROOT / "src" / "u1_filament_automation" / "desktop_app_v180.py"
         ).read_text(encoding="utf-8")
@@ -32,14 +32,13 @@ class Final180DistributionTests(unittest.TestCase):
         self.assertLess(b23, b24)
         self.assertLess(b24, final)
 
-    def test_release_notes_are_bilingual_and_stable(self):
-        notes = (ROOT / "RELEASE_NOTES_1.8.0.md").read_text(encoding="utf-8")
-        self.assertLess(notes.index("# Italiano"), notes.index("# English"))
-        self.assertIn("prima release stabile", notes)
-        self.assertIn("first stable U1FA release", notes)
-        self.assertIn("prima di qualsiasi scrittura in Spoolman", notes)
-        self.assertIn("before any Spoolman write", notes)
-        self.assertIn("GitHub Issues", notes)
+    def test_181_release_notes_are_bilingual_and_document_safety(self):
+        notes = (ROOT / "RELEASE_NOTES_1.8.1.md").read_text(encoding="utf-8")
+        self.assertLess(notes.index("## Italiano"), notes.index("# English"))
+        self.assertIn("produttore reale di Spoolman", notes)
+        self.assertIn("standalone", notes)
+        self.assertIn("Pressure Advance", notes)
+        self.assertIn("Existing Orca profiles are not automatically converted", notes)
 
     def test_source_archive_contains_final_support_docs_without_dev_ci(self):
         script = (
