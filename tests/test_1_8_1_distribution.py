@@ -38,7 +38,9 @@ class Final181DistributionTests(unittest.TestCase):
         self.assertIn("produttore reale di Spoolman", notes)
         self.assertIn("standalone", notes)
         self.assertIn("Pressure Advance", notes)
-        self.assertIn("Existing Orca profiles are not automatically converted", notes)
+        self.assertIn("backup byte-per-byte", notes)
+        self.assertIn("Recognizable existing U1FA 1.8.0 profiles are migrated", notes)
+        self.assertIn("without losing an existing PA calibration", notes)
 
     def test_source_archive_contains_final_support_docs_without_dev_ci(self):
         script = (

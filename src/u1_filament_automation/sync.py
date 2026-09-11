@@ -271,6 +271,139 @@ def repair_profile_colors(
     return True
 
 
+def migrate_legacy_profile_identity(
+    user_dir: Path,
+    system_dir: Path,
+    profile_name: str,
+    base: str,
+    vendor: str,
+    colors: tuple[str, ...] | str,
+) -> tuple[bool, str]:
+    """Safely migrate one recognizable pre-1.8.1 U1FA profile.
+
+    U1FA 1.8.0 created lightweight user presets which inherited the Snapmaker
+    system preset.  Snapmaker's sender can then ignore the real Spoolman vendor
+    and fail automatic filament matching.  This migration materializes the
+    current Snapmaker base exactly like a new 1.8.1 profile, then overlays all
+    non-identity values from the existing user profile so calibrated PA,
+    Adaptive PA, temperatures, volumetric limits and other intentional edits
+    are preserved.
+
+    Only an exact U1FA-style profile identity is eligible.  A byte-for-byte
+    backup is written before the atomic replacement.  Already-correct 1.8.1
+    profiles are left untouched.
+    """
+    path = user_dir / f"{safe_filename(profile_name)}.json"
+    try:
+        original_bytes = path.read_bytes()
+        payload = json.loads(original_bytes.decode("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False, ""
+    if not isinstance(payload, dict):
+        return False, ""
+    if payload.get("name") != profile_name:
+        return False, ""
+    setting_id = payload.get("filament_settings_id")
+    if setting_id not in ([profile_name], (profile_name,)):
+        return False, ""
+    if payload.get("from") not in (None, "User"):
+        return False, ""
+
+    base_file = base_profile_path(system_dir, base)
+    fresh = build_detached_profile_payload(
+        base_file,
+        profile_name,
+        vendor,
+        colors,
+        _base_version(base_file),
+    )
+
+    current_vendor = payload.get("filament_vendor")
+    current_filament_id = payload.get("filament_id")
+    already_detached = not (
+        isinstance(payload.get("inherits"), str)
+        and payload.get("inherits", "").strip()
+    )
+    if (
+        already_detached
+        and current_vendor == fresh.get("filament_vendor")
+        and current_filament_id == fresh.get("filament_id")
+        and "setting_id" not in payload
+        and "instantiation" not in payload
+    ):
+        return False, ""
+
+    # Start from the fully materialized current Snapmaker base.  Existing user
+    # values win for everything except identity fields that caused the bug.
+    migrated = dict(fresh)
+    identity_fields = {
+        "inherits",
+        "setting_id",
+        "instantiation",
+        "type",
+        "name",
+        "from",
+        "filament_id",
+        "filament_settings_id",
+        "filament_vendor",
+        "is_custom_defined",
+        "version",
+        "default_filament_colour",
+        "filament_colour",
+    }
+    for key, value in payload.items():
+        if key not in identity_fields:
+            migrated[key] = value
+
+    # Preserve a deliberate non-white colour edit.  Missing/white placeholders
+    # are replaced with the real Spoolman colour(s) from the fresh payload.
+    current = payload.get("default_filament_colour")
+    if isinstance(current, str):
+        current_values = [current]
+    elif isinstance(current, (list, tuple)):
+        current_values = [str(value) for value in current]
+    else:
+        current_values = []
+    normalized_current = [value.upper() for value in current_values]
+    if current_values and normalized_current != ["#FFFFFF"]:
+        migrated["default_filament_colour"] = current_values
+        existing_filament_colour = payload.get("filament_colour")
+        if isinstance(existing_filament_colour, str):
+            migrated["filament_colour"] = [existing_filament_colour]
+        elif isinstance(existing_filament_colour, (list, tuple)):
+            migrated["filament_colour"] = [
+                str(value) for value in existing_filament_colour
+            ]
+        else:
+            migrated["filament_colour"] = current_values
+
+    serialized = json.dumps(migrated, indent=4, ensure_ascii=False) + "\n"
+    json.loads(serialized)
+    new_bytes = serialized.encode("utf-8")
+    if new_bytes == original_bytes:
+        return False, ""
+
+    timestamp = int(time.time())
+    backup_path = path.with_name(
+        f"{path.name}.u1fa-pre181-{timestamp}.bak"
+    )
+    temporary_path = path.with_name(f"{path.name}.u1fa-181.tmp")
+
+    # Backup first.  If any following operation fails the original file still
+    # exists and the backup remains available for manual recovery.
+    backup_path.write_bytes(original_bytes)
+    try:
+        temporary_path.write_bytes(new_bytes)
+        temporary_path.replace(path)
+    except Exception:
+        try:
+            temporary_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
+    return True, backup_path.name
+
+
 def _base_version(base_file: Path) -> str:
     try:
         payload = json.loads(base_file.read_text(encoding="utf-8"))
@@ -410,17 +543,46 @@ def sync_profiles(
             continue
 
         if _profile_exists(user_dir, filename):
-            repaired = (
+            migrated = False
+            backup_name = ""
+            migration_error = ""
+            if apply:
+                try:
+                    migrated, backup_name = migrate_legacy_profile_identity(
+                        user_dir,
+                        effective_system_dir,
+                        profile_name,
+                        base,
+                        vendor,
+                        colors,
+                    )
+                except (OSError, ProfileMaterializationError) as exc:
+                    migration_error = str(exc)
+
+            color_repaired = (
                 apply
+                and not migrated
                 and repair_profile_colors(user_dir, profile_name, colors)
             )
+            repaired = migrated or color_repaired
+            if migrated:
+                message = (
+                    "identità Orca/vendor migrati senza perdere i valori del profilo; "
+                    f"backup {backup_name}"
+                )
+            elif color_repaired:
+                message = "colori predefiniti aggiornati"
+            elif migration_error:
+                message = f"profilo esistente; migrazione 1.8.1 non eseguita: {migration_error}"
+            else:
+                message = ""
             actions.append(SyncAction(
                 "repaired" if repaired else "existing",
                 profile_name,
                 base,
                 color,
                 spool_ids,
-                "colori predefiniti aggiornati" if repaired else "",
+                message,
             ))
             continue
         if filename.casefold() in planned_names:

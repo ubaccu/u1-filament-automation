@@ -128,7 +128,84 @@ class FilamentIdentity181Tests(unittest.TestCase):
             self.assertEqual(payload["filament_vendor"], ["Bambu Lab"])
             self.assertNotIn("inherits", payload)
 
-    def test_existing_profile_is_not_rewritten_for_181_fix(self):
+    def test_existing_180_profile_is_migrated_without_losing_pa(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            user_dir = root / "user" / "default" / "filament"
+            system_dir = root / "system" / "Snapmaker" / "filament"
+            user_dir.mkdir(parents=True)
+            system_dir.mkdir(parents=True)
+            self._write_inherited_base(system_dir)
+            profile_name = "Deeplee PLA Basic Blu @Snapmaker U1 (0.4 nozzle)"
+            profile_path = user_dir / f"{profile_name}.json"
+            original = {
+                "name": profile_name,
+                "from": "User",
+                "filament_settings_id": [profile_name],
+                "filament_vendor": ["Snapmaker"],
+                "default_filament_colour": ["#002E7A"],
+                "filament_colour": ["#002E7A"],
+                "inherits": "Snapmaker PLA Basic @U1",
+                "pressure_advance": ["0.019"],
+                "adaptive_pressure_advance": ["1"],
+                "adaptive_pressure_advance_model": [
+                    "0.019,8.0,2000|0.021,20.0,6000"
+                ],
+                "filament_max_volumetric_speed": ["18"],
+            }
+            original_bytes = (json.dumps(original, indent=4) + "\n").encode("utf-8")
+            profile_path.write_bytes(original_bytes)
+
+            report = sync_profiles(
+                self._inventory(), user_dir, system_dir, apply=True
+            )
+            payload = json.loads(profile_path.read_text(encoding="utf-8"))
+
+            self.assertEqual(report.actions[0].status, "repaired")
+            self.assertIn("identità Orca/vendor migrati", report.actions[0].message)
+            self.assertNotIn("inherits", payload)
+            self.assertNotIn("setting_id", payload)
+            self.assertNotIn("instantiation", payload)
+            self.assertEqual(payload["filament_vendor"], ["Deeplee"])
+            self.assertEqual(payload["filament_type"], ["PLA"])
+            self.assertEqual(payload["filament_id"], user_filament_id(profile_name))
+            self.assertEqual(payload["pressure_advance"], ["0.019"])
+            self.assertEqual(payload["adaptive_pressure_advance"], ["1"])
+            self.assertEqual(
+                payload["adaptive_pressure_advance_model"],
+                ["0.019,8.0,2000|0.021,20.0,6000"],
+            )
+            self.assertEqual(payload["filament_max_volumetric_speed"], ["18"])
+            backups = list(user_dir.glob(f"{profile_name}.json.u1fa-pre181-*.bak"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_bytes(), original_bytes)
+
+    def test_existing_181_profile_is_not_rewritten_again(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            user_dir = root / "user" / "default" / "filament"
+            system_dir = root / "system" / "Snapmaker" / "filament"
+            user_dir.mkdir(parents=True)
+            system_dir.mkdir(parents=True)
+            self._write_inherited_base(system_dir)
+
+            first = sync_profiles(
+                self._inventory(), user_dir, system_dir, apply=True
+            )
+            self.assertEqual(first.actions[0].status, "created")
+            profile_path = next(user_dir.glob("*.json"))
+            before = hashlib.sha256(profile_path.read_bytes()).hexdigest()
+
+            second = sync_profiles(
+                self._inventory(), user_dir, system_dir, apply=True
+            )
+            after = hashlib.sha256(profile_path.read_bytes()).hexdigest()
+
+            self.assertEqual(second.actions[0].status, "existing")
+            self.assertEqual(after, before)
+            self.assertEqual(list(user_dir.glob("*.u1fa-pre181-*.bak")), [])
+
+    def test_nonwhite_manual_colour_survives_identity_migration(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             user_dir = root / "user" / "default" / "filament"
@@ -142,28 +219,23 @@ class FilamentIdentity181Tests(unittest.TestCase):
                 json.dumps(
                     {
                         "name": profile_name,
+                        "from": "User",
                         "filament_settings_id": [profile_name],
-                        "filament_vendor": ["Manual Vendor"],
-                        "default_filament_colour": ["#002E7A"],
-                        "filament_colour": ["#002E7A"],
                         "inherits": "Snapmaker PLA Basic @U1",
-                        "pressure_advance": ["0.019"],
-                        "adaptive_pressure_advance": ["1"],
+                        "default_filament_colour": ["#123456"],
+                        "filament_colour": ["#123456"],
                     },
                     indent=4,
                 )
                 + "\n",
                 encoding="utf-8",
             )
-            before = hashlib.sha256(profile_path.read_bytes()).hexdigest()
 
-            report = sync_profiles(
-                self._inventory(), user_dir, system_dir, apply=True
-            )
-            after = hashlib.sha256(profile_path.read_bytes()).hexdigest()
-
-            self.assertEqual(report.actions[0].status, "existing")
-            self.assertEqual(after, before)
+            sync_profiles(self._inventory(), user_dir, system_dir, apply=True)
+            payload = json.loads(profile_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["default_filament_colour"], ["#123456"])
+            self.assertEqual(payload["filament_colour"], ["#123456"])
+            self.assertEqual(payload["filament_vendor"], ["Deeplee"])
 
     def test_missing_parent_is_skipped_instead_of_writing_incomplete_profile(self):
         with tempfile.TemporaryDirectory() as temporary:

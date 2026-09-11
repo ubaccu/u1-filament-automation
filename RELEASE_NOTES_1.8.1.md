@@ -10,16 +10,20 @@ U1FA 1.8.1 è un aggiornamento correttivo della release stabile 1.8.0 dedicato a
 - I nuovi profili vengono generati come profili Orca **standalone**, materializzando in sicurezza tutte le impostazioni effettive della catena di ereditarietà Snapmaker prima di rimuovere `inherits`. In questo modo il matcher Snapmaker può considerarli durante l'inoltro della stampa.
 - Ogni nuovo profilo riceve un `filament_id` utente stabile compatibile con la convenzione Orca (`P` + 7 caratteri MD5 dell'identità filamento).
 - Vendor, tipo e colori del filamento risultano disponibili direttamente nel profilo per l'abbinamento automatico Snapmaker.
-- Se un profilo padre necessario non è disponibile, U1FA non crea un profilo incompleto: l'operazione viene saltata in sicurezza.
+- I profili U1FA 1.8.0 già esistenti e riconoscibili vengono migrati in modo controllato alla nuova identità 1.8.1: il profilo Snapmaker di base viene materializzato, `inherits` viene rimosso e vendor/`filament_id` vengono corretti.
+- Durante la migrazione vengono conservati i valori utente già presenti, compresi **Pressure Advance, Adaptive Pressure Advance, temperature, portata volumetrica e altre regolazioni**.
+- Prima di sostituire un profilo migrato viene creato un backup byte-per-byte con suffisso `.u1fa-pre181-...bak`.
+- Un colore personalizzato non bianco già presente nel profilo viene preservato; solo un colore mancante o bianco segnaposto viene riallineato ai dati Spoolman.
+- Se un profilo padre necessario non è disponibile, U1FA non crea né migra un profilo incompleto: l'operazione viene saltata in sicurezza.
 
 ### Sicurezza e compatibilità
 
-- I profili Orca **già esistenti non vengono convertiti né riscritti automaticamente** da questo bugfix.
-- I valori già calibrati di **Pressure Advance e Adaptive Pressure Advance** restano quindi invariati.
-- La riparazione già esistente del solo colore bianco segnaposto rimane limitata ai profili U1FA riconoscibili.
+- La migrazione automatica riguarda solo profili con identità U1FA riconoscibile (`name` e `filament_settings_id` coerenti e profilo utente).
+- I profili già corretti in formato 1.8.1 non vengono riscritti a ogni sincronizzazione.
+- I profili personalizzati non riconosciuti come U1FA non vengono modificati.
 - Nessuna scrittura in Spoolman o sulla stampante viene introdotta da questa correzione.
 
-Per ottenere il nuovo comportamento di auto-abbinamento su un profilo già creato con U1FA 1.8.0 servirà una ricreazione controllata oppure una futura migrazione esplicita: U1FA 1.8.1 non modifica silenziosamente profili già calibrati.
+Dopo l'aggiornamento a 1.8.1, una normale sincronizzazione può quindi correggere anche un profilo creato con U1FA 1.8.0 senza richiedere di cancellarlo e ricrearlo e senza perdere una calibrazione PA già salvata.
 
 # English
 
@@ -31,13 +35,17 @@ U1FA 1.8.1 is a corrective update to stable release 1.8.0 focused on filament pr
 - New profiles are generated as Orca **standalone** presets. U1FA safely materializes the complete effective Snapmaker inheritance chain before removing `inherits`, allowing Snapmaker's sender matcher to consider the preset during print submission.
 - Every new profile receives a stable Orca-compatible user `filament_id` (`P` + 7 MD5 characters from the filament identity).
 - Vendor, material type and filament colours are directly available to Snapmaker's automatic matching logic.
-- If a required parent preset is missing, U1FA fails closed and skips creation instead of writing an incomplete profile.
+- Recognizable existing U1FA 1.8.0 profiles are migrated in a controlled way to the 1.8.1 identity: the Snapmaker base is materialized, `inherits` is removed, and vendor/`filament_id` are corrected.
+- Migration preserves existing user values, including **Pressure Advance, Adaptive Pressure Advance, temperatures, volumetric-flow limits and other profile tuning**.
+- A byte-for-byte backup with a `.u1fa-pre181-...bak` suffix is created before a migrated profile is replaced.
+- An intentional non-white custom colour is preserved; only a missing or white placeholder colour is realigned with Spoolman data.
+- If a required parent preset is unavailable, U1FA fails closed and does not create or migrate an incomplete profile.
 
 ### Safety and compatibility
 
-- **Existing Orca profiles are not automatically converted or rewritten** by this bugfix.
-- Existing **Pressure Advance and Adaptive Pressure Advance** calibration values therefore remain untouched.
-- The existing narrow white-placeholder colour repair remains limited to recognizable U1FA-managed profiles.
+- Automatic migration is limited to profiles with a recognizable U1FA identity (`name` and `filament_settings_id` agree and the preset is a user profile).
+- Profiles already corrected to the 1.8.1 format are not rewritten on every sync.
+- Unrecognized custom profiles are not modified.
 - This correction adds no new write operation to Spoolman or the printer.
 
-To obtain the new automatic matching behaviour for a profile previously created by U1FA 1.8.0, a controlled recreation or an explicit future migration is required; U1FA 1.8.1 does not silently modify already calibrated profiles.
+After updating to 1.8.1, a normal sync can therefore repair a profile previously created by U1FA 1.8.0 without requiring deletion/recreation and without losing an existing PA calibration.
