@@ -383,15 +383,17 @@ def migrate_legacy_profile_identity(
     if new_bytes == original_bytes:
         return False, ""
 
-    timestamp = int(time.time())
-    backup_path = path.with_name(
-        f"{path.name}.u1fa-pre181-{timestamp}.bak"
-    )
+    backup_path = path.with_name(f"{path.name}.u1fa-pre181.bak")
     temporary_path = path.with_name(f"{path.name}.u1fa-181.tmp")
 
-    # Backup first.  If any following operation fails the original file still
-    # exists and the backup remains available for manual recovery.
-    backup_path.write_bytes(original_bytes)
+    # Keep exactly one pre-1.8.1 recovery copy per profile.  Exclusive create
+    # prevents both accidental overwrite and backup accumulation on a retry
+    # after an interrupted migration.
+    try:
+        with backup_path.open("xb") as handle:
+            handle.write(original_bytes)
+    except FileExistsError:
+        pass
     try:
         temporary_path.write_bytes(new_bytes)
         temporary_path.replace(path)

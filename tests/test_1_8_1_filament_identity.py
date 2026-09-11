@@ -176,9 +176,9 @@ class FilamentIdentity181Tests(unittest.TestCase):
                 ["0.019,8.0,2000|0.021,20.0,6000"],
             )
             self.assertEqual(payload["filament_max_volumetric_speed"], ["18"])
-            backups = list(user_dir.glob(f"{profile_name}.json.u1fa-pre181-*.bak"))
-            self.assertEqual(len(backups), 1)
-            self.assertEqual(backups[0].read_bytes(), original_bytes)
+            backup = user_dir / f"{profile_name}.json.u1fa-pre181.bak"
+            self.assertTrue(backup.is_file())
+            self.assertEqual(backup.read_bytes(), original_bytes)
 
     def test_existing_181_profile_is_not_rewritten_again(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -203,7 +203,47 @@ class FilamentIdentity181Tests(unittest.TestCase):
 
             self.assertEqual(second.actions[0].status, "existing")
             self.assertEqual(after, before)
-            self.assertEqual(list(user_dir.glob("*.u1fa-pre181-*.bak")), [])
+            self.assertEqual(list(user_dir.glob("*.u1fa-pre181.bak")), [])
+
+    def test_interrupted_migration_reuses_single_existing_backup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            user_dir = root / "user" / "default" / "filament"
+            system_dir = root / "system" / "Snapmaker" / "filament"
+            user_dir.mkdir(parents=True)
+            system_dir.mkdir(parents=True)
+            self._write_inherited_base(system_dir)
+            profile_name = "Deeplee PLA Basic Blu @Snapmaker U1 (0.4 nozzle)"
+            profile_path = user_dir / f"{profile_name}.json"
+            profile_path.write_text(
+                json.dumps(
+                    {
+                        "name": profile_name,
+                        "from": "User",
+                        "filament_settings_id": [profile_name],
+                        "filament_vendor": ["Snapmaker"],
+                        "inherits": "Snapmaker PLA Basic @U1",
+                        "pressure_advance": ["0.019"],
+                    },
+                    indent=4,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            backup = user_dir / f"{profile_name}.json.u1fa-pre181.bak"
+            first_backup = b"first safe backup"
+            backup.write_bytes(first_backup)
+
+            report = sync_profiles(
+                self._inventory(), user_dir, system_dir, apply=True
+            )
+
+            self.assertEqual(report.actions[0].status, "repaired")
+            self.assertEqual(backup.read_bytes(), first_backup)
+            self.assertEqual(
+                list(user_dir.glob(f"{profile_name}.json.u1fa-pre181*.bak")),
+                [backup],
+            )
 
     def test_nonwhite_manual_colour_survives_identity_migration(self):
         with tempfile.TemporaryDirectory() as temporary:
