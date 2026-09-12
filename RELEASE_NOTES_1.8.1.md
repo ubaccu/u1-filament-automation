@@ -2,50 +2,78 @@
 
 ## Italiano
 
-U1FA 1.8.1 è un aggiornamento correttivo della release stabile 1.8.0 dedicato all'identità dei profili filamento creati per Snapmaker Orca.
+U1FA 1.8.1 è un aggiornamento correttivo della release stabile 1.8.0 dedicato all'identità dei profili filamento creati per Snapmaker Orca e alla coerenza dei dati provenienti da Spoolman.
 
-### Correzioni
+### Correzioni principali
 
-- I nuovi profili creati da U1FA salvano esplicitamente il **produttore reale di Spoolman** invece di ereditare erroneamente `Snapmaker` dal profilo di sistema usato come base.
-- I nuovi profili vengono generati come profili Orca **standalone**, materializzando in sicurezza tutte le impostazioni effettive della catena di ereditarietà Snapmaker prima di rimuovere `inherits`. In questo modo il matcher Snapmaker può considerarli durante l'inoltro della stampa.
+- I nuovi profili U1FA salvano esplicitamente il **produttore reale di Spoolman** invece di ereditare `Snapmaker` dal preset di sistema usato come base.
+- I profili vengono materializzati come preset Orca **standalone**: U1FA risolve in sicurezza l'intera catena di ereditarietà Snapmaker e poi rimuove `inherits`, `setting_id` e `instantiation` dall'identità utente.
 - Ogni nuovo profilo riceve un `filament_id` utente stabile compatibile con la convenzione Orca (`P` + 7 caratteri MD5 dell'identità filamento).
-- Vendor, tipo e colori del filamento risultano disponibili direttamente nel profilo per l'abbinamento automatico Snapmaker.
-- I profili U1FA 1.8.0 già esistenti e riconoscibili vengono migrati in modo controllato alla nuova identità 1.8.1: il profilo Snapmaker di base viene materializzato, `inherits` viene rimosso e vendor/`filament_id` vengono corretti.
-- Durante la migrazione vengono conservati i valori utente già presenti, compresi **Pressure Advance, Adaptive Pressure Advance, temperature, portata volumetrica e altre regolazioni**.
-- Prima di sostituire un profilo migrato viene creato un backup byte-per-byte con suffisso `.u1fa-pre181-...bak`.
-- Un colore personalizzato non bianco già presente nel profilo viene preservato; solo un colore mancante o bianco segnaposto viene riallineato ai dati Spoolman.
-- Se un profilo padre necessario non è disponibile, U1FA non crea né migra un profilo incompleto: l'operazione viene saltata in sicurezza.
+- Per le famiglie speciali U1FA usa ora il **tipo materiale esatto visto dal matcher della Snapmaker U1**, ad esempio `PLA TRANSLUCENT`, `PLA SILK`, `PLA WOOD`, `PLA HIGH SPEED`, `PETG TRANSLUCENT`, `PETG HIGH SPEED`, `PLA-CF` e `PETG-CF`.
+- Il bug reale che impediva a un profilo personalizzato Deeplee PLA Translucent di essere selezionato automaticamente in Print Preprocessing è quindi risolto.
+- I profili U1FA già gestiti possono ricevere la migrazione dell'identità 1.8.1 anche se erano già presenti nel `watch-state`; una cancellazione manuale volontaria continua invece a essere rispettata.
+- La migrazione conserva i valori utente già presenti, inclusi **Pressure Advance, Adaptive Pressure Advance, temperature, portata volumetrica e altre regolazioni**.
+- Prima di sostituire un profilo migrato viene mantenuto un backup byte-per-byte `.u1fa-pre181.bak` senza proliferazione di copie.
+- I colori Spoolman vengono mantenuti nel profilo Orca; un colore personalizzato non bianco già presente in un profilo esistente non viene sovrascritto.
+- Per un **profilo appena creato**, `filament_density` viene ora allineato alla densità reale registrata in Spoolman invece di mantenere automaticamente la densità del preset Snapmaker di base. I profili esistenti non vengono riscritti soltanto perché la densità Spoolman cambia.
+- Se un profilo padre Snapmaker necessario non è disponibile, U1FA non crea un preset incompleto e si blocca in sicurezza.
+
+### Validazione reale Snapmaker U1
+
+La correzione è stata verificata su una Snapmaker U1 reale con un filamento **Deeplee PLA Translucent**:
+
+- vendor U1/Orca: `Deeplee`;
+- tipo runtime: `PLA TRANSLUCENT`;
+- colore: `CAF0FE`;
+- slot fisico: 2;
+- Orca ha associato automaticamente il filamento allo slot 2 nella schermata **Print Preprocessing**, senza modifica manuale del JSON;
+- dopo la correzione finale della densità, il profilo ricreato da Spoolman contiene `filament_density: ["1.25"]` mantenendo vendor, tipo e colore corretti.
+
+La suite finale contiene **238 test** ed è risultata completamente verde. Sono state inoltre validate le build macOS Intel, macOS Apple Silicon, Windows x64, Linux x86_64 e l'archivio sorgente corrispondente.
 
 ### Sicurezza e compatibilità
 
-- La migrazione automatica riguarda solo profili con identità U1FA riconoscibile (`name` e `filament_settings_id` coerenti e profilo utente).
-- I profili già corretti in formato 1.8.1 non vengono riscritti a ogni sincronizzazione.
+- La migrazione automatica riguarda solo profili con identità U1FA riconoscibile.
 - I profili personalizzati non riconosciuti come U1FA non vengono modificati.
-- Nessuna scrittura in Spoolman o sulla stampante viene introdotta da questa correzione.
+- I profili già corretti non vengono riscritti a ogni sincronizzazione.
+- Questa release non aggiorna il firmware Snapmaker U1 e non riduce le protezioni già presenti per configurazione stampante, backup e scritture PA.
 
-Dopo l'aggiornamento a 1.8.1, una normale sincronizzazione può quindi correggere anche un profilo creato con U1FA 1.8.0 senza richiedere di cancellarlo e ricrearlo e senza perdere una calibrazione PA già salvata.
+---
 
-# English
+## English
 
-U1FA 1.8.1 is a corrective update to stable release 1.8.0 focused on filament profile identity in Snapmaker Orca.
+U1FA 1.8.1 is a corrective update to stable release 1.8.0 focused on Snapmaker Orca filament-profile identity and consistency with Spoolman metadata.
 
-### Fixes
+### Main fixes
 
-- Newly created U1FA profiles now explicitly store the **real Spoolman vendor** instead of incorrectly inheriting `Snapmaker` from the selected system base preset.
-- New profiles are generated as Orca **standalone** presets. U1FA safely materializes the complete effective Snapmaker inheritance chain before removing `inherits`, allowing Snapmaker's sender matcher to consider the preset during print submission.
+- Newly created U1FA profiles explicitly store the **real Spoolman vendor** instead of inheriting `Snapmaker` from the selected system preset.
+- Profiles are materialized as Orca **standalone** presets: U1FA safely resolves the complete Snapmaker inheritance chain and then removes `inherits`, `setting_id` and `instantiation` from the user preset identity.
 - Every new profile receives a stable Orca-compatible user `filament_id` (`P` + 7 MD5 characters from the filament identity).
-- Vendor, material type and filament colours are directly available to Snapmaker's automatic matching logic.
-- Recognizable existing U1FA 1.8.0 profiles are migrated in a controlled way to the 1.8.1 identity: the Snapmaker base is materialized, `inherits` is removed, and vendor/`filament_id` are corrected.
-- Migration preserves existing user values, including **Pressure Advance, Adaptive Pressure Advance, temperatures, volumetric-flow limits and other profile tuning**.
-- A byte-for-byte backup with a `.u1fa-pre181-...bak` suffix is created before a migrated profile is replaced.
-- An intentional non-white custom colour is preserved; only a missing or white placeholder colour is realigned with Spoolman data.
-- If a required parent preset is unavailable, U1FA fails closed and does not create or migrate an incomplete profile.
+- Special material families now use the **exact sender-facing material type reported by the Snapmaker U1**, including `PLA TRANSLUCENT`, `PLA SILK`, `PLA WOOD`, `PLA HIGH SPEED`, `PETG TRANSLUCENT`, `PETG HIGH SPEED`, `PLA-CF` and `PETG-CF`.
+- This fixes the real issue that prevented a custom Deeplee PLA Translucent profile from being selected automatically in Print Preprocessing.
+- Existing managed U1FA profiles can receive the 1.8.1 identity migration even when already present in `watch-state`; an intentional manual deletion is still respected.
+- Migration preserves existing user values, including **Pressure Advance, Adaptive Pressure Advance, temperatures, volumetric-flow limits and other tuning**.
+- A byte-for-byte `.u1fa-pre181.bak` recovery copy is kept before migration without creating repeated backup files.
+- Spoolman colours are retained in the Orca profile; an intentional non-white custom colour in an existing profile is preserved.
+- For a **newly created profile**, `filament_density` is now aligned with the real density stored in Spoolman instead of automatically keeping the Snapmaker base-preset density. Existing profiles are not rewritten merely because the Spoolman density later changes.
+- If a required Snapmaker parent preset is unavailable, U1FA fails closed instead of creating an incomplete preset.
+
+### Real Snapmaker U1 validation
+
+The fix was validated on a real Snapmaker U1 using **Deeplee PLA Translucent**:
+
+- U1/Orca vendor: `Deeplee`;
+- runtime type: `PLA TRANSLUCENT`;
+- colour: `CAF0FE`;
+- physical slot: 2;
+- Orca automatically matched the filament to slot 2 in **Print Preprocessing** without any manual JSON edit;
+- after the final density fix, recreating the profile from Spoolman produced `filament_density: ["1.25"]` while keeping the correct vendor, type and colour.
+
+The final suite contains **238 tests**, all passing. macOS Intel, macOS Apple Silicon, Windows x64, Linux x86_64 and the corresponding source archive were also validated successfully.
 
 ### Safety and compatibility
 
-- Automatic migration is limited to profiles with a recognizable U1FA identity (`name` and `filament_settings_id` agree and the preset is a user profile).
-- Profiles already corrected to the 1.8.1 format are not rewritten on every sync.
+- Automatic migration is limited to profiles with a recognizable U1FA identity.
 - Unrecognized custom profiles are not modified.
-- This correction adds no new write operation to Spoolman or the printer.
-
-After updating to 1.8.1, a normal sync can therefore repair a profile previously created by U1FA 1.8.0 without requiring deletion/recreation and without losing an existing PA calibration.
+- Already-correct profiles are not rewritten on every sync.
+- This release does not update Snapmaker U1 firmware and does not weaken the existing safeguards around printer setup, backups or PA writes.

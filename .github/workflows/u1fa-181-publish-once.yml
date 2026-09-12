@@ -1,0 +1,203 @@
+name: Publish U1FA 1.8.1 once
+
+on:
+  push:
+    branches:
+      - dev/1.8.1-final
+    paths:
+      - ".github/workflows/u1fa-181-publish-once.yml"
+      - "RELEASE_NOTES_1.8.1.md"
+
+permissions:
+  contents: write
+  actions: write
+  pull-requests: write
+
+concurrency:
+  group: u1fa-181-publish-once
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    env:
+      VALIDATION_RUN: "34696309092"
+      RELEASE_TAG: "v1.8.1"
+      SOURCE_BRANCH: "release-source-current"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard exact validated version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml | head -n 1)"
+          if [[ "$version" != "1.8.1" ]]; then
+            echo "Expected pyproject version 1.8.1, found $version" >&2
+            exit 1
+          fi
+          conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" --jq .conclusion)"
+          head_sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN" --jq .head_sha)"
+          if [[ "$conclusion" != "success" ]]; then
+            echo "Validation run $VALIDATION_RUN is not successful: $conclusion" >&2
+            exit 1
+          fi
+          if [[ "$head_sha" != "812f4c22299901382a661ae810637a630eb3808b" ]]; then
+            echo "Validation run points to unexpected source $head_sha" >&2
+            exit 1
+          fi
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; refusing duplicate publication." >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists without the expected release; refusing to retarget it." >&2
+            exit 1
+          fi
+
+      - name: Download validated cross-platform artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf validated-artifacts publish-assets
+          mkdir -p validated-artifacts publish-assets
+          gh run download "$VALIDATION_RUN" --repo "$GITHUB_REPOSITORY" --dir validated-artifacts
+
+          mapfile -t mac_intel < <(find validated-artifacts -type f -name '*macOS-x86_64.dmg' -print)
+          mapfile -t mac_arm < <(find validated-artifacts -type f -name '*macOS-arm64.dmg' -print)
+          mapfile -t windows < <(find validated-artifacts -type f -name '*Windows-x64-Setup.exe' -print)
+          mapfile -t linux < <(find validated-artifacts -type f -name '*Linux-x86_64.AppImage' -print)
+          mapfile -t source < <(find validated-artifacts -type f -name '*-Source.zip' -print)
+
+          for group in mac_intel mac_arm windows linux source; do
+            eval 'count=${#'"$group"'[@]}'
+            if [[ "$count" -ne 1 ]]; then
+              echo "Expected exactly one $group asset, found $count" >&2
+              find validated-artifacts -maxdepth 3 -type f -print >&2 || true
+              exit 1
+            fi
+          done
+
+          cp "${mac_intel[0]}" publish-assets/
+          cp "${mac_arm[0]}" publish-assets/
+          cp "${windows[0]}" publish-assets/
+          cp "${linux[0]}" publish-assets/
+          cp "${source[0]}" publish-assets/
+          (cd publish-assets && sha256sum ./* > SHA256SUMS.txt)
+          cat publish-assets/SHA256SUMS.txt
+
+      - name: Publish exact source snapshot and tag
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t source_archives < <(find publish-assets -maxdepth 1 -type f -name '*-Source.zip' -print)
+          if [[ "${#source_archives[@]}" -ne 1 ]]; then
+            echo "Expected one source archive." >&2
+            exit 1
+          fi
+
+          snapshot="$(mktemp -d)"
+          trap 'rm -rf "$snapshot"' EXIT
+          mkdir -p "$snapshot/unpacked" "$snapshot/repo"
+          unzip -q "${source_archives[0]}" -d "$snapshot/unpacked"
+          mapfile -t roots < <(find "$snapshot/unpacked" -mindepth 1 -maxdepth 1 -type d -print)
+          if [[ "${#roots[@]}" -ne 1 ]]; then
+            echo "Source archive must contain exactly one top-level directory." >&2
+            exit 1
+          fi
+          cp -a "${roots[0]}/." "$snapshot/repo/"
+
+          if [[ -e "$snapshot/repo/.github" || -e "$snapshot/repo/tests" ]]; then
+            echo "Development-only content leaked into source snapshot." >&2
+            exit 1
+          fi
+          for required in pyproject.toml LICENSE THIRD_PARTY_NOTICES.md src/u1_filament_automation/profile_density.py; do
+            if [[ ! -e "$snapshot/repo/$required" ]]; then
+              echo "Missing required source item: $required" >&2
+              exit 1
+            fi
+          done
+
+          git -C "$snapshot/repo" init -q
+          git -C "$snapshot/repo" checkout --orphan "$SOURCE_BRANCH" >/dev/null 2>&1
+          git -C "$snapshot/repo" config user.name "Bottega3DLab Release"
+          git -C "$snapshot/repo" config user.email "riccelliivan@gmail.com"
+          git -C "$snapshot/repo" add -A
+          git -C "$snapshot/repo" commit -q -m "U1FA 1.8.1 source snapshot"
+          source_commit="$(git -C "$snapshot/repo" rev-parse HEAD)"
+          source_tree="$(git -C "$snapshot/repo" rev-parse HEAD^{tree})"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$snapshot/repo" remote add origin "$remote"
+          git -C "$snapshot/repo" push --force origin HEAD:"refs/heads/$SOURCE_BRANCH"
+          git -C "$snapshot/repo" tag "$RELEASE_TAG" "$source_commit"
+          git -C "$snapshot/repo" push origin "refs/tags/$RELEASE_TAG"
+
+          remote_tag="$(git -C "$snapshot/repo" ls-remote origin "refs/tags/$RELEASE_TAG" | awk '{print $1}')"
+          if [[ "$remote_tag" != "$source_commit" ]]; then
+            echo "Remote tag does not match exact source snapshot." >&2
+            exit 1
+          fi
+          echo "source_commit=$source_commit" >> "$GITHUB_OUTPUT"
+          echo "source_tree=$source_tree" >> "$GITHUB_OUTPUT"
+          echo "Published source snapshot $source_commit (tree $source_tree)"
+
+      - name: Create public GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" publish-assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "U1 Filament Automation 1.8.1" \
+            --notes-file RELEASE_NOTES_1.8.1.md
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,name,isPrerelease,url,assets
+
+      - name: Verify release assets and source tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: ${{ steps.source.outputs.source_commit }}
+        run: |
+          set -euo pipefail
+          release_tag="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+          if [[ "$release_tag" != "$RELEASE_TAG" ]]; then
+            echo "Unexpected release tag $release_tag" >&2
+            exit 1
+          fi
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha)"
+          if [[ "$tag_sha" != "$SOURCE_COMMIT" ]]; then
+            echo "Release tag $tag_sha does not point to exact source snapshot $SOURCE_COMMIT" >&2
+            exit 1
+          fi
+          asset_count="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')"
+          if [[ "$asset_count" -ne 6 ]]; then
+            echo "Expected 6 release assets, found $asset_count" >&2
+            exit 1
+          fi
+
+      - name: Clean temporary validation resources
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if git ls-remote --exit-code --heads origin "refs/heads/$SOURCE_BRANCH" >/dev/null 2>&1; then
+            git push origin --delete "$SOURCE_BRANCH"
+          fi
+
+          for artifact_id in $(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN/artifacts?per_page=100" --jq '.artifacts[].id'); do
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id" || true
+          done
+
+          for run_id in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/u1fa-181-public-validation.yml/runs?per_page=100" --jq '.workflow_runs[].id'); do
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" || true
+          done
+
+          gh pr close 15 --repo "$GITHUB_REPOSITORY" --comment "Live U1 validation passed and U1FA 1.8.1 has been published. Closing the temporary public validation PR." || true
+
+          git push origin --delete dev/1.8.1-final
