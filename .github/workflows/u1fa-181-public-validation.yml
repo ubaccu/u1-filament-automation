@@ -149,12 +149,12 @@ jobs:
         run: packaging/source/build_source_archive.sh
       - name: Validate archive
         run: |
-          tar -tzf dist/*.tar.gz | head -n 40
-          sha256sum dist/*.tar.gz
+          unzip -l dist/*Source.zip | head -n 40
+          sha256sum dist/*Source.zip
       - name: Upload source archive
         uses: actions/upload-artifact@v4
         with:
           name: U1FA-1.8.1-source
-          path: dist/*.tar.gz
+          path: dist/*Source.zip
           if-no-files-found: error
           retention-days: 1
