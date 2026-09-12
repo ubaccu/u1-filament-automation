@@ -3,10 +3,6 @@ name: CodeQL
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-  schedule:
-    - cron: '23 3 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -15,20 +11,20 @@ permissions:
 
 jobs:
   analyze:
-    name: Analyze Python
+    name: Analyze GitHub Actions
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
-          languages: python
+          languages: actions
 
       - name: Analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
-          category: '/language:python'
+          category: '/language:actions'
