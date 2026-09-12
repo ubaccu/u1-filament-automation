@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   security-events: write
+  actions: write
 
 jobs:
   analyze:
@@ -28,3 +29,27 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: '/language:actions'
+
+  tidy:
+    name: Keep security Actions clean
+    needs: analyze
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Remove old CodeQL/maintenance runs and caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SELF_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          gh api --paginate "repos/$REPO/actions/caches?per_page=100" --jq '.actions_caches[].id' | while read -r id; do
+            [ -n "$id" ] && gh api -X DELETE "repos/$REPO/actions/caches/$id" || true
+          done
+
+          gh api --paginate "repos/$REPO/actions/runs?per_page=100" --jq '.workflow_runs[] | select(.id != ('"$SELF_RUN_ID"'|tonumber)) | select(.status == "completed") | select((.name == "CodeQL") or (.name == "Repository maintenance") or (.name == "Final public cleanup")) | .id' | while read -r id; do
+            [ -n "$id" ] && gh api -X DELETE "repos/$REPO/actions/runs/$id" || true
+          done
