@@ -27,8 +27,19 @@ class OrcaDiscoveryTests(unittest.TestCase):
 
     def test_accepts_explicit_filament_directory(self):
         with tempfile.TemporaryDirectory() as temporary:
-            found = discover_orca(explicit_dir=temporary, environ={})
+            root = Path(temporary)
+            explicit = root / "explicit-filament"
+            home = root / "home"
+            explicit.mkdir()
+            home.mkdir()
+            found = discover_orca(
+                explicit_dir=str(explicit),
+                home=home,
+                system="Darwin",
+                environ={},
+            )
             self.assertEqual(len(found), 1)
+            self.assertEqual(found[0].path, explicit.resolve())
 
     def test_discovers_windows_profile_from_appdata(self):
         with tempfile.TemporaryDirectory() as temporary:
