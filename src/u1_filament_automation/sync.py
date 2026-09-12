@@ -320,6 +320,7 @@ def migrate_legacy_profile_identity(
 
     current_vendor = payload.get("filament_vendor")
     current_filament_id = payload.get("filament_id")
+    current_filament_type = payload.get("filament_type")
     already_detached = not (
         isinstance(payload.get("inherits"), str)
         and payload.get("inherits", "").strip()
@@ -328,6 +329,7 @@ def migrate_legacy_profile_identity(
         already_detached
         and current_vendor == fresh.get("filament_vendor")
         and current_filament_id == fresh.get("filament_id")
+        and current_filament_type == fresh.get("filament_type")
         and "setting_id" not in payload
         and "instantiation" not in payload
     ):
@@ -346,6 +348,7 @@ def migrate_legacy_profile_identity(
         "filament_id",
         "filament_settings_id",
         "filament_vendor",
+        "filament_type",
         "is_custom_defined",
         "version",
         "default_filament_colour",
@@ -514,27 +517,63 @@ def sync_profiles(
             continue
         filename = safe_filename(profile_name)
         if profile_name.casefold() in ignored:
-            # A profile deliberately deleted by the user must never be
-            # recreated.  If the file still exists, however, repair an
-            # obvious white placeholder so a previously-managed multicolor
-            # profile can be fixed after upgrading U1FA.
-            repaired = (
+            # Managed names stay remembered so an intentionally deleted profile
+            # is not recreated. Existing files must still receive migrations
+            # when U1FA changes sender-facing identity rules.
+            if not _profile_exists(user_dir, filename):
+                actions.append(
+                    SyncAction(
+                        "dismissed",
+                        profile_name,
+                        base,
+                        color,
+                        spool_ids,
+                        "già gestito; un'eventuale eliminazione manuale viene rispettata",
+                    )
+                )
+                continue
+
+            migrated = False
+            backup_name = ""
+            migration_error = ""
+            if apply:
+                try:
+                    migrated, backup_name = migrate_legacy_profile_identity(
+                        user_dir,
+                        effective_system_dir,
+                        profile_name,
+                        base,
+                        vendor,
+                        colors,
+                    )
+                except (OSError, ProfileMaterializationError) as exc:
+                    migration_error = str(exc)
+
+            color_repaired = (
                 apply
-                and _profile_exists(user_dir, filename)
+                and not migrated
                 and repair_profile_colors(user_dir, profile_name, colors)
             )
+            repaired = migrated or color_repaired
+            if migrated:
+                message = (
+                    "identità Orca/vendor/tipo materiale migrati senza perdere i valori del profilo; "
+                    f"backup {backup_name}"
+                )
+            elif color_repaired:
+                message = "colori predefiniti aggiornati"
+            elif migration_error:
+                message = f"profilo gestito; migrazione 1.8.1 non eseguita: {migration_error}"
+            else:
+                message = "già gestito"
             actions.append(
                 SyncAction(
-                    "repaired" if repaired else "dismissed",
+                    "repaired" if repaired else "existing",
                     profile_name,
                     base,
                     color,
                     spool_ids,
-                    (
-                        "colori predefiniti aggiornati"
-                        if repaired
-                        else "già gestito; un'eventuale eliminazione manuale viene rispettata"
-                    ),
+                    message,
                 )
             )
             continue
@@ -569,7 +608,7 @@ def sync_profiles(
             repaired = migrated or color_repaired
             if migrated:
                 message = (
-                    "identità Orca/vendor migrati senza perdere i valori del profilo; "
+                    "identità Orca/vendor/tipo materiale migrati senza perdere i valori del profilo; "
                     f"backup {backup_name}"
                 )
             elif color_repaired:
