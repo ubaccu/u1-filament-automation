@@ -112,7 +112,7 @@ class SyncTests(unittest.TestCase):
             self.assertNotIn("inherits", payload)
             self.assertEqual(payload["version"], "9.9")
             self.assertEqual(payload["filament_vendor"], ["Deeplee"])
-            self.assertEqual(payload["filament_type"], ["PLA"])
+            self.assertEqual(payload["filament_type"], ["PLA HIGH SPEED"])
             self.assertTrue(payload["filament_id"].startswith("P"))
             self.assertEqual(len(payload["filament_id"]), 8)
             before_hash = hashlib.sha256(json_files[0].read_bytes()).hexdigest()
