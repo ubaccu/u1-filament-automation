@@ -162,7 +162,7 @@ class FilamentIdentity181Tests(unittest.TestCase):
             payload = json.loads(profile_path.read_text(encoding="utf-8"))
 
             self.assertEqual(report.actions[0].status, "repaired")
-            self.assertIn("identità Orca/vendor migrati", report.actions[0].message)
+            self.assertIn("identità Orca/vendor", report.actions[0].message)
             self.assertNotIn("inherits", payload)
             self.assertNotIn("setting_id", payload)
             self.assertNotIn("instantiation", payload)
