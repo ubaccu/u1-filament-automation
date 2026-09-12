@@ -83,6 +83,32 @@ def user_filament_id(profile_name: str) -> str:
     return "P" + digest[:7]
 
 
+def _snapmaker_runtime_filament_type(base_file: Path) -> str | None:
+    """Return the exact type string used by Snapmaker's U1 tray matcher.
+
+    SnapmakerPrinterAgent compares detached manufacturer-specific presets with
+    the printer using vendor + exact filament type + colour.  Several stock U1
+    presets inherit only the base polymer type even though the agent exposes a
+    combined runtime type for the physical tray.  A detached U1FA profile must
+    therefore carry that runtime type or it can never be selected/matched.
+    """
+    name = base_file.stem.upper()
+    special_types = (
+        ("PLA SNAPSPEED", "PLA HIGH SPEED"),
+        ("PETG HF", "PETG HIGH SPEED"),
+        ("PLA SILK", "PLA SILK"),
+        ("PLA WOOD", "PLA WOOD"),
+        ("PLA TRANSLUCENT", "PLA TRANSLUCENT"),
+        ("PETG TRANSLUCENT", "PETG TRANSLUCENT"),
+        ("PLA-CF", "PLA-CF"),
+        ("PETG-CF", "PETG-CF"),
+    )
+    for marker, runtime_type in special_types:
+        if marker in name:
+            return runtime_type
+    return None
+
+
 def build_detached_profile_payload(
     base_file: Path,
     profile_name: str,
@@ -100,6 +126,13 @@ def build_detached_profile_payload(
     ]
 
     payload = flatten_filament_profile(base_file)
+
+    # The U1 sender matches detached custom profiles by manufacturer + exact
+    # runtime filament type + colour.  Keep plain PLA/PETG as inherited, but
+    # expose the sender-facing type for special Snapmaker material families.
+    runtime_filament_type = _snapmaker_runtime_filament_type(base_file)
+    if runtime_filament_type:
+        payload["filament_type"] = [runtime_filament_type]
 
     # Never copy system/cloud identity into a user preset.  The actual
     # material settings and compatibility constraints remain in the flattened
