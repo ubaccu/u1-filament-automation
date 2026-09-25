@@ -13,6 +13,9 @@ from u1_filament_automation.gui import (
     LOGO_ASSET,
     UpdateSnapshot,
     VALIDATED_U1_ENVELOPE,
+    _batch_form,
+    _batch_preview,
+    _batch_selections_from_values,
     _connections_form,
     _envelope_controls,
     _home,
@@ -147,6 +150,126 @@ class GUISafetyTests(unittest.TestCase):
             "APA_COIL_SET_ENVELOPE LOW_SPEED=30 MID_SPEED=50 HIGH_SPEED=70 "
             "LOW_ACCEL=2000 MID_ACCEL=6000 HIGH_ACCEL=10000",
         )
+
+    def test_home_keeps_existing_layout_and_adds_secondary_batch_entry(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+            )
+            controller._accept_inventory(SpoolmanInventory(
+                url="http://spoolman.test",
+                vendors=[{"id": 1, "name": "DEEPLEE"}],
+                filaments=[{
+                    "id": 1,
+                    "vendor_id": 1,
+                    "material": "PLA",
+                    "name": "PLA A",
+                }],
+                spools=[{"id": 1, "filament_id": 1}],
+            ))
+            page = _home(controller, "safe-token")
+
+        self.assertIn('action="/preview"', page)
+        self.assertIn('href="/batch-calibration"', page)
+        self.assertIn("Calibra 2–4 bobine in sequenza", page)
+        self.assertIn('class="button secondary"', page)
+
+    def test_batch_form_reuses_existing_cards_and_has_four_optional_rows(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+            )
+            controller._accept_inventory(SpoolmanInventory(
+                url="http://spoolman.test",
+                vendors=[{"id": 1, "name": "DEEPLEE"}],
+                filaments=[{
+                    "id": 1,
+                    "vendor_id": 1,
+                    "material": "PLA",
+                    "name": "PLA A",
+                }],
+                spools=[{"id": 1, "filament_id": 1}],
+            ))
+            page = _batch_form(controller, "safe-token")
+
+        self.assertIn('action="/batch-preview"', page)
+        for index in range(1, 5):
+            self.assertIn(f'name="profile_name_{index}"', page)
+            self.assertIn(f'name="physical_slot_{index}"', page)
+            self.assertIn(f'name="temperature_{index}"', page)
+        self.assertEqual(page.count('class="card inset"'), 4)
+        self.assertIn("envelope automatico", page)
+
+    def test_batch_values_use_existing_auto_selection_and_reject_duplicate_slots(self):
+        class FakeController:
+            def __init__(self):
+                self.calls = []
+
+            def selection(
+                self,
+                profile_name,
+                physical_slot,
+                temperature,
+                envelope_mode="auto",
+                **kwargs,
+            ):
+                self.calls.append(
+                    (profile_name, physical_slot, temperature, envelope_mode)
+                )
+                return CalibrationSelection(
+                    profile_name,
+                    physical_slot,
+                    physical_slot - 1,
+                    temperature,
+                )
+
+        controller = FakeController()
+        values = {
+            "profile_name_1": "PLA A",
+            "physical_slot_1": "1",
+            "temperature_1": "220",
+            "profile_name_2": "PLA B",
+            "physical_slot_2": "2",
+            "temperature_2": "225",
+            "profile_name_3": "",
+            "physical_slot_3": "3",
+            "temperature_3": "230",
+        }
+        selections = _batch_selections_from_values(controller, values)
+        self.assertEqual(
+            controller.calls,
+            [
+                ("PLA A", 1, 220, "auto"),
+                ("PLA B", 2, 225, "auto"),
+            ],
+        )
+        self.assertEqual([item.profile_name for item in selections], ["PLA A", "PLA B"])
+
+        values["physical_slot_2"] = "1"
+        with self.assertRaisesRegex(GUIError, "slot fisico diverso"):
+            _batch_selections_from_values(FakeController(), values)
+
+    def test_batch_preview_preserves_only_basic_queue_values_for_revalidation(self):
+        selections = (
+            CalibrationSelection("PLA A", 1, 0, 220),
+            CalibrationSelection("PETG B", 2, 1, 240),
+        )
+        page = _batch_preview(selections, "safe-token")
+
+        self.assertIn('action="/batch-start"', page)
+        self.assertIn('name="profile_name_1" value="PLA A"', page)
+        self.assertIn('name="physical_slot_2" value="2"', page)
+        self.assertIn('name="temperature_2" value="240"', page)
+        self.assertIn("≈ 20 min", page)
+        self.assertIn("una bobina alla volta", page)
 
     def test_home_exposes_new_spool_flow_even_with_empty_inventory(self):
         with tempfile.TemporaryDirectory() as temporary:
