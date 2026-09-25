@@ -8,6 +8,7 @@ U1FA controlla in sottofondo le release pubbliche del progetto quando si avvia. 
 
 1. L'app legge le release pubbliche tramite HTTPS senza usare credenziali personali.
 2. Una versione stabile considera soltanto release stabili; una beta può ricevere beta successive e release stabili.
+   In pratica, chi usa la stabile 1.8.2 non riceverà automaticamente una 1.8.3 beta: l'updater proporrà la 1.8.3 quando verrà pubblicata come release stabile. Chi usa una 1.8.3 beta potrà invece passare sia a una beta successiva sia alla 1.8.3 stabile finale.
 3. Viene selezionato esclusivamente il pacchetto adatto al sistema operativo e all'architettura: DMG macOS, installer Windows oppure AppImage Linux.
 4. Prima del download vengono mostrati versione, note di rilascio, dimensione e SHA-256.
 5. Il download viene scritto inizialmente in un file temporaneo e diventa utilizzabile soltanto se dimensione e SHA-256 coincidono con i dati pubblicati nella release.
