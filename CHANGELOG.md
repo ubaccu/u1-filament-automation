@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.8.3b3 — Orca discovery + sequential calibration foundation
+
+- Grafica e navigazione esistenti mantenute invariate.
+- Aggiunto rilevamento separato di Snapmaker Orca e Orca Slicer standard, senza sostituire automaticamente il percorso Snapmaker.
+- Aggiunta coda di calibrazione da 1 a 4 bobine con slot fisici e profili univoci.
+- Collegata la coda al backend Adaptive PA: le calibrazioni vengono eseguite una alla volta, aggiornando il profilo prima di passare alla successiva.
+- La coda si ferma al primo errore e non avvia automaticamente le bobine restanti.
+- Ereditati i controlli firmware 1.5.2, PAXX v21 e 2.0.0.205 dalla 1.8.3b2.
+- Fast Max Flow automatico resta escluso.
+
 ## 1.8.3b2 — firmware compatibility + AutoPA 2.0 validation
 
 - Integrati nella build privata i file AutoPA realmente validati su U1 firmware 2.0.0.205.
