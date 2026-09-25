@@ -5,6 +5,8 @@
 - Grafica, stile e navigazione esistenti mantenuti invariati; le nuove funzioni vengono aggiunte senza ridisegnare l'app.
 - Aggiunto rilevamento separato di Snapmaker Orca e Orca Slicer standard, senza sostituire automaticamente il percorso Snapmaker.
 - Aggiunta coda di calibrazione da 1 a 4 bobine con slot fisici e profili univoci.
+- Aggiunto un ingresso secondario nella schermata di calibrazione esistente per preparare una coda da 2 a 4 bobine, senza ridisegnare l'interfaccia.
+- La coda usa l'envelope automatico già esistente, calcolato separatamente dal profilo Orca di ogni bobina; il flusso singolo e la modalità manuale avanzata restano invariati.
 - Collegata la coda al backend Adaptive PA: le calibrazioni vengono eseguite una alla volta, aggiornando il profilo prima di passare alla successiva.
 - La coda si ferma al primo errore e non avvia automaticamente le bobine restanti.
 - Ereditati i controlli firmware 1.5.2, PAXX v21 e 2.0.0.205 dalla 1.8.3b2.
