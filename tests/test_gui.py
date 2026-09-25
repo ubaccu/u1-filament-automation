@@ -650,6 +650,153 @@ class GUISafetyTests(unittest.TestCase):
                         prepared.ticket, "seconda-password"
                     )
 
+    def test_batch_start_rejects_duplicate_physical_slots(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+            )
+            selections = (
+                CalibrationSelection("Profilo A", 1, 0, 220),
+                CalibrationSelection("Profilo B", 1, 0, 225),
+            )
+            with self.assertRaisesRegex(GUIError, "slot fisico diverso"):
+                controller.start_batch(selections)
+            self.assertEqual(controller.snapshot().state, "idle")
+
+    def test_batch_backend_runs_strictly_in_order(self):
+        class FakeStatus:
+            print_state = "standby"
+            idle_state = "Idle"
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+            )
+            selections = (
+                CalibrationSelection("Profilo A", 1, 0, 220),
+                CalibrationSelection("Profilo B", 2, 1, 225),
+                CalibrationSelection("Profilo C", 3, 2, 230),
+            )
+            prepared = []
+            executed = []
+
+            def prepare(selection):
+                prepared.append(selection.profile_name)
+                return FakeStatus(), []
+
+            def run_job(
+                selection,
+                baseline,
+                started_at=None,
+                *,
+                batch_index=None,
+                batch_total=None,
+            ):
+                executed.append(
+                    (selection.profile_name, batch_index, batch_total)
+                )
+                state = "completed" if batch_index == batch_total else "running"
+                controller._set_job(
+                    JobSnapshot(
+                        state,
+                        "test",
+                        selection,
+                        started_at=started_at,
+                    )
+                )
+                return True
+
+            with patch.object(
+                controller, "_prepare_calibration", side_effect=prepare
+            ), patch.object(
+                controller, "_run_job", side_effect=run_job
+            ):
+                controller._run_batch(selections)
+
+        self.assertEqual(prepared, ["Profilo A", "Profilo B", "Profilo C"])
+        self.assertEqual(
+            executed,
+            [
+                ("Profilo A", 1, 3),
+                ("Profilo B", 2, 3),
+                ("Profilo C", 3, 3),
+            ],
+        )
+        self.assertEqual(controller.snapshot().state, "completed")
+
+    def test_batch_backend_stops_after_first_failed_calibration(self):
+        class FakeStatus:
+            print_state = "standby"
+            idle_state = "Idle"
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+            )
+            selections = (
+                CalibrationSelection("Profilo A", 1, 0, 220),
+                CalibrationSelection("Profilo B", 2, 1, 225),
+                CalibrationSelection("Profilo C", 3, 2, 230),
+            )
+            prepared = []
+            executed = []
+
+            def prepare(selection):
+                prepared.append(selection.profile_name)
+                return FakeStatus(), []
+
+            def run_job(
+                selection,
+                baseline,
+                started_at=None,
+                *,
+                batch_index=None,
+                batch_total=None,
+            ):
+                executed.append(selection.profile_name)
+                if selection.profile_name == "Profilo B":
+                    controller._set_job(
+                        JobSnapshot(
+                            "error",
+                            "simulated failure",
+                            selection,
+                            started_at=started_at,
+                        )
+                    )
+                    return False
+                controller._set_job(
+                    JobSnapshot(
+                        "running",
+                        "test",
+                        selection,
+                        started_at=started_at,
+                    )
+                )
+                return True
+
+            with patch.object(
+                controller, "_prepare_calibration", side_effect=prepare
+            ), patch.object(
+                controller, "_run_job", side_effect=run_job
+            ):
+                controller._run_batch(selections)
+
+        self.assertEqual(prepared, ["Profilo A", "Profilo B"])
+        self.assertEqual(executed, ["Profilo A", "Profilo B"])
+        self.assertEqual(controller.snapshot().state, "error")
+
     def test_completed_calibration_updates_only_real_orca(self):
         class FakeMoonraker:
             def run_gcode(self, script):
