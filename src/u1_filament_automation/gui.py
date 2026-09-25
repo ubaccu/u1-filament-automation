@@ -33,6 +33,15 @@ from .envelope import (
 )
 from .models import SpoolmanInventory
 from .orca import discover_orca
+from .slicer_discovery import discover_slicers
+from .standard_orca import (
+    StandardOrcaMirrorError,
+    StandardOrcaMirrorPlan,
+    apply_standard_orca_mirror,
+    plan_standard_orca_mirror,
+    set_standard_orca_mirror_enabled,
+    standard_orca_mirror_enabled,
+)
 from .pa import PAParseError, last_complete_suite_span
 from .pa_capture import (
     PACaptureError,
@@ -360,6 +369,7 @@ class CalibrationController:
         poll_interval: float = 3.0,
         spoolman_client_factory: Callable[[], SpoolmanClient] | None = None,
         real_orca_dir: Path | None = None,
+        standard_orca_dir: Path | None = None,
         ssh_target: str | None = None,
         ssh_port: int = 22,
         identity_file: str | None = None,
@@ -374,6 +384,16 @@ class CalibrationController:
         self.system_dir = system_dir.expanduser().resolve()
         self.real_orca_dir = (
             None if real_orca_dir is None else real_orca_dir.expanduser().resolve()
+        )
+        self.standard_orca_dir = (
+            None
+            if standard_orca_dir is None
+            else standard_orca_dir.expanduser().resolve()
+        )
+        self._standard_orca_mirror_enabled = (
+            False
+            if self.standard_orca_dir is None
+            else standard_orca_mirror_enabled(self.standard_orca_dir)
         )
         self.ssh_target = ssh_target
         self.ssh_port = ssh_port
@@ -436,6 +456,101 @@ class CalibrationController:
             raise GUIError("Lingua non valida / Invalid language")
         with self._lock:
             self._language = language
+
+    def standard_orca_target(self) -> Path | None:
+        return self.standard_orca_dir
+
+    def standard_orca_mirror_is_enabled(self) -> bool:
+        return self._standard_orca_mirror_enabled
+
+    def standard_orca_preview(self) -> tuple[StandardOrcaMirrorPlan, ...]:
+        if self.real_orca_dir is None:
+            raise GUIError("Cartella reale di Snapmaker Orca non configurata")
+        if self.standard_orca_dir is None:
+            raise GUIError(
+                "Orca Slicer standard non rilevato su questo computer"
+            )
+        with self._lock:
+            names = tuple(item.profile_name for item in self._profiles)
+        plans: list[StandardOrcaMirrorPlan] = []
+        try:
+            for name in names:
+                # Spoolman may contain unsupported materials or a profile the
+                # user deliberately deleted from Snapmaker Orca. The optional
+                # standard-Orca mirror must never recreate those implicitly.
+                try:
+                    find_profile_path(self.real_orca_dir, name)
+                except PAProfileError:
+                    continue
+                plans.append(
+                    plan_standard_orca_mirror(
+                        self.real_orca_dir,
+                        self.standard_orca_dir,
+                        name,
+                    )
+                )
+        except StandardOrcaMirrorError as exc:
+            raise GUIError(str(exc)) from exc
+        return tuple(plans)
+
+    def enable_standard_orca_mirror(self) -> tuple[StandardOrcaMirrorPlan, ...]:
+        with self._lock:
+            if self._job.state in ACTIVE_CALIBRATION_STATES:
+                raise GUIError("Attendere la fine della calibrazione in corso")
+        plans = self.standard_orca_preview()
+        blocked = [plan for plan in plans if plan.action == "blocked"]
+        if blocked:
+            names = ", ".join(plan.profile_name for plan in blocked[:4])
+            raise GUIError(
+                "Mirror Orca Slicer bloccato da profili esistenti o modificati: "
+                + names
+            )
+        results: list[StandardOrcaMirrorPlan] = []
+        try:
+            for plan in plans:
+                results.append(apply_standard_orca_mirror(plan))
+            if self.standard_orca_dir is None:
+                raise StandardOrcaMirrorError(
+                    "Cartella Orca Slicer standard non configurata"
+                )
+            set_standard_orca_mirror_enabled(self.standard_orca_dir, True)
+        except StandardOrcaMirrorError as exc:
+            raise GUIError(str(exc)) from exc
+        self._standard_orca_mirror_enabled = True
+        return tuple(results)
+
+    def disable_standard_orca_mirror(self) -> None:
+        if self.standard_orca_dir is None:
+            raise GUIError("Orca Slicer standard non rilevato")
+        try:
+            set_standard_orca_mirror_enabled(self.standard_orca_dir, False)
+        except StandardOrcaMirrorError as exc:
+            raise GUIError(str(exc)) from exc
+        self._standard_orca_mirror_enabled = False
+
+    def _mirror_standard_orca_profile(
+        self,
+        profile_name: str,
+    ) -> StandardOrcaMirrorPlan | None:
+        if (
+            not self._standard_orca_mirror_enabled
+            or self.real_orca_dir is None
+            or self.standard_orca_dir is None
+        ):
+            return None
+        try:
+            plan = plan_standard_orca_mirror(
+                self.real_orca_dir,
+                self.standard_orca_dir,
+                profile_name,
+            )
+            if plan.action == "blocked":
+                raise StandardOrcaMirrorError(plan.reason)
+            return apply_standard_orca_mirror(plan)
+        except StandardOrcaMirrorError as exc:
+            raise GUIError(
+                f"Profilo Snapmaker Orca aggiornato, ma mirror Orca Slicer fallito: {exc}"
+            ) from exc
 
     def monitor_snapshot(self) -> ProfileMonitorSnapshot:
         with self._monitor_lock:
@@ -635,6 +750,10 @@ class CalibrationController:
                 updated,
             )
         self._managed_profiles = updated
+        if self._standard_orca_mirror_enabled:
+            for action in report.actions:
+                if action.status in {"created", "repaired"}:
+                    self._mirror_standard_orca_profile(action.profile_name)
         created = tuple(
             action.profile_name for action in report.actions if action.status == "created"
         )
@@ -670,7 +789,7 @@ class CalibrationController:
                     self.real_orca_dir,
                 )
             self.sync_external_profiles()
-        except (ServiceError, ValueError, PAProfileError, OSError, WatchStateError) as exc:
+        except (ServiceError, ValueError, PAProfileError, OSError, WatchStateError, GUIError) as exc:
             self._set_monitor(ProfileMonitorSnapshot(
                 "error",
                 f"Spoolman non raggiungibile; nuovo tentativo automatico ogni "
@@ -692,7 +811,7 @@ class CalibrationController:
         while not self._monitor_stop.wait(self.monitor_interval):
             try:
                 self.sync_external_profiles()
-            except (ServiceError, ValueError, PAProfileError, OSError, WatchStateError) as exc:
+            except (ServiceError, ValueError, PAProfileError, OSError, WatchStateError, GUIError) as exc:
                 self._set_monitor(ProfileMonitorSnapshot(
                     "error",
                     f"Monitor temporaneamente non disponibile: {exc}",
@@ -873,7 +992,8 @@ class CalibrationController:
                     self.real_orca_dir,
                     result.plan.profile_name,
                 )
-            except (ServiceError, PAProfileError, OSError, ValueError) as exc:
+                self._mirror_standard_orca_profile(result.plan.profile_name)
+            except (ServiceError, PAProfileError, OSError, ValueError, GUIError) as exc:
                 raise GUIError(
                     f"La bobina Spoolman ID {result.spool_id} è già stata creata, "
                     f"ma la creazione del profilo Orca non è stata completata: {exc}. "
@@ -1136,7 +1256,7 @@ class CalibrationController:
         *,
         state: str = "completed",
         message: str | None = None,
-    ) -> None:
+    ) -> bool:
         if self.real_orca_dir is None:
             raise GUIError("Cartella reale di Snapmaker Orca non configurata")
         report = update_pa_profile(
@@ -1147,16 +1267,34 @@ class CalibrationController:
             apply=True,
             manual_profile=True,
         )
+        report_payload = report.to_dict()
+        try:
+            mirror = self._mirror_standard_orca_profile(selection.profile_name)
+        except GUIError as exc:
+            report_payload["standard_orca_mirror_error"] = str(exc)
+            self._set_job(
+                JobSnapshot(
+                    "error",
+                    str(exc),
+                    selection,
+                    report_payload,
+                    started_at,
+                )
+            )
+            return False
+        if mirror is not None:
+            report_payload["standard_orca_mirror"] = mirror.to_dict()
         self._set_job(
             JobSnapshot(
                 state,
                 message
                 or "Calibrazione completata; profilo Snapmaker Orca aggiornato con backup.",
                 selection,
-                report.to_dict(),
+                report_payload,
                 started_at,
             )
         )
+        return True
 
     def _run_job(
         self,
@@ -1273,13 +1411,14 @@ class CalibrationController:
                             "profilo Snapmaker Orca aggiornato con backup. "
                             "Avvio della bobina successiva."
                         )
-                self._complete_calibration(
+                if not self._complete_calibration(
                     selection,
                     suite,
                     started_at,
                     state=completion_state,
                     message=completion_message,
-                )
+                ):
+                    return False
                 return True
             raise GUIError("Tempo massimo superato senza una suite ULTRA completa")
         except (GUIError, PrinterInstallError, PACaptureError, PAProfileError) as exc:
@@ -1340,9 +1479,10 @@ class CalibrationController:
                         "L'ultima suite completa è precedente alla calibrazione selezionata: "
                         "recupero bloccato"
                     )
-                self._complete_calibration(
+                if not self._complete_calibration(
                     selection, cached.suite, started_at
-                )
+                ):
+                    return
                 return
             except GUIError as exc:
                 last_error = str(exc)
@@ -1552,6 +1692,20 @@ def _home(
 <p><strong>U1 / Moonraker:</strong> <code>{html.escape(connections.moonraker_url)}</code><br>
 <strong>Spoolman:</strong> <code>{html.escape(connections.spoolman_url)}</code></p>
 <p><a class="button secondary" href="/connections">{_tr(language, 'Modifica indirizzi', 'Change addresses')}</a></p></div>"""
+    standard_orca_box = ""
+    standard_target = controller.standard_orca_target()
+    if standard_target is not None:
+        enabled = controller.standard_orca_mirror_is_enabled()
+        status_text = _tr(
+            language,
+            "attivo" if enabled else "disattivato",
+            "enabled" if enabled else "disabled",
+        )
+        status_class = "ok" if enabled else "muted"
+        standard_orca_box = f"""<div class="card"><p><strong>Orca Slicer standard:</strong> <span class="{status_class}">{status_text}</span></p>
+<p class="muted">{_tr(language, 'Opzionale: mantiene una copia protetta dei profili U1FA anche in Orca Slicer standard, senza sostituire Snapmaker Orca come slicer principale.', 'Optional: keeps a protected copy of U1FA profiles in standard Orca Slicer without replacing Snapmaker Orca as the primary slicer.')}</p>
+<p><a class="button secondary" href="/standard-orca">{_tr(language, 'Gestisci profili Orca Slicer', 'Manage Orca Slicer profiles')}</a></p></div>"""
+
     calibration_form = f"""
 <form method="post" action="/preview">
 <input type="hidden" name="token" value="{token}">
@@ -1577,6 +1731,7 @@ def _home(
 <p><a class="button danger" href="/new-spool">{_tr(language, 'Aggiungi nuova bobina', 'Add new spool')}</a></p></div>
 <div class="card"><h2>{_tr(language, '2. Calibra una bobina già presente', '2. Calibrate an existing spool')}</h2><p class="muted">{_tr(language, 'Durata indicativa della calibrazione Adaptive PA: circa 10 minuti.', 'Estimated Adaptive PA calibration time: approximately 10 minutes.')}</p><p class="warn"><strong>{_tr(language, 'Durante tutta la calibrazione lascia U1FA aperta e Snapmaker Orca completamente chiuso.', 'Keep U1FA open and Snapmaker Orca completely closed throughout the calibration.')}</strong></p>{calibration_form}<p><a class="button secondary" href="/batch-calibration">{_tr(language, 'Calibra 2–4 bobine in sequenza', 'Calibrate 2–4 spools sequentially')}</a></p></div>
 <div class="card"><p><strong>{monitor_heading}</strong></p><p class="{monitor_class}">{html.escape(monitor_message)}{monitor_time}</p><p class="muted">{_tr(language, 'Anche le bobine aggiunte manualmente dal sito Spoolman vengono rilevate mentre l’app è aperta. I profili mancanti vengono creati in Orca senza sovrascrivere quelli esistenti; una cancellazione manuale viene rispettata.', 'Spools added manually from the Spoolman website are also detected while the app is open. Missing Orca profiles are created without overwriting existing ones; manual deletion is respected.')}</p></div>
+{standard_orca_box}
 <div class="card"><p><strong>{_tr(language, 'Protezione attiva', 'Active protection')}</strong></p><p class="muted">{_tr(language, "Il pulsante di avvio appare solo dopo l'anteprima. Prima dell'invio vengono verificati stampante inattiva, macro caricate, profilo esatto e mapping dello slot.", 'The start button appears only after the preview. Before sending commands, the app verifies that the printer is idle, the macros are loaded, the exact profile exists and the slot mapping is correct.')}</p></div>"""
     body += f"""<div class="card"><p><strong>{_tr(language, 'Applicazione', 'Application')}</strong></p>
 <p class="muted">{_tr(language, "Chiude in sicurezza U1FA e il monitor Spoolman. L'operazione viene bloccata durante una calibrazione attiva.", 'Safely closes U1FA and the Spoolman monitor. Closing is blocked while a calibration is active.')}</p>
@@ -1684,6 +1839,87 @@ def _batch_preview(
 </form></div>"""
     return _page(
         _tr(language, "Conferma coda", "Confirm queue"),
+        body,
+        language=language,
+    )
+
+
+def _standard_orca_page(
+    controller: CalibrationController,
+    token: str,
+    error: str = "",
+    language: str = "it",
+) -> str:
+    target = controller.standard_orca_target()
+    error_box = "" if not error else f'<p class="warn">{html.escape(error)}</p>'
+    if target is None:
+        body = f"""<h1>{_tr(language, 'Orca Slicer standard', 'Standard Orca Slicer')}</h1>
+<div class="card">{error_box}
+<p class="muted">{_tr(language, 'Orca Slicer standard non è stato rilevato in modo univoco su questo computer. Snapmaker Orca continua a funzionare normalmente.', 'Standard Orca Slicer was not detected unambiguously on this computer. Snapmaker Orca continues to work normally.')}</p>
+<p><a class="button secondary" href="/">{_tr(language, 'Torna indietro', 'Go back')}</a></p></div>"""
+        return _page(
+            _tr(language, "Orca Slicer standard", "Standard Orca Slicer"),
+            body,
+            language=language,
+        )
+
+    enabled = controller.standard_orca_mirror_is_enabled()
+    plans: tuple[StandardOrcaMirrorPlan, ...] = ()
+    preview_error = ""
+    try:
+        plans = controller.standard_orca_preview()
+    except GUIError as exc:
+        preview_error = str(exc)
+
+    labels = {
+        "create": _tr(language, "da creare", "will be created"),
+        "adopt": _tr(language, "identico: può essere adottato", "identical: can be adopted"),
+        "update": _tr(language, "aggiornamento gestito", "managed update"),
+        "unchanged": _tr(language, "già sincronizzato", "already synchronized"),
+        "blocked": _tr(language, "bloccato", "blocked"),
+    }
+    rows = []
+    for plan in plans:
+        cls = "warn" if plan.action == "blocked" else ("ok" if plan.action == "unchanged" else "muted")
+        reason = "" if not plan.reason else f"<br><span class=\"muted\">{html.escape(plan.reason)}</span>"
+        rows.append(
+            f'<li><strong>{html.escape(plan.profile_name)}</strong> — '
+            f'<span class="{cls}">{html.escape(labels.get(plan.action, plan.action))}</span>{reason}</li>'
+        )
+
+    details = ""
+    if preview_error:
+        details = f'<p class="warn">{html.escape(preview_error)}</p>'
+    elif rows:
+        details = f"<ul>{''.join(rows)}</ul>"
+    else:
+        details = f'<p class="muted">{_tr(language, "Nessun profilo U1FA da sincronizzare al momento.", "No U1FA profiles to synchronize right now.")}</p>'
+
+    status = _tr(language, "ATTIVO" if enabled else "DISATTIVATO", "ENABLED" if enabled else "DISABLED")
+    status_class = "ok" if enabled else "muted"
+    if enabled:
+        action = f"""<form method="post" action="/standard-orca/disable">
+<input type="hidden" name="token" value="{token}">
+<label><input style="width:auto" type="checkbox" name="confirm" value="yes" required> {_tr(language, 'Confermo di voler disattivare gli aggiornamenti automatici verso Orca Slicer standard', 'I confirm that I want to disable automatic updates to standard Orca Slicer')}</label>
+<p><button class="secondary" type="submit">{_tr(language, 'Disattiva mirror', 'Disable mirror')}</button></p></form>"""
+    else:
+        blocked = any(plan.action == "blocked" for plan in plans)
+        disabled = " disabled" if blocked or preview_error else ""
+        action = f"""<form method="post" action="/standard-orca/enable">
+<input type="hidden" name="token" value="{token}">
+<label><input style="width:auto" type="checkbox" name="confirm" value="yes" required> {_tr(language, 'Confermo di voler creare e mantenere copie protette dei profili U1FA anche in Orca Slicer standard', 'I confirm that I want to create and maintain protected copies of U1FA profiles in standard Orca Slicer')}</label>
+<p><button class="danger" type="submit"{disabled}>{_tr(language, 'Abilita mirror Orca Slicer', 'Enable Orca Slicer mirror')}</button></p></form>"""
+
+    body = f"""<h1>{_tr(language, 'Orca Slicer standard', 'Standard Orca Slicer')}</h1>
+<div class="card">{error_box}
+<p><strong>{_tr(language, 'Stato', 'Status')}:</strong> <span class="{status_class}">{status}</span><br>
+<strong>{_tr(language, 'Cartella rilevata', 'Detected folder')}:</strong><br><code>{html.escape(str(target))}</code></p>
+<p class="muted">{_tr(language, 'Snapmaker Orca resta lo slicer principale di U1FA. Questa funzione è opzionale e copia soltanto profili U1FA completamente materializzati. Un profilo standard già esistente e diverso non viene mai sovrascritto.', 'Snapmaker Orca remains U1FA’s primary slicer. This feature is optional and copies only fully materialized U1FA profiles. An existing different standard Orca profile is never overwritten.')}</p>
+{details}
+{action}
+<p><a class="button secondary" href="/">{_tr(language, 'Torna alla schermata iniziale', 'Return to home')}</a></p></div>"""
+    return _page(
+        _tr(language, "Orca Slicer standard", "Standard Orca Slicer"),
         body,
         language=language,
     )
@@ -2179,6 +2415,8 @@ def _handler(controller: CalibrationController, token: str):
                 self._send(_connections_form(controller, token, language=language))
             elif path == "/batch-calibration":
                 self._send(_batch_form(controller, token, language=language))
+            elif path == "/standard-orca":
+                self._send(_standard_orca_page(controller, token, language=language))
             elif path == "/new-spool":
                 self._send(_new_spool_form(token, language=language))
             elif path == "/printer-setup":
@@ -2279,6 +2517,30 @@ def _handler(controller: CalibrationController, token: str):
                     self.send_header("Location", "/updates")
                     self.end_headers()
                     return
+                if path == "/standard-orca/enable":
+                    if values.get("confirm") != "yes":
+                        raise GUIError(_tr(
+                            language,
+                            "Conferma esplicita mancante: mirror non abilitato",
+                            "Explicit confirmation missing: mirror not enabled",
+                        ))
+                    controller.enable_standard_orca_mirror()
+                    self.send_response(303)
+                    self.send_header("Location", "/standard-orca")
+                    self.end_headers()
+                    return
+                if path == "/standard-orca/disable":
+                    if values.get("confirm") != "yes":
+                        raise GUIError(_tr(
+                            language,
+                            "Conferma esplicita mancante: mirror non disabilitato",
+                            "Explicit confirmation missing: mirror not disabled",
+                        ))
+                    controller.disable_standard_orca_mirror()
+                    self.send_response(303)
+                    self.send_header("Location", "/standard-orca")
+                    self.end_headers()
+                    return
                 if path == "/new-spool/preview":
                     request = _new_spool_request(values)
                     prepared = controller.prepare_spool_creation(request)
@@ -2370,6 +2632,8 @@ def _handler(controller: CalibrationController, token: str):
                     self._send(_shutdown_page(controller, token, str(exc), language), 400)
                 elif path.startswith("/batch"):
                     self._send(_batch_form(controller, token, str(exc), language), 400)
+                elif path.startswith("/standard-orca"):
+                    self._send(_standard_orca_page(controller, token, str(exc), language), 400)
                 elif path.startswith("/new-spool"):
                     self._send(_new_spool_form(token, str(exc), language), 400)
                 elif path.startswith("/printer-setup"):
@@ -2415,6 +2679,19 @@ def run_gui(
     if len(installations) > 1 and not orca_dir:
         raise GUIError("Trovate più cartelle Orca: indicare --orca-dir")
     real_user_dir = installations[0].path.resolve()
+
+    standard_candidates = [
+        item.path.resolve()
+        for item in discover_slicers()
+        if item.kind == "orca_slicer"
+    ]
+    standard_user_dir = (
+        standard_candidates[0]
+        if len(standard_candidates) == 1
+        and standard_candidates[0] != real_user_dir
+        else None
+    )
+
     sandbox_dir = sandbox_dir.expanduser().resolve()
     if (
         sandbox_dir == real_user_dir
@@ -2430,6 +2707,7 @@ def run_gui(
         system_dir=default_system_dir(real_user_dir),
         timeout=timeout,
         real_orca_dir=real_user_dir,
+        standard_orca_dir=standard_user_dir,
         ssh_target=ssh_target,
         ssh_port=ssh_port,
         identity_file=identity_file,
