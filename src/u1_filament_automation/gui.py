@@ -166,6 +166,47 @@ def _selection_from_values(
     )
 
 
+def _batch_selections_from_values(
+    controller: "CalibrationController",
+    values: dict[str, str],
+) -> tuple["CalibrationSelection", ...]:
+    """Build a 1-4 item batch using the existing automatic envelope logic."""
+
+    selections: list[CalibrationSelection] = []
+    for index in range(1, 5):
+        profile_name = values.get(f"profile_name_{index}", "").strip()
+        if not profile_name:
+            continue
+        try:
+            physical_slot = int(values.get(f"physical_slot_{index}", "0"))
+            temperature = int(values.get(f"temperature_{index}", "0"))
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise GUIError(
+                f"Valori non validi per la bobina {index}"
+            ) from exc
+        selections.append(
+            controller.selection(
+                profile_name,
+                physical_slot,
+                temperature,
+                envelope_mode="auto",
+            )
+        )
+
+    try:
+        build_calibration_batch(
+            CalibrationBatchItem(
+                item.profile_name,
+                item.physical_slot,
+                item.temperature,
+            )
+            for item in selections
+        )
+    except CalibrationBatchError as exc:
+        raise GUIError(str(exc)) from exc
+    return tuple(selections)
+
+
 @dataclass(frozen=True)
 class CalibrationSelection:
     profile_name: str
@@ -1534,13 +1575,118 @@ def _home(
 <div class="card">{error_box}<h2>{_tr(language, '1. Nuova bobina', '1. New spool')}</h2>
 <p>{_tr(language, "Inserisci i dati una volta sola: l'app crea o riusa vendor e filamento in Spoolman, crea la bobina e genera un solo nuovo profilo direttamente in Snapmaker Orca.", "Enter the data once: the app creates or reuses the vendor and filament in Spoolman, creates the spool and generates one new profile directly in Snapmaker Orca.")}</p>
 <p><a class="button danger" href="/new-spool">{_tr(language, 'Aggiungi nuova bobina', 'Add new spool')}</a></p></div>
-<div class="card"><h2>{_tr(language, '2. Calibra una bobina già presente', '2. Calibrate an existing spool')}</h2><p class="muted">{_tr(language, 'Durata indicativa della calibrazione Adaptive PA: circa 10 minuti.', 'Estimated Adaptive PA calibration time: approximately 10 minutes.')}</p><p class="warn"><strong>{_tr(language, 'Durante tutta la calibrazione lascia U1FA aperta e Snapmaker Orca completamente chiuso.', 'Keep U1FA open and Snapmaker Orca completely closed throughout the calibration.')}</strong></p>{calibration_form}</div>
+<div class="card"><h2>{_tr(language, '2. Calibra una bobina già presente', '2. Calibrate an existing spool')}</h2><p class="muted">{_tr(language, 'Durata indicativa della calibrazione Adaptive PA: circa 10 minuti.', 'Estimated Adaptive PA calibration time: approximately 10 minutes.')}</p><p class="warn"><strong>{_tr(language, 'Durante tutta la calibrazione lascia U1FA aperta e Snapmaker Orca completamente chiuso.', 'Keep U1FA open and Snapmaker Orca completely closed throughout the calibration.')}</strong></p>{calibration_form}<p><a class="button secondary" href="/batch-calibration">{_tr(language, 'Calibra 2–4 bobine in sequenza', 'Calibrate 2–4 spools sequentially')}</a></p></div>
 <div class="card"><p><strong>{monitor_heading}</strong></p><p class="{monitor_class}">{html.escape(monitor_message)}{monitor_time}</p><p class="muted">{_tr(language, 'Anche le bobine aggiunte manualmente dal sito Spoolman vengono rilevate mentre l’app è aperta. I profili mancanti vengono creati in Orca senza sovrascrivere quelli esistenti; una cancellazione manuale viene rispettata.', 'Spools added manually from the Spoolman website are also detected while the app is open. Missing Orca profiles are created without overwriting existing ones; manual deletion is respected.')}</p></div>
 <div class="card"><p><strong>{_tr(language, 'Protezione attiva', 'Active protection')}</strong></p><p class="muted">{_tr(language, "Il pulsante di avvio appare solo dopo l'anteprima. Prima dell'invio vengono verificati stampante inattiva, macro caricate, profilo esatto e mapping dello slot.", 'The start button appears only after the preview. Before sending commands, the app verifies that the printer is idle, the macros are loaded, the exact profile exists and the slot mapping is correct.')}</p></div>"""
     body += f"""<div class="card"><p><strong>{_tr(language, 'Applicazione', 'Application')}</strong></p>
 <p class="muted">{_tr(language, "Chiude in sicurezza U1FA e il monitor Spoolman. L'operazione viene bloccata durante una calibrazione attiva.", 'Safely closes U1FA and the Spoolman monitor. Closing is blocked while a calibration is active.')}</p>
 <p><a class="button secondary" href="/shutdown">{_tr(language, 'Chiudi applicazione', 'Close application')}</a></p></div>"""
     return _page("U1 Filament Automation", body, language=language)
+
+
+def _batch_form(
+    controller: CalibrationController,
+    token: str,
+    error: str = "",
+    language: str = "it",
+) -> str:
+    profiles = controller.profiles()
+    error_box = "" if not error else f'<p class="warn">{html.escape(error)}</p>'
+    if not profiles:
+        body = f"""<h1>{_tr(language, 'Calibrazione sequenziale', 'Sequential calibration')}</h1>
+<div class="card">{error_box}<p class="muted">{_tr(language, 'Non ci sono bobine utilizzabili. Crea prima una bobina dalla schermata iniziale.', 'There are no usable spools. Create a spool from the home screen first.')}</p>
+<p><a class="button secondary" href="/">{_tr(language, 'Torna indietro', 'Go back')}</a></p></div>"""
+        return _page(
+            _tr(language, "Calibrazione sequenziale", "Sequential calibration"),
+            body,
+            language=language,
+        )
+
+    options = "".join(
+        f'<option value="{html.escape(item.profile_name, quote=True)}">'
+        f'{html.escape(item.profile_name)}</option>'
+        for item in profiles
+    )
+    rows = []
+    for index in range(1, 5):
+        required = " required" if index == 1 else ""
+        empty = "" if index == 1 else (
+            f'<option value="">{_tr(language, "— non usare —", "— do not use —")}</option>'
+        )
+        slot_options = "".join(
+            f'<option value="{slot}"'
+            + (" selected" if slot == index else "")
+            + f'>{slot} → {_tr(language, "interno", "internal")} {slot - 1}</option>'
+            for slot in range(1, 5)
+        )
+        rows.append(f"""
+<div class="card inset"><h3>{_tr(language, 'Bobina', 'Spool')} {index}</h3>
+<label>{_tr(language, 'Bobina / profilo Spoolman', 'Spoolman spool / profile')}</label>
+<select name="profile_name_{index}"{required}>{empty}{options}</select>
+<div class="grid"><div><label>{_tr(language, 'Estrusore fisico', 'Physical extruder')}</label>
+<select name="physical_slot_{index}">{slot_options}</select></div>
+<div><label>{_tr(language, 'Temperatura', 'Temperature')} °C</label>
+<input name="temperature_{index}" type="number" min="170" max="300" value="220"></div></div>
+</div>""")
+    body = f"""
+<h1>{_tr(language, 'Calibrazione sequenziale', 'Sequential calibration')}</h1>
+<div class="card">{error_box}
+<p>{_tr(language, 'Seleziona da 2 a 4 bobine. U1FA le calibrerà rigorosamente una alla volta, completerà il salvataggio del profilo corrente e solo dopo passerà alla successiva.', 'Select 2 to 4 spools. U1FA will calibrate them strictly one at a time, complete the current profile update, and only then move to the next spool.')}</p>
+<p class="warn"><strong>{_tr(language, 'Usa uno slot fisico diverso per ogni bobina. Al primo errore la coda si ferma e le bobine successive non vengono avviate.', 'Use a different physical slot for each spool. At the first error the queue stops and later spools are not started.')}</strong></p>
+<p class="muted">{_tr(language, 'Per la coda viene usato l’envelope automatico già esistente, calcolato separatamente dal Max volumetric speed di ogni profilo Orca. Il flusso singolo e la modalità manuale avanzata restano disponibili dalla schermata iniziale.', 'The queue uses the existing automatic envelope, calculated separately from each Orca profile Max volumetric speed. Single-spool calibration and advanced manual mode remain available from the home screen.')}</p>
+<form method="post" action="/batch-preview">
+<input type="hidden" name="token" value="{token}">
+{''.join(rows)}
+<p><button type="submit">{_tr(language, 'Controlla la coda', 'Check queue')}</button> <a class="button secondary" href="/">{_tr(language, 'Annulla', 'Cancel')}</a></p>
+</form></div>"""
+    return _page(
+        _tr(language, "Calibrazione sequenziale", "Sequential calibration"),
+        body,
+        language=language,
+    )
+
+
+def _batch_preview(
+    selections: tuple[CalibrationSelection, ...],
+    token: str,
+    language: str = "it",
+) -> str:
+    items = []
+    hidden = [f'<input type="hidden" name="token" value="{token}">']
+    total_minutes = len(selections) * 10
+    for index, selection in enumerate(selections, start=1):
+        envelope = selection.envelope
+        items.append(
+            "<li><strong>"
+            + html.escape(selection.profile_name)
+            + "</strong><br>"
+            + f"{_tr(language, 'Slot fisico', 'Physical slot')} {selection.physical_slot} → "
+            + f"EXTRUDER={selection.internal_extruder}; {selection.temperature} °C<br>"
+            + f"LOW/MID/HIGH {envelope.low_speed}/{envelope.mid_speed}/{envelope.high_speed} mm/s"
+            + "</li>"
+        )
+        hidden.extend([
+            f'<input type="hidden" name="profile_name_{index}" value="{html.escape(selection.profile_name, quote=True)}">',
+            f'<input type="hidden" name="physical_slot_{index}" value="{selection.physical_slot}">',
+            f'<input type="hidden" name="temperature_{index}" value="{selection.temperature}">',
+        ])
+
+    body = f"""
+<h1>{_tr(language, 'Conferma coda calibrazione', 'Confirm calibration queue')}</h1>
+<div class="card">
+<p><strong>{_tr(language, 'Bobine in coda', 'Queued spools')}:</strong> {len(selections)} · {_tr(language, 'durata indicativa', 'estimated duration')} ≈ {total_minutes} min</p>
+<ol>{''.join(items)}</ol>
+<p class="warn"><strong>{_tr(language, 'Le calibrazioni non partono insieme: U1FA esegue una bobina alla volta e si ferma al primo errore.', 'Calibrations do not run together: U1FA runs one spool at a time and stops at the first error.')}</strong></p>
+<form method="post" action="/batch-start">
+{''.join(hidden)}
+<label><input style="width:auto" type="checkbox" name="confirm" value="yes" required> {_tr(language, 'Confermo la coda e che la U1 è inattiva', 'I confirm the queue and that the U1 is idle')}</label>
+<p><button class="danger" type="submit">{_tr(language, 'Avvia la coda', 'Start queue')}</button> <a class="button secondary" href="/batch-calibration">{_tr(language, 'Modifica', 'Edit')}</a></p>
+</form></div>"""
+    return _page(
+        _tr(language, "Conferma coda", "Confirm queue"),
+        body,
+        language=language,
+    )
 
 
 def _connections_form(
@@ -2031,6 +2177,8 @@ def _handler(controller: CalibrationController, token: str):
                 self._send(_home(controller, token, language=language))
             elif path == "/connections":
                 self._send(_connections_form(controller, token, language=language))
+            elif path == "/batch-calibration":
+                self._send(_batch_form(controller, token, language=language))
             elif path == "/new-spool":
                 self._send(_new_spool_form(token, language=language))
             elif path == "/printer-setup":
@@ -2173,6 +2321,35 @@ def _handler(controller: CalibrationController, token: str):
                     self.send_header("Location", "/status")
                     self.end_headers()
                     return
+                if path == "/batch-preview":
+                    selections = _batch_selections_from_values(controller, values)
+                    if len(selections) < 2:
+                        raise GUIError(_tr(
+                            language,
+                            "Seleziona almeno 2 bobine per la coda",
+                            "Select at least 2 spools for the queue",
+                        ))
+                    self._send(_batch_preview(selections, token, language))
+                    return
+                if path == "/batch-start":
+                    if values.get("confirm") != "yes":
+                        raise GUIError(_tr(
+                            language,
+                            "Conferma esplicita mancante: coda non avviata",
+                            "Explicit confirmation missing: queue not started",
+                        ))
+                    selections = _batch_selections_from_values(controller, values)
+                    if len(selections) < 2:
+                        raise GUIError(_tr(
+                            language,
+                            "Seleziona almeno 2 bobine per la coda",
+                            "Select at least 2 spools for the queue",
+                        ))
+                    controller.start_batch(selections)
+                    self.send_response(303)
+                    self.send_header("Location", "/status")
+                    self.end_headers()
+                    return
 
                 selection = _selection_from_values(controller, values)
                 if path == "/preview":
@@ -2191,6 +2368,8 @@ def _handler(controller: CalibrationController, token: str):
                     self._send(_connections_form(controller, token, str(exc), language), 400)
                 elif path.startswith("/shutdown"):
                     self._send(_shutdown_page(controller, token, str(exc), language), 400)
+                elif path.startswith("/batch"):
+                    self._send(_batch_form(controller, token, str(exc), language), 400)
                 elif path.startswith("/new-spool"):
                     self._send(_new_spool_form(token, str(exc), language), 400)
                 elif path.startswith("/printer-setup"):
