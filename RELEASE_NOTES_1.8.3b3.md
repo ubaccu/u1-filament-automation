@@ -8,6 +8,8 @@ Build di sviluppo successiva alla 1.8.3b2. La grafica esistente resta invariata.
 - rileva Snapmaker Orca e Orca Slicer standard come installazioni distinte, mantenendo Snapmaker Orca come preferenza attuale;
 - non modifica automaticamente Orca Slicer standard in questa fase;
 - introduce una coda sicura da 1 a 4 bobine con slot fisici e profili univoci;
+- aggiunge un accesso secondario alla coda dentro la schermata di calibrazione esistente, senza cambiare layout, stile o navigazione dell'app;
+- la coda usa l'envelope automatico già esistente, calcolato separatamente per ogni profilo;
 - collega la coda al backend di calibrazione Adaptive PA in esecuzione strettamente sequenziale;
 - ogni bobina viene completata e il relativo profilo viene aggiornato prima di passare alla successiva;
 - al primo errore la coda si interrompe e non avvia le bobine restanti;
@@ -22,6 +24,8 @@ Development build following 1.8.3b2. The existing visual layout remains unchange
 - discovers Snapmaker Orca and standard Orca Slicer as separate installations while keeping Snapmaker Orca preferred;
 - does not automatically modify standard Orca Slicer at this stage;
 - introduces a safe 1-to-4 spool queue with unique physical slots and profile names;
+- adds a secondary queue entry inside the existing calibration screen without changing the app layout, style or navigation;
+- the queue uses the existing automatic envelope, calculated separately for each profile;
 - connects the queue to the Adaptive PA calibration backend using strictly sequential execution;
 - each spool is completed and its profile updated before the next spool starts;
 - the queue stops at the first error and does not start remaining spools;
