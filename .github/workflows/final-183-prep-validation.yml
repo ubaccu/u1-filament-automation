@@ -1,0 +1,177 @@
+name: Final 1.8.3 preparation validation
+
+on:
+  push:
+    branches:
+      - release/1.8.3-prep
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_CALIBRATOR_SHA: 6225503bb6a5aa5bf1680160b590efc0904bf44da01ed8c3eaf84d3ab649a47b
+  EXPECTED_MACRO_SHA: a1e8ec08e0f07f8cb264b60bc10960e38ae6e40560fd46749e93cd0474f150a7
+
+jobs:
+  source:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify final version
+        run: |
+          python - <<'PY'
+          import pathlib, tomllib
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          assert data["project"]["version"] == "1.8.3", data["project"]["version"]
+          assert pathlib.Path("RELEASE_NOTES_1.8.3.md").is_file()
+          PY
+      - name: Build and validate source archive
+        run: |
+          bash packaging/source/build_source_archive.sh dist
+          python - <<'PY'
+          import pathlib, zipfile
+          archives = list(pathlib.Path("dist").glob("*-Source.zip"))
+          if len(archives) != 1:
+              raise SystemExit(f"Expected exactly one archive: {archives}")
+          archive = archives[0]
+          if archive.name != "U1-Filament-Automation-v1.8.3-Source.zip":
+              raise SystemExit(f"Unexpected source archive: {archive.name}")
+          with zipfile.ZipFile(archive) as zf:
+              names = zf.namelist()
+          for suffix in (
+              "/src/u1_filament_automation/gui.py",
+              "/src/u1_filament_automation/standard_orca.py",
+              "/src/u1_filament_automation/calibration_batch.py",
+              "/src/u1_filament_automation/assets/flow_calibrator_205_candidate.py",
+              "/src/u1_filament_automation/assets/adaptive_pa_macro_205.cfg",
+              "/SOURCE_RELEASE_INFO.txt",
+          ):
+              if not any(name.endswith(suffix) for name in names):
+                  raise SystemExit(f"Missing {suffix}")
+          for name in names:
+              if "/.github/" in name or "/tests/" in name or "/RELEASE_NOTES_" in name:
+                  raise SystemExit(f"Development-only file leaked: {name}")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: U1FA-final-1.8.3-Source
+          path: dist/*-Source.zip
+          if-no-files-found: error
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: x86_64
+          - runner: macos-14
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install and test
+        run: |
+          python -m pip install . pyinstaller
+          python -m unittest discover -s tests
+      - name: Verify canonical firmware assets
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, os
+          root = Path("src/u1_filament_automation/assets")
+          for name, expected in {
+              "flow_calibrator_205_candidate.py": os.environ["EXPECTED_CALIBRATOR_SHA"],
+              "adaptive_pa_macro_205.cfg": os.environ["EXPECTED_MACRO_SHA"],
+          }.items():
+              actual = hashlib.sha256((root / name).read_bytes()).hexdigest()
+              print(name, actual)
+              if actual != expected:
+                  raise SystemExit(f"{name}: {actual}")
+          PY
+      - name: Build DMG
+        env:
+          U1FA_ARCH: ${{ matrix.arch }}
+        run: packaging/macos/build_dmg.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: U1FA-final-1.8.3-macOS-${{ matrix.arch }}
+          path: dist/*1.8.3*macOS-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install and test
+        shell: pwsh
+        run: |
+          python -m pip install . pyinstaller pillow
+          python -m unittest discover -s tests
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --yes --no-progress
+          }
+      - name: Verify canonical firmware assets
+        shell: pwsh
+        run: |
+          python -c "from pathlib import Path; import hashlib, os; r=Path('src/u1_filament_automation/assets'); items={'flow_calibrator_205_candidate.py':os.environ['EXPECTED_CALIBRATOR_SHA'],'adaptive_pa_macro_205.cfg':os.environ['EXPECTED_MACRO_SHA']}; [(print(n,hashlib.sha256((r/n).read_bytes()).hexdigest()), (_ for _ in ()).throw(SystemExit(f'{n}: hash mismatch')) if hashlib.sha256((r/n).read_bytes()).hexdigest()!=e else None) for n,e in items.items()]"
+      - name: Build Windows installer
+        shell: pwsh
+        run: packaging/windows/build_installer.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: U1FA-final-1.8.3-Windows-x64
+          path: dist/*1.8.3*Windows-x64-Setup.exe
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install and test
+        run: |
+          python -m pip install . pyinstaller
+          python -m unittest discover -s tests
+      - name: Verify canonical firmware assets
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, os
+          root = Path("src/u1_filament_automation/assets")
+          for name, expected in {
+              "flow_calibrator_205_candidate.py": os.environ["EXPECTED_CALIBRATOR_SHA"],
+              "adaptive_pa_macro_205.cfg": os.environ["EXPECTED_MACRO_SHA"],
+          }.items():
+              actual = hashlib.sha256((root / name).read_bytes()).hexdigest()
+              print(name, actual)
+              if actual != expected:
+                  raise SystemExit(f"{name}: {actual}")
+          PY
+      - name: Download AppImageKit
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/appimagetool-x86_64.AppImage" https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod 0755 "$RUNNER_TEMP/appimagetool-x86_64.AppImage"
+      - name: Build AppImage
+        env:
+          APPIMAGETOOL: ${{ runner.temp }}/appimagetool-x86_64.AppImage
+          U1FA_ARCH: x86_64
+        run: packaging/linux/build_appimage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: U1FA-final-1.8.3-Linux-x86_64
+          path: dist/*1.8.3*Linux-x86_64.AppImage
+          if-no-files-found: error
