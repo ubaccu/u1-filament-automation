@@ -2,7 +2,7 @@
 
 ## 1.8.3b3 — Orca discovery + sequential calibration foundation
 
-- Grafica e navigazione esistenti mantenute invariate.
+- Grafica, stile e navigazione esistenti mantenuti invariati; le nuove funzioni vengono aggiunte senza ridisegnare l'app.
 - Aggiunto rilevamento separato di Snapmaker Orca e Orca Slicer standard, senza sostituire automaticamente il percorso Snapmaker.
 - Aggiunta coda di calibrazione da 1 a 4 bobine con slot fisici e profili univoci.
 - Collegata la coda al backend Adaptive PA: le calibrazioni vengono eseguite una alla volta, aggiornando il profilo prima di passare alla successiva.
