@@ -51,6 +51,9 @@ def _enabled_path(target_dir: Path) -> Path:
 
 def standard_orca_mirror_enabled(target_dir: Path) -> bool:
     target_dir = target_dir.expanduser().resolve()
+    metadata = target_dir / ".u1fa"
+    if metadata.is_symlink():
+        return False
     marker = _enabled_path(target_dir)
     return marker.is_file() and not marker.is_symlink()
 
@@ -85,6 +88,11 @@ def set_standard_orca_mirror_enabled(target_dir: Path, enabled: bool) -> None:
 
 
 def _load_state(target_dir: Path) -> dict[str, dict[str, str]]:
+    metadata = target_dir / ".u1fa"
+    if metadata.is_symlink():
+        raise StandardOrcaMirrorError(
+            "La cartella stato Orca contiene un link simbolico: operazione bloccata"
+        )
     state_path = _state_path(target_dir)
     if not state_path.exists():
         return {}
