@@ -15,6 +15,9 @@ Build di sviluppo successiva alla 1.8.3b3. La grafica esistente resta invariata.
 - la GUI mostra l'opzione soltanto quando Orca Slicer standard viene rilevato in modo univoco;
 - l'attivazione richiede conferma esplicita e Snapmaker Orca resta lo slicer principale;
 - dopo l'attivazione, nuovi profili e risultati PA vengono riportati anche nel mirror standard; un conflitto blocca il mirror senza sovrascrivere.
+- pacchetti verificati su Windows x64, Linux x86_64, macOS Intel e macOS Apple Silicon;
+- archivio sorgente GPL corrispondente verificato separatamente;
+- gli asset firmware 2.0.0.205 incorporati sono controllati tramite SHA-256 e corrispondono byte-per-byte ai file validati sulla U1 reale.
 
 ## English
 
@@ -31,3 +34,6 @@ Development build following 1.8.3b3. The existing visual layout remains unchange
 - the GUI shows the option only when standard Orca Slicer is detected unambiguously;
 - enabling requires explicit confirmation and Snapmaker Orca remains the primary slicer;
 - after opt-in, new profiles and PA results are mirrored to standard Orca; a conflict blocks the mirror without overwriting.
+- packages validated on Windows x64, Linux x86_64, macOS Intel and macOS Apple Silicon;
+- matching GPL source archive validated separately;
+- bundled firmware 2.0.0.205 assets are SHA-256 checked and byte-for-byte identical to the files validated on the real U1.
