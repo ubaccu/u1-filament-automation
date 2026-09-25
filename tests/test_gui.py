@@ -24,6 +24,7 @@ from u1_filament_automation.gui import (
     _printer_setup_form,
     _printer_setup_preview,
     _status,
+    _standard_orca_page,
     _shutdown_page,
     _updates_page,
     build_calibration_commands,
@@ -31,6 +32,7 @@ from u1_filament_automation.gui import (
     validate_temperature,
 )
 from u1_filament_automation.models import SpoolmanInventory
+from u1_filament_automation.pa_profile import ProfileCandidate
 from u1_filament_automation.printer import (
     AdaptivePAMacroStatus,
     CalibratorStatus,
@@ -270,6 +272,107 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn('name="temperature_2" value="240"', page)
         self.assertIn("≈ 20 min", page)
         self.assertIn("una bobina alla volta", page)
+
+    def test_standard_orca_card_is_only_added_when_standard_orca_is_detected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            target = root / "standard-orca"
+            target.mkdir()
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+                standard_orca_dir=target,
+            )
+            page = _home(controller, "safe-token")
+
+        self.assertIn("Orca Slicer standard", page)
+        self.assertIn('href="/standard-orca"', page)
+        self.assertIn("disattivato", page)
+
+    def test_standard_orca_opt_in_page_and_controller_are_explicit_and_safe(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "snapmaker"
+            target = root / "orca"
+            source.mkdir()
+            target.mkdir()
+            profile_name = "DEEPLEE PLA A @Snapmaker U1 (0.4 nozzle)"
+            payload = {
+                "name": profile_name,
+                "from": "User",
+                "inherits": "",
+                "filament_settings_id": [profile_name],
+                "pressure_advance": ["0.010000"],
+            }
+            (source / f"{profile_name}.json").write_text(
+                json.dumps(payload, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+                real_orca_dir=source,
+                standard_orca_dir=target,
+            )
+            controller._profiles = (
+                ProfileCandidate(profile_name, (1,), "PLA", "PLA A"),
+            )
+
+            preview = _standard_orca_page(
+                controller,
+                "safe-token",
+                language="it",
+            )
+            self.assertIn("DISATTIVATO", preview)
+            self.assertIn("da creare", preview)
+            self.assertIn('action="/standard-orca/enable"', preview)
+
+            controller.enable_standard_orca_mirror()
+            self.assertTrue(controller.standard_orca_mirror_is_enabled())
+            self.assertTrue((target / f"{profile_name}.json").is_file())
+            enabled = _standard_orca_page(
+                controller,
+                "safe-token",
+                language="en",
+            )
+            self.assertIn("ENABLED", enabled)
+            self.assertIn('action="/standard-orca/disable"', enabled)
+
+            controller.disable_standard_orca_mirror()
+            self.assertFalse(controller.standard_orca_mirror_is_enabled())
+
+    def test_standard_orca_preview_skips_profiles_missing_from_snapmaker_orca(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "snapmaker"
+            target = root / "orca"
+            source.mkdir()
+            target.mkdir()
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+                real_orca_dir=source,
+                standard_orca_dir=target,
+            )
+            controller._profiles = (
+                ProfileCandidate(
+                    "Unsupported TPU @Snapmaker U1 (0.4 nozzle)",
+                    (7,),
+                    "TPU",
+                    "TPU",
+                ),
+            )
+
+            plans = controller.standard_orca_preview()
+
+        self.assertEqual(plans, ())
+        self.assertEqual(list(target.glob("*.json")), [])
 
     def test_home_exposes_new_spool_flow_even_with_empty_inventory(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -919,6 +1022,71 @@ class GUISafetyTests(unittest.TestCase):
         self.assertEqual(prepared, ["Profilo A", "Profilo B"])
         self.assertEqual(executed, ["Profilo A", "Profilo B"])
         self.assertEqual(controller.snapshot().state, "error")
+
+    def test_completed_calibration_updates_opted_in_standard_orca_mirror(self):
+        class FakeReport:
+            def to_dict(self):
+                return {"static_fallback": 0.0123, "backup_path": "backup"}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "snapmaker"
+            target = root / "orca"
+            source.mkdir()
+            target.mkdir()
+            profile_name = "DEEPLEE PLA A @Snapmaker U1 (0.4 nozzle)"
+            profile_path = source / f"{profile_name}.json"
+            profile_path.write_text(
+                json.dumps({
+                    "name": profile_name,
+                    "from": "User",
+                    "inherits": "",
+                    "filament_settings_id": [profile_name],
+                    "pressure_advance": ["0.010000"],
+                }, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+                real_orca_dir=source,
+                standard_orca_dir=target,
+            )
+            controller._profiles = (
+                ProfileCandidate(profile_name, (1,), "PLA", "PLA A"),
+            )
+            controller.enable_standard_orca_mirror()
+            profile_path.write_text(
+                json.dumps({
+                    "name": profile_name,
+                    "from": "User",
+                    "inherits": "",
+                    "filament_settings_id": [profile_name],
+                    "pressure_advance": ["0.020000"],
+                }, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            with patch(
+                "u1_filament_automation.gui.update_pa_profile",
+                return_value=FakeReport(),
+            ):
+                ok = controller._complete_calibration(
+                    CalibrationSelection(profile_name, 1, 0, 220),
+                    object(),
+                    started_at=100.0,
+                )
+
+            mirrored = json.loads(
+                (target / f"{profile_name}.json").read_text(encoding="utf-8")
+            )
+
+        self.assertTrue(ok)
+        self.assertEqual(mirrored["pressure_advance"], ["0.020000"])
+        self.assertEqual(controller.snapshot().state, "completed")
+        self.assertIn("standard_orca_mirror", controller.snapshot().report)
 
     def test_completed_calibration_updates_only_real_orca(self):
         class FakeMoonraker:
