@@ -9,10 +9,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 class Final181DistributionTests(unittest.TestCase):
     def test_version_is_1_8_3_beta_everywhere(self):
-        self.assertEqual(u1_filament_automation.__version__, "1.8.3b3")
+        self.assertEqual(u1_filament_automation.__version__, "1.8.3b4")
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        self.assertIn('version = "1.8.3b3"', pyproject)
-        self.assertTrue((ROOT / "RELEASE_NOTES_1.8.3b3.md").is_file())
+        self.assertIn('version = "1.8.3b4"', pyproject)
+        self.assertTrue((ROOT / "RELEASE_NOTES_1.8.3b4.md").is_file())
 
     def test_desktop_packages_keep_stable_entrypoint(self):
         for platform_name in ("macos", "windows", "linux"):
