@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 from unittest.mock import patch
 
 from u1_filament_automation.firmware_compatibility import (
+    BUILD_VERSION_PATH,
     CANDIDATE_205,
     DEPENDENCIES_152,
     DEPENDENCIES_205,
@@ -17,6 +18,8 @@ from u1_filament_automation.firmware_compatibility import (
     LEGACY_STOCK,
     MACRO_205_SHA256,
     MACRO_PATH,
+    PAXX_152_V21_BUILD,
+    PAXX_152_V21_PRINT_TASK_CONFIG,
     STOCK_205,
     VERSION_PATH,
     inspect_firmware,
@@ -45,6 +48,85 @@ class FirmwareFixtureTarget:
             return self.files[path]
         except KeyError as exc:
             raise FileNotFoundError(str(path)) from exc
+
+
+def _paxx_v21_print_task_config() -> bytes:
+    source = (FIXTURES / "firmware_152" / "print_task_config.py").read_text(
+        encoding="utf-8"
+    )
+
+    replacements = (
+        (
+            "    'filament_soft': [False] * PHYSICAL_EXTRUDER_NUM,\n"
+            "    'extruder_map_table':",
+            "    'filament_soft': [False] * PHYSICAL_EXTRUDER_NUM,\n"
+            "    'filament_spool_id': [0] * PHYSICAL_EXTRUDER_NUM,\n"
+            "    'extruder_map_table':",
+        ),
+        (
+            "            tmp_print_task_config['filament_official'][channel] = info['OFFICIAL']\n"
+            "            tmp_print_task_config['filament_sku'][channel] = info['SKU']\n"
+            "            if self.filament_param_obj is not None:",
+            "            tmp_print_task_config['filament_official'][channel] = info['OFFICIAL']\n"
+            "            tmp_print_task_config['filament_sku'][channel] = info['SKU']\n"
+            "            tmp_print_task_config['filament_spool_id'][channel] = info.get('SPOOL_ID', 0)\n"
+            "            if self.filament_param_obj is not None:",
+        ),
+        (
+            "            if self.print_task_config['filament_exist'][ch]:\n"
+            "                if self.print_task_config['filament_official'][ch] == False:\n"
+            "                    allowed_edit = True\n",
+            "            if self.print_task_config['filament_exist'][ch]:\n"
+            "                if self.print_task_config['filament_official'][ch] == False:\n"
+            "                    if (self.print_task_config['filament_spool_id'][ch] or 0) > 0 and self.printer.lookup_object('webhooks').has_remote_method('spoolman_set_active_spool'):\n"
+            "                        allowed_edit = False\n"
+            "                    else:\n"
+            "                        allowed_edit = True\n",
+        ),
+        (
+            "        filament_color = gcmd.get_int('FILAMENT_COLOR', None)\n"
+            "        filament_color_rgba = gcmd.get('FILAMENT_COLOR_RGBA', None)\n"
+            "        filament_alpha = gcmd.get_int('ALPHA', None, minval=0, maxval=255)",
+            "        filament_color = gcmd.get_int('FILAMENT_COLOR', None)\n"
+            "        filament_color_rgba = gcmd.get('FILAMENT_COLOR_RGBA', None)\n"
+            "        filament_spool_id = gcmd.get_int('FILAMENT_SPOOL_ID', None)\n"
+            "        filament_alpha = gcmd.get_int('ALPHA', None, minval=0, maxval=255)",
+        ),
+        (
+            "            if tmp_print_task_config['filament_official'][config_extruder] and bool(force) == False:\n"
+            "                raise gcmd.error(\"[print_task_config] filament_config, official filament, not configurable!\")\n\n"
+            "            # alpha",
+            "            if tmp_print_task_config['filament_official'][config_extruder] and bool(force) == False:\n"
+            "                raise gcmd.error(\"[print_task_config] filament_config, official filament, not configurable!\")\n"
+            "            if (tmp_print_task_config['filament_spool_id'][config_extruder] or 0) > 0 and not force and filament_spool_id == None and self.printer.lookup_object('webhooks').has_remote_method('spoolman_set_active_spool'):\n"
+            "                raise gcmd.error(\"[print_task_config] filament_spool_id, is configured, use FORCE=1 to overwrite\")\n\n"
+            "            # alpha",
+        ),
+        (
+            "            tmp_print_task_config['filament_official'][config_extruder] = False\n"
+            "            tmp_print_task_config['filament_sku'][config_extruder] = 0\n\n"
+            "            self.print_task_config = tmp_print_task_config\n"
+            "            self.backup_filament_info(config_extruder)\n",
+            "            tmp_print_task_config['filament_official'][config_extruder] = False\n"
+            "            tmp_print_task_config['filament_sku'][config_extruder] = 0\n"
+            "            tmp_print_task_config['filament_spool_id'][config_extruder] = filament_spool_id or 0\n\n"
+            "            self.print_task_config = tmp_print_task_config\n"
+            "            self.backup_filament_info(config_extruder)\n"
+            "            self.update_filament_edit_flag()\n",
+        ),
+        (
+            "        if print_stats is not None and print_stats.state in ['printing', 'paused']:\n"
+            "            if bed_level is not None or flow_calibrate is not None or shaper_calibrate is not None or \\",
+            "        if print_stats is not None and print_stats.state in ['printing', 'paused'] and not gcmd.get_int('FORCE', 0):\n"
+            "            if bed_level is not None or flow_calibrate is not None or shaper_calibrate is not None or \\",
+        ),
+    )
+
+    for before, after in replacements:
+        if before not in source:
+            raise AssertionError("PAXX v21 fixture patch anchor missing")
+        source = source.replace(before, after, 1)
+    return source.encode("utf-8")
 
 
 def _firmware_files(version: str, full_version: str, calibrator: bytes):
@@ -129,6 +211,57 @@ class FirmwareCompatibilityTests(unittest.TestCase):
         )
         self.assertEqual(report.state, "legacy-compatible")
         self.assertTrue(report.live_install_allowed)
+        self.assertFalse(report.live_calibration_allowed)
+
+    def test_paxx_152_v21_is_guarded_by_exact_build_and_component_hashes(self):
+        stock = bundled_asset("flow_calibrator_stock.py").read_bytes()
+        files = _firmware_files("1.5.2", "1.5.2.13_20260722102206", stock)
+        paxx_print_task = _paxx_v21_print_task_config()
+        self.assertEqual(
+            sha256_bytes(paxx_print_task),
+            PAXX_152_V21_PRINT_TASK_CONFIG,
+        )
+        files[EXTRAS / "print_task_config.py"] = paxx_print_task
+        files[BUILD_VERSION_PATH] = PAXX_152_V21_BUILD.encode() + b"\n"
+
+        report = inspect_firmware(FirmwareFixtureTarget(files))
+        self.assertEqual(report.state, "paxx-152-v21-compatible")
+        self.assertEqual(report.build_version, PAXX_152_V21_BUILD)
+        self.assertTrue(report.live_install_allowed)
+        self.assertFalse(report.live_calibration_allowed)
+        self.assertEqual(require_live_firmware(FirmwareFixtureTarget(files)), report)
+
+    def test_paxx_152_v21_allows_calibration_only_after_exact_u1fa_assets(self):
+        files = _firmware_files(
+            "1.5.2",
+            "1.5.2.13_20260722102206",
+            bundled_asset("flow_calibrator_v6.py").read_bytes(),
+        )
+        files[EXTRAS / "print_task_config.py"] = _paxx_v21_print_task_config()
+        files[BUILD_VERSION_PATH] = PAXX_152_V21_BUILD.encode() + b"\n"
+        files[MACRO_PATH] = bundled_asset("adaptive_pa_macro.cfg").read_bytes()
+
+        report = inspect_firmware(FirmwareFixtureTarget(files))
+        self.assertEqual(report.state, "paxx-152-v21-compatible")
+        self.assertTrue(report.live_install_allowed)
+        self.assertTrue(report.live_calibration_allowed)
+        self.assertEqual(
+            require_live_firmware(FirmwareFixtureTarget(files), calibration=True),
+            report,
+        )
+
+    def test_paxx_identity_does_not_bypass_component_hash_guard(self):
+        files = _firmware_files(
+            "1.5.2",
+            "1.5.2.13_20260722102206",
+            bundled_asset("flow_calibrator_stock.py").read_bytes(),
+        )
+        files[EXTRAS / "print_task_config.py"] = _paxx_v21_print_task_config() + b"# changed\n"
+        files[BUILD_VERSION_PATH] = PAXX_152_V21_BUILD.encode() + b"\n"
+
+        report = inspect_firmware(FirmwareFixtureTarget(files))
+        self.assertEqual(report.state, "unknown-blocked")
+        self.assertFalse(report.live_install_allowed)
         self.assertFalse(report.live_calibration_allowed)
 
     def test_candidate_205_compiles_and_uses_new_firmware_api(self):
