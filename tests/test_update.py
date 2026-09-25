@@ -109,6 +109,53 @@ class UpdateTests(unittest.TestCase):
         )
         self.assertEqual(result.version, "1.8.0")
 
+    def test_stable_1_8_2_waits_for_final_1_8_3_and_ignores_beta(self):
+        beta = release(
+            "v1.8.3-beta.4",
+            "U1-Filament-Automation-v1.8.3b4-Windows-x64-Setup.exe",
+            prerelease=True,
+        )
+        final = release(
+            "v1.8.3",
+            "U1-Filament-Automation-v1.8.3-Windows-x64-Setup.exe",
+        )
+
+        self.assertIsNone(
+            select_update(
+                [beta],
+                "1.8.2",
+                "stable",
+                "Windows",
+                "AMD64",
+            )
+        )
+        selected = select_update(
+            [beta, final],
+            "1.8.2",
+            "stable",
+            "Windows",
+            "AMD64",
+        )
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected.version, "1.8.3")
+        self.assertFalse(selected.prerelease)
+
+    def test_1_8_3_beta_updates_to_final_1_8_3(self):
+        final = release(
+            "v1.8.3",
+            "U1-Filament-Automation-v1.8.3-macOS-arm64.dmg",
+        )
+        selected = select_update(
+            [final],
+            "1.8.3b4",
+            "beta",
+            "Darwin",
+            "arm64",
+        )
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected.version, "1.8.3")
+        self.assertFalse(selected.prerelease)
+
     def test_github_check_uses_public_api_without_credentials(self):
         payload = json.dumps([
             release(
