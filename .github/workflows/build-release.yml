@@ -7,6 +7,7 @@ on:
       - main
       - beta/1.8.3b2-fw2-autopa
       - feature/1.8.3b3-orca-batch-foundation
+      - feature/1.8.3b4-standard-orca-profiles
   push:
     branches:
       - main
