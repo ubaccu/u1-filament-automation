@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - beta/1.8.3b2-fw2-autopa
+      - feature/1.8.3b3-orca-batch-foundation
   push:
     branches:
       - main
