@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - main
+      - beta/1.8.3b2-fw2-autopa
   push:
     branches:
       - main
