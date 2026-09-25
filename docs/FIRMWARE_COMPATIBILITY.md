@@ -14,8 +14,9 @@ U1FA carries its validated modification and macro in the release package, but it
 
 | Firmware / baseline | Status | Allowed action |
 |---|---|---|
-| Validated original pre-1.6 baseline, SHA-256 `dcbc26d5…a816e894` | Validated | Protected installation/recovery allowed after explicit confirmation |
-| Snapmaker U1 2.0.0.205 (`2.0.0.205_20260914173503`) | Validated for controlled private testing | Guarded installation on exact hashes; calibration only after recognizing both the AutoPA module and macro |
+| Snapmaker U1 1.5.2 / recognized legacy baseline | Validated | Protected installation/recovery allowed after explicit confirmation |
+| PAXX `1.5.2-paxx12-21-2a8893` | Validated fail-closed | Allowed only when the exact build identity and validated Klipper component hashes match; different files remain blocked |
+| Snapmaker U1 2.0.0.205 (`2.0.0.205_20260914173503`) | Validated | Dedicated firmware-2.0 AutoPA port with bundled assets byte-for-byte identical to the files validated on the real U1 |
 | Future U1 versions or components with a different hash | Blocked | No writes or calibration until reviewed |
 
 Snapmaker publishes current U1 firmware release notes here:
@@ -30,12 +31,10 @@ https://wiki.snapmaker.com/en/snapmaker_u1/firmware/release_notes
 4. Run the read-only check first.
 5. If calibrator, macro and include are still valid, no write is required.
 6. If U1FA recognizes a validated Snapmaker original, it can offer the protected recovery flow with backup and explicit confirmation.
-7. For firmware 2.0.0.205 this beta offers the dedicated port only when the full
-   version, dependencies and original calibrator match the exact hashes. Stop at
-   the read-only summary before the first live test and review the report;
-   calibration is enabled only after the AutoPA macro is recognized too.
-8. If U1FA reports `unknown-blocked`, stop. The new original must be acquired, compared and validated before its hash is added to a future release.
-9. After an actual protected write, completely power off the U1, wait 10–15 seconds and power it on again. Do not rely on a simple Klipper `RESTART`.
+7. On firmware 1.5.2 U1FA uses the legacy AutoPA path; on 2.0.0.205 it uses the dedicated firmware-2.0 port. The two firmware families remain separate and are never mixed.
+8. PAXX build `1.5.2-paxx12-21-2a8893` is accepted only when both the PAXX build identity and the expected validated Klipper component hashes match exactly.
+9. If U1FA reports `unknown-blocked`, stop. The new original must be acquired, compared and validated before its hash is added to a future release.
+10. After an actual protected write, completely power off the U1, wait 10–15 seconds and power it on again. Do not rely on a simple Klipper `RESTART`.
 
 ## Why U1FA blocks unknown files
 
