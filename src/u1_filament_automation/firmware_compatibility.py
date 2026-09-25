@@ -12,6 +12,7 @@ from pathlib import PurePosixPath
 EXTRAS = PurePosixPath('/home/lava/klipper/klippy/extras')
 VERSION_PATH = PurePosixPath('/etc/VERSION')
 FULLVERSION_PATH = PurePosixPath('/etc/FULLVERSION')
+BUILD_VERSION_PATH = PurePosixPath('/etc/BUILD_VERSION')
 MACRO_PATH = PurePosixPath('/home/lava/printer_data/config/adaptive_pa_macro.cfg')
 LEGACY_STOCK = 'dcbc26d5c726eb464b8e2a31d2856a816f3170bbda1ed5facb57fb19a816e894'
 LEGACY_V6 = '74ff744304657547e513fe74c3d42beb55f35eebd4d8f3e0749f0c7febc089ce'
@@ -22,6 +23,8 @@ TESTED_205 = '6225503bb6a5aa5bf1680160b590efc0904bf44da01ed8c3eaf84d3ab649a47b'
 MACRO_205_SHA256 = '791fbc7e043b1c374f513b8158f09cc52bfe5e68785505a70021d8ab7553e3ff'
 MACRO_205_TESTED_SHA256 = 'a1e8ec08e0f07f8cb264b60bc10960e38ae6e40560fd46749e93cd0474f150a7'
 FULLVERSION_205 = '2.0.0.205_20260914173503'
+PAXX_152_V21_BUILD = '1.5.2-paxx12-21-2a8893'
+PAXX_152_V21_PRINT_TASK_CONFIG = '83c9a6614e4b6ff8d39c60b5cd9d458479126df0e6f687c95def9193141f539a'
 DEPENDENCIES_152 = {
     'filament_parameters.py': 'd353a6d055155448b16cb4b16f19768ee86166c9aeb706dac7be06a1dcbc3770',
     'machine_state_manager.py': 'aadb9762606480a5fd9985634c22d8434c8a295dec2a133d87068fa0bb22c2f0',
@@ -38,6 +41,7 @@ DEPENDENCIES_205 = {
 class FirmwareCompatibility:
     version: str
     full_version: str
+    build_version: str
     state: str
     message: str
     hashes: dict[str, str]
@@ -72,6 +76,14 @@ def inspect_firmware(target) -> FirmwareCompatibility:
 
     version = version_text(VERSION_PATH)
     full = version_text(FULLVERSION_PATH)
+    # PAXX keeps its own build identity in /etc/BUILD_VERSION. This file is
+    # optional on stock firmware and is used only as an additional guard.
+    try:
+        build = target.read_path_bytes(BUILD_VERSION_PATH).decode('utf-8').strip()
+        if len(build) > 120 or not all(c.isprintable() for c in build):
+            build = ''
+    except (FileNotFoundError, UnicodeDecodeError):
+        build = ''
     hashes = {}
     for name in ('flow_calibrator.py', *DEPENDENCIES_205):
         data = read(EXTRAS / name)
@@ -86,10 +98,24 @@ def inspect_firmware(target) -> FirmwareCompatibility:
     install = calibration = False
     calibrator = hashes.get('flow_calibrator.py')
     legacy_identity = version == '1.5.2' and (full == '1.5.2' or full.startswith('1.5.2.'))
-    if legacy_identity and all(hashes.get(k) == v for k, v in DEPENDENCIES_152.items()):
+    legacy_dependencies = all(hashes.get(k) == v for k, v in DEPENDENCIES_152.items())
+    paxx_v21_dependencies = (
+        build == PAXX_152_V21_BUILD
+        and hashes.get('filament_parameters.py') == DEPENDENCIES_152['filament_parameters.py']
+        and hashes.get('machine_state_manager.py') == DEPENDENCIES_152['machine_state_manager.py']
+        and hashes.get('print_task_config.py') == PAXX_152_V21_PRINT_TASK_CONFIG
+    )
+    if legacy_identity and (legacy_dependencies or paxx_v21_dependencies):
         if calibrator in {LEGACY_STOCK, LEGACY_V6}:
-            state = 'legacy-compatible'
-            message = 'Baseline originale 1.5.2 riconosciuta / Original 1.5.2 baseline recognized.'
+            if paxx_v21_dependencies:
+                state = 'paxx-152-v21-compatible'
+                message = (
+                    'PAXX 1.5.2-paxx12-21 riconosciuto con componenti U1FA convalidati / '
+                    'PAXX 1.5.2-paxx12-21 recognized with validated U1FA components.'
+                )
+            else:
+                state = 'legacy-compatible'
+                message = 'Baseline originale 1.5.2 riconosciuta / Original 1.5.2 baseline recognized.'
             install = True
             calibration = calibrator == LEGACY_V6 and hashes.get('adaptive_pa_macro.cfg') == MACRO_SHA256
     elif version == '2.0.0' and full == FULLVERSION_205:
@@ -112,7 +138,7 @@ def inspect_firmware(target) -> FirmwareCompatibility:
                 state = 'legacy-v6-on-new-firmware-blocked'
                 message = ('Vecchio AutoPA v6 su firmware nuovo: incompatibile / '
                            'Old AutoPA v6 on new firmware: incompatible.')
-    return FirmwareCompatibility(version, full, state, message, hashes, tuple(missing), install, calibration)
+    return FirmwareCompatibility(version, full, build, state, message, hashes, tuple(missing), install, calibration)
 
 
 def require_live_firmware(target, *, calibration=False):
