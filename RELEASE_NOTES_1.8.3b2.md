@@ -2,7 +2,7 @@
 
 ## Italiano
 
-Build privata di sviluppo per Snapmaker U1 firmware 2.0.0.205.
+Build di sviluppo per Snapmaker U1 firmware 1.5.2 e 2.0.0.205.
 
 - mantiene il riconoscimento protetto del firmware tramite versione completa e SHA-256;
 - usa asset AutoPA separati dalla linea firmware 1.5.2;
@@ -12,11 +12,13 @@ Build privata di sviluppo per Snapmaker U1 firmware 2.0.0.205.
 - ripristina il PA runtime precedente dopo ogni punto;
 - conserva il cleanup stock e aggiunge 3 secondi di stabilizzazione termica prima di ogni campione K;
 - mantiene bloccati firmware, dipendenze e file non riconosciuti;
-- questa build resta privata finché test automatici e verifica reale sulla stampante non sono completati.
+- mantiene compatibilità separata con la linea Snapmaker 1.5.2;
+- riconosce in modo protetto la build PAXX 1.5.2-paxx12-21-2a8893 solo quando gli hash convalidati corrispondono;
+- corregge il packaging Windows degli asset LF protetti e migliora la diagnosi SSH su PAXX/Windows.
 
 ## English
 
-Private development build for Snapmaker U1 firmware 2.0.0.205.
+Development build for Snapmaker U1 firmware 1.5.2 and 2.0.0.205.
 
 - keeps exact version/SHA-256 guarded firmware recognition;
 - separates firmware-2.0 AutoPA assets from the legacy 1.5.2 line;
@@ -26,4 +28,6 @@ Private development build for Snapmaker U1 firmware 2.0.0.205.
 - restores the previous runtime PA after every point;
 - preserves stock cleanup and adds 3 seconds of thermal stabilization before every K sample;
 - unknown firmware, dependencies and files remain blocked;
-- this build stays private until automated and real-printer validation are complete.
+- keeps the Snapmaker 1.5.2 firmware line supported separately;
+- recognizes PAXX 1.5.2-paxx12-21-2a8893 only when the validated component hashes match;
+- fixes LF-preserving Windows packaging for protected assets and improves SSH diagnostics on PAXX/Windows.
