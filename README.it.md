@@ -35,6 +35,8 @@ Il repository pubblico è il canale ufficiale per **distribuzione, documentazion
 - **Gestione anti-doppione dei profili** — un profilo esatto già esistente viene riutilizzato; anche un singolo profilo legacy equivalente riconosciuto in modo prudente può essere riutilizzato senza crearne un secondo.
 - **Envelope di calibrazione specifico per filamento** — la modalità automatica legge il flusso volumetrico massimo ereditato da Orca e può applicare limiti produttore più prudenziali.
 - **Workflow Adaptive PA** — calibrazione guidata, recupero risultati, backup profilo e scrittura automatica PA.
+- **Coda sequenziale 2–4 bobine** — prepara più bobine e le calibra rigorosamente una alla volta, salvando ogni profilo prima di passare alla successiva e fermandosi al primo errore.
+- **Orca Slicer standard opzionale** — Snapmaker Orca resta lo slicer principale; se Orca Slicer standard viene rilevato in modo univoco puoi attivare esplicitamente un mirror protetto dei profili U1FA.
 - **Controllo configurazione stampante** — installazione e ripristino di U1FA AutoPA Mod protetti da validazione file, controllo stato stampante e conferme esplicite.
 - **Updater integrato** — seleziona il pacchetto corretto per la piattaforma e lo verifica tramite SHA-256. Aggiornare U1FA **non aggiorna il firmware U1**.
 
@@ -73,6 +75,8 @@ chmod +x U1-Filament-Automation-*-Linux-x86_64.AppImage
 4. Calcola l'envelope consigliato partendo dal limite di flusso volumetrico ereditato dal profilo.
 5. Ti mostra velocità, flussi e operazioni previste prima della conferma esplicita della calibrazione.
 6. A calibrazione conclusa crea un backup del JSON Orca e scrive i valori PA validati nello stesso profilo.
+7. In alternativa puoi preparare una coda da 2 a 4 bobine: U1FA esegue ogni calibrazione in sequenza e interrompe la coda al primo errore.
+8. Se abiliti volontariamente il mirror Orca Slicer standard, U1FA mantiene una copia protetta dei profili gestiti senza sovrascrivere profili esterni o modificati manualmente.
 
 Per l'uso normale è consigliata la modalità **Automatico dal profilo filamento**. La modalità manuale avanzata resta disponibile per utenti esperti.
 
