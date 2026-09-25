@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.3b4 — standard Orca Slicer profile mirroring
+
+- Aggiunto backend fail-closed per il mirror dei profili U1FA da Snapmaker Orca a Orca Slicer standard.
+- Vengono copiati soltanto profili U1FA completamente materializzati, senza dipendenze `inherits`.
+- Profili Orca Slicer esistenti non gestiti da U1FA non vengono mai sovrascritti.
+- Profili identici possono essere adottati e poi aggiornati solo se lo SHA-256 del target corrisponde allo stato registrato.
+- Una modifica manuale al profilo mirror blocca gli aggiornamenti successivi.
+- Ogni aggiornamento gestito crea un backup e usa sostituzione atomica.
+- Aggiunta gestione opzionale dalla GUI con opt-in esplicito: Snapmaker Orca resta sempre lo slicer principale.
+- Dopo l'attivazione, nuovi profili e risultati PA vengono riportati anche nel mirror standard; un conflitto o una modifica manuale blocca il mirror invece di sovrascrivere.
+
 ## 1.8.3b3 — Orca discovery + sequential calibration foundation
 
 - Grafica, stile e navigazione esistenti mantenuti invariati; le nuove funzioni vengono aggiunte senza ridisegnare l'app.
@@ -10,6 +21,7 @@
 - Collegata la coda al backend Adaptive PA: le calibrazioni vengono eseguite una alla volta, aggiornando il profilo prima di passare alla successiva.
 - La coda si ferma al primo errore e non avvia automaticamente le bobine restanti.
 - Ereditati i controlli firmware 1.5.2, PAXX v21 e 2.0.0.205 dalla 1.8.3b2.
+- Gli asset firmware 2.0.0.205 incorporati ora sono byte-per-byte identici ai file validati sulla U1 reale (calibratore SHA-256 `6225503b…`, macro SHA-256 `a1e8ec08…`).
 - Fast Max Flow automatico resta escluso.
 
 ## 1.8.3b2 — firmware compatibility + AutoPA 2.0 validation
