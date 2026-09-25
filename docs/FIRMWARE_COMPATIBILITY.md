@@ -12,12 +12,11 @@ U1FA carries its validated modification and macro in the release package, but it
 
 ## Current validation state
 
-**U1FA 1.8.0 was developed and tested with Snapmaker U1 firmware 1.5. The protected printer-file installation/recovery path has not been validated on firmware 1.6.0.**
-
 | Firmware / baseline | Status | Allowed action |
 |---|---|---|
-| Snapmaker U1 firmware 1.5 — validated baseline, SHA-256 `dcbc26d5…a816e894` | Tested and validated | Protected installation/recovery allowed after explicit confirmation |
-| Snapmaker U1 firmware 1.6.0 (2026-08-25) | Not validated in U1FA 1.8.0 | Read-only setup check only; do not force printer-file installation/recovery on an unknown or blocked state |
+| Validated original pre-1.6 baseline, SHA-256 `dcbc26d5…a816e894` | Validated | Protected installation/recovery allowed after explicit confirmation |
+| Snapmaker U1 2.0.0.205 (`2.0.0.205_20260914173503`) | Validated for controlled private testing | Guarded installation on exact hashes; calibration only after recognizing both the AutoPA module and macro |
+| Future U1 versions or components with a different hash | Blocked | No writes or calibration until reviewed |
 
 Snapmaker publishes current U1 firmware release notes here:
 
@@ -31,8 +30,12 @@ https://wiki.snapmaker.com/en/snapmaker_u1/firmware/release_notes
 4. Run the read-only check first.
 5. If calibrator, macro and include are still valid, no write is required.
 6. If U1FA recognizes a validated Snapmaker original, it can offer the protected recovery flow with backup and explicit confirmation.
-7. If U1FA reports `unknown-blocked`, stop. The new original must be acquired, compared and validated before its hash is added to a future release.
-8. After an actual protected write, completely power off the U1, wait 10–15 seconds and power it on again. Do not rely on a simple Klipper `RESTART`.
+7. For firmware 2.0.0.205 this beta offers the dedicated port only when the full
+   version, dependencies and original calibrator match the exact hashes. Stop at
+   the read-only summary before the first live test and review the report;
+   calibration is enabled only after the AutoPA macro is recognized too.
+8. If U1FA reports `unknown-blocked`, stop. The new original must be acquired, compared and validated before its hash is added to a future release.
+9. After an actual protected write, completely power off the U1, wait 10–15 seconds and power it on again. Do not rely on a simple Klipper `RESTART`.
 
 ## Why U1FA blocks unknown files
 

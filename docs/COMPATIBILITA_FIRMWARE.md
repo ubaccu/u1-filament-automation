@@ -12,12 +12,11 @@ U1FA include nel proprio pacchetto la modifica e la macro validate, ma **non ins
 
 ## Stato di validazione corrente
 
-**U1FA 1.8.0 è stato sviluppato e testato con firmware Snapmaker U1 1.5. Il flusso protetto di installazione/ripristino dei file stampante non è stato validato sul firmware 1.6.0.**
-
 | Firmware / baseline | Stato | Azione consentita |
 |---|---|---|
-| Firmware Snapmaker U1 1.5 — baseline convalidata, SHA-256 `dcbc26d5…a816e894` | Testato e convalidato | Installazione/ripristino protetti consentiti dopo conferma esplicita |
-| Firmware Snapmaker U1 1.6.0 (2026-08-25) | Non validato in U1FA 1.8.0 | Solo controllo configurazione in lettura; non forzare installazione/ripristino dei file stampante in presenza di stato sconosciuto o bloccato |
+| Baseline originale pre-1.6 con SHA-256 `dcbc26d5…a816e894` | Convalidato | Installazione/ripristino protetti consentiti dopo conferma esplicita |
+| Snapmaker U1 2.0.0.205 (`2.0.0.205_20260914173503`) | Convalidato per collaudo privato controllato | Installazione protetta consentita sugli hash esatti; calibrazione solo dopo riconoscimento di modulo AutoPA e macro |
+| Versioni U1 future o componenti con hash diverso | Bloccato | Nessuna scrittura né calibrazione finché non vengono esaminati |
 
 Snapmaker pubblica le note ufficiali del firmware U1 qui:
 
@@ -31,8 +30,13 @@ https://wiki.snapmaker.com/en/snapmaker_u1/firmware/release_notes
 4. Esegui prima il controllo in sola lettura.
 5. Se calibratore, macro e include risultano ancora validi, non serve alcuna scrittura.
 6. Se U1FA riconosce un originale Snapmaker già convalidato, può proporre il ripristino protetto con backup e conferma esplicita.
-7. Se compare `unknown-blocked`, fermati. Il nuovo originale deve essere acquisito, confrontato e convalidato prima che il relativo hash venga aggiunto a una release futura.
-8. Dopo una scrittura protetta effettiva, spegni completamente la U1, attendi 10–15 secondi e riaccendila. Non affidarti a un semplice `RESTART` di Klipper.
+7. Per il firmware 2.0.0.205 questa beta propone il porting dedicato solo se
+   versione completa, dipendenze e calibratore originale hanno gli hash esatti.
+   Prima del primo collaudo reale fermati al riepilogo in sola lettura e verifica
+   il report; la calibrazione si sblocca solo dopo il riconoscimento anche della
+   macro AutoPA.
+8. Se compare `unknown-blocked`, fermati. Il nuovo originale deve essere acquisito, confrontato e convalidato prima che il relativo hash venga aggiunto a una release futura.
+9. Dopo una scrittura protetta effettiva, spegni completamente la U1, attendi 10–15 secondi e riaccendila. Non affidarti a un semplice `RESTART` di Klipper.
 
 ## Perché U1FA blocca i file sconosciuti
 

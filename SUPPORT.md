@@ -30,7 +30,7 @@ Please describe:
 
 Do not include SSH passwords, access tokens, private keys, complete configuration archives, personal data, or unredacted logs containing credentials. Private/local IP addresses are normally unnecessary for bug reports and should be removed from screenshots when possible.
 
-For a security vulnerability, follow [.github/SECURITY.md](.github/SECURITY.md) instead of opening a public technical issue.
+For a security vulnerability, follow [SECURITY.md](SECURITY.md) instead of opening a public technical issue.
 
 ## Feature requests
 
