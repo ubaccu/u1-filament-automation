@@ -122,6 +122,43 @@ class PrinterInstallerTests(unittest.TestCase):
             ADAPTIVE_PA_MACRO_SHA256,
         )
 
+    def test_printer_assets_are_forced_to_lf_for_windows_builds(self):
+        attributes = (
+            Path(__file__).resolve().parents[1] / ".gitattributes"
+        ).read_text(encoding="utf-8")
+        self.assertIn("* text=auto eol=lf", attributes)
+        self.assertIn(
+            "src/u1_filament_automation/assets/** text eol=lf",
+            attributes,
+        )
+
+    def test_ssh_connection_refused_has_actionable_message(self):
+        target = SSHPrinterTarget(
+            "root@192.168.1.51",
+            ask_password=True,
+            password_provider=lambda: "snapmaker",
+        )
+
+        def fake_run(command, **kwargs):
+            return subprocess.CompletedProcess(
+                command,
+                255,
+                stdout="",
+                stderr=(
+                    "banner exchange: Connection to UNKNOWN port -1: "
+                    "Connection refused"
+                ),
+            )
+
+        with (
+            patch("u1_filament_automation.printer.subprocess.run", fake_run),
+            self.assertRaisesRegex(
+                PrinterInstallError,
+                "Root Access/SSH.*Fluidd",
+            ),
+        ):
+            target.read_bytes()
+
     def test_complete_setup_installs_flow_macro_and_existing_include(self):
         with tempfile.TemporaryDirectory() as temporary:
             target = LocalPrinterTarget(Path(temporary))
