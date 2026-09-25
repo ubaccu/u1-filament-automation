@@ -919,6 +919,19 @@ class SSHPrinterTarget:
                 askpass_dir.cleanup()
         if result.returncode != 0:
             detail = result.stderr.strip() or result.stdout.strip() or "errore remoto"
+            lowered = detail.casefold()
+            if (
+                "connection refused" in lowered
+                or "banner exchange" in lowered
+                or "port -1" in lowered
+            ):
+                raise PrinterInstallError(
+                    "Connessione SSH rifiutata dalla U1. Verificare che Root Access/SSH "
+                    "sia realmente attivo; su alcune configurazioni PAXX il touchscreen "
+                    "può mostrarlo attivo mentre il servizio SSH resta disabilitato. "
+                    "Controllare anche da Fluidd, quindi riprovare. "
+                    f"Dettaglio OpenSSH: {detail}"
+                )
             raise PrinterInstallError(f"Comando SSH fallito: {detail}")
         lines = [line for line in result.stdout.splitlines() if line.strip()]
         if not lines:
