@@ -273,7 +273,7 @@ class FlowCalibrator(object):
         self._abort_calibration = False
         self._abort_reason = None
 
-        # APA CHAIN state. Stock behavior remains default unless CHAIN=1.
+        # APA CHAIN state. Stock 2.0.0 behavior remains default unless CHAIN=1.
         self._apa_chain_active = False
 
         # register gcode commands
@@ -648,8 +648,8 @@ class FlowCalibrator(object):
 
         if self._apa_chain_active:
             gcmd.respond_info("[flow_calibrate] APA CHAIN: manual safe close")
-            # Previous K already performed the standard per-K cleaning.
-            # Perform the stock final calibration cleanup once.
+            # Per-K cleanup already ran in _measure_k(). Complete the stock
+            # calibration cleanup and emit the matching end event once.
             self._end_of_calibration(extruder)
             self._printer.send_event('flow_calibration:end')
             self._apa_chain_active = False
@@ -1009,7 +1009,7 @@ class FlowCalibrator(object):
                     os.makedirs(extruder_dir)
 
             # Notify other objects once at the beginning of a CHAIN.
-            # Normal non-chain FLOW_CALIBRATE retains the stock begin event.
+            # Normal non-chain FLOW_CALIBRATE retains stock 2.0.0 begin behavior.
             if chain_mode == 1:
                 if not self._apa_chain_active:
                     self._printer.send_event('flow_calibration:begin')
@@ -1247,7 +1247,7 @@ class FlowCalibrator(object):
 
                     if apa_measure_only:
                         # APA/U1FA calibration points are measurements only.
-                        # Do not apply the measured point as printer PA, do not
+                        # Do not apply the measured point as the printer PA, do not
                         # record it into the print job, and do not alter the native
                         # flow_calibrator.json cache. Native FLOW_CALIBRATE remains
                         # untouched when APA_MEASURE_ONLY is omitted (default 0).
