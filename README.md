@@ -35,6 +35,8 @@ The public repository is the official **distribution, documentation and support 
 - **Duplicate-safe profile handling** — an existing exact profile is reused; one conservatively recognized equivalent legacy profile can also be reused without creating a duplicate.
 - **Filament-specific calibration envelope** — automatic mode reads Orca's inherited maximum volumetric speed and can apply stricter manufacturer limits.
 - **Adaptive PA workflow** — guided calibration, automatic result recovery, profile backup and PA write-back.
+- **Sequential 2–4 spool queue** — prepare multiple spools and calibrate them strictly one at a time, saving each profile before the next starts and stopping at the first error.
+- **Optional standard Orca Slicer mirror** — Snapmaker Orca remains primary; when standard Orca is detected unambiguously you can explicitly enable a protected U1FA profile mirror.
 - **Printer setup checks** — U1FA AutoPA Mod installation and recovery are guarded by file validation, printer-state checks and explicit confirmation.
 - **Built-in updater** — application packages are selected by platform and verified with SHA-256. Updating U1FA does **not** update U1 firmware.
 
@@ -73,6 +75,8 @@ chmod +x U1-Filament-Automation-*-Linux-x86_64.AppImage
 4. U1FA calculates the recommended calibration envelope from the profile's inherited volumetric-flow limit.
 5. You review speeds, flow values and planned actions before explicitly confirming calibration.
 6. When calibration finishes, U1FA backs up the selected Orca JSON and writes the validated PA values to that same profile.
+7. Alternatively, prepare a queue of 2 to 4 spools: U1FA runs each calibration sequentially and stops the queue at the first error.
+8. If you explicitly enable the standard Orca Slicer mirror, U1FA keeps protected copies of managed profiles without overwriting foreign or manually changed profiles.
 
 For normal use, choose **Automatic from filament profile**. Advanced manual mode remains available for experienced users.
 
