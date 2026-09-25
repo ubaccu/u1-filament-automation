@@ -187,6 +187,7 @@ class FirmwareCompatibilityTests(unittest.TestCase):
         motion_report.PrinterMotionReport = object
         queuefile = types.ModuleType("queuefile")
         queuefile.async_write_file = lambda *args, **kwargs: None
+        numpy = types.ModuleType("numpy")
         spec = importlib.util.spec_from_file_location(module_name, candidate)
         self.assertIsNotNone(spec)
         module = importlib.util.module_from_spec(spec)
@@ -194,6 +195,7 @@ class FirmwareCompatibilityTests(unittest.TestCase):
             package_name: package,
             f"{package_name}.motion_report": motion_report,
             "queuefile": queuefile,
+            "numpy": numpy,
             module_name: module,
         }):
             spec.loader.exec_module(module)
