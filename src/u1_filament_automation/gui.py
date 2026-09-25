@@ -13,6 +13,11 @@ from urllib.parse import parse_qs
 from urllib.parse import urlsplit
 
 from . import __version__
+from .calibration_batch import (
+    CalibrationBatchError,
+    CalibrationBatchItem,
+    build_calibration_batch,
+)
 from .config import (
     ConfigError,
     ConnectionConfig,
@@ -947,6 +952,21 @@ class CalibrationController:
         with self._lock:
             self._job = snapshot
 
+    def _prepare_calibration(self, selection: CalibrationSelection):
+        client = MoonrakerClient(
+            self.moonraker_url,
+            timeout=self.timeout,
+        )
+        status = require_safe_printer(client)
+        if not client.has_gcode_macro("APA_COIL_SET_ENVELOPE"):
+            raise GUIError("Macro APA_COIL_SET_ENVELOPE non caricata")
+        if not client.has_gcode_macro("APA_COIL_RUN_ULTRA"):
+            raise GUIError("Macro APA_COIL_RUN_ULTRA non caricata")
+        baseline = parse_gcode_store(
+            client.gcode_store(CALIBRATION_STORE_COUNT)
+        )
+        return status, baseline
+
     def start(self, selection: CalibrationSelection) -> None:
         if self.ssh_target and not self._firmware_checked:
             message = (
@@ -964,19 +984,8 @@ class CalibrationController:
                 selection,
             )
 
-        client = MoonrakerClient(
-            self.moonraker_url,
-            timeout=self.timeout,
-        )
         try:
-            status = require_safe_printer(client)
-            if not client.has_gcode_macro("APA_COIL_SET_ENVELOPE"):
-                raise GUIError("Macro APA_COIL_SET_ENVELOPE non caricata")
-            if not client.has_gcode_macro("APA_COIL_RUN_ULTRA"):
-                raise GUIError("Macro APA_COIL_RUN_ULTRA non caricata")
-            baseline = parse_gcode_store(
-                client.gcode_store(CALIBRATION_STORE_COUNT)
-            )
+            status, baseline = self._prepare_calibration(selection)
         except (PrinterInstallError, PACaptureError, GUIError) as exc:
             self._set_job(JobSnapshot("blocked", str(exc), selection))
             raise GUIError(str(exc)) from exc
@@ -1000,11 +1009,92 @@ class CalibrationController:
         )
         worker.start()
 
+    def start_batch(self, selections: tuple[CalibrationSelection, ...]) -> None:
+        if self.ssh_target and not self._firmware_checked:
+            message = (
+                "Compatibilità firmware non verificata in questa sessione: "
+                "eseguire prima il controllo configurazione stampante"
+            )
+            first = selections[0] if selections else None
+            self._set_job(JobSnapshot("blocked", message, first))
+            raise GUIError(message)
+        try:
+            plan = build_calibration_batch(
+                CalibrationBatchItem(
+                    item.profile_name,
+                    item.physical_slot,
+                    item.temperature,
+                )
+                for item in selections
+            )
+        except CalibrationBatchError as exc:
+            raise GUIError(str(exc)) from exc
+        if plan.count != len(selections):
+            raise GUIError("Coda calibrazione non valida")
+
+        with self._lock:
+            if self._job.state in ACTIVE_CALIBRATION_STATES:
+                raise GUIError("Una calibrazione è già in corso")
+            self._job = JobSnapshot(
+                "checking",
+                f"Preparazione coda calibrazione: {plan.count} bobine",
+                selections[0],
+            )
+
+        threading.Thread(
+            target=self._run_batch,
+            args=(selections,),
+            name="u1fa-calibration-batch",
+            daemon=True,
+        ).start()
+
+    def _run_batch(
+        self,
+        selections: tuple[CalibrationSelection, ...],
+    ) -> None:
+        total = len(selections)
+        for index, selection in enumerate(selections, start=1):
+            try:
+                status, baseline = self._prepare_calibration(selection)
+            except (PrinterInstallError, PACaptureError, GUIError) as exc:
+                self._set_job(
+                    JobSnapshot(
+                        "error",
+                        f"Coda interrotta prima della bobina {index}/{total}: {exc}",
+                        selection,
+                    )
+                )
+                return
+
+            started_at = time.time()
+            self._set_job(
+                JobSnapshot(
+                    "running",
+                    "Calibrazione sequenziale "
+                    f"{index}/{total}: slot fisico {selection.physical_slot} → "
+                    f"EXTRUDER={selection.internal_extruder}, {selection.temperature} °C. "
+                    f"Stato iniziale: {status.print_state}/{status.idle_state}.",
+                    selection,
+                    started_at=started_at,
+                )
+            )
+            if not self._run_job(
+                selection,
+                baseline,
+                started_at,
+                batch_index=index,
+                batch_total=total,
+            ):
+                return
+
     def _complete_calibration(
         self,
         selection: CalibrationSelection,
         suite: Any,
         started_at: float,
+        *,
+        state: str = "completed",
+        message: str | None = None,
     ) -> None:
         if self.real_orca_dir is None:
             raise GUIError("Cartella reale di Snapmaker Orca non configurata")
@@ -1018,8 +1108,9 @@ class CalibrationController:
         )
         self._set_job(
             JobSnapshot(
-                "completed",
-                "Calibrazione completata; profilo Snapmaker Orca aggiornato con backup.",
+                state,
+                message
+                or "Calibrazione completata; profilo Snapmaker Orca aggiornato con backup.",
                 selection,
                 report.to_dict(),
                 started_at,
@@ -1031,7 +1122,10 @@ class CalibrationController:
         selection: CalibrationSelection,
         baseline,
         started_at: float | None = None,
-    ) -> None:
+        *,
+        batch_index: int | None = None,
+        batch_total: int | None = None,
+    ) -> bool:
         client = MoonrakerClient(
             self.moonraker_url,
             timeout=max(15.0, self.timeout),
@@ -1122,8 +1216,30 @@ class CalibrationController:
                         time.sleep(self.poll_interval)
                         continue
                     suite = cached.suite
-                self._complete_calibration(selection, suite, started_at)
-                return
+                is_batch = batch_index is not None and batch_total is not None
+                is_last = not is_batch or batch_index == batch_total
+                completion_state = "completed" if is_last else "running"
+                completion_message = None
+                if is_batch:
+                    if is_last:
+                        completion_message = (
+                            f"Coda completata: {batch_total}/{batch_total} bobine calibrate; "
+                            "ultimo profilo Snapmaker Orca aggiornato con backup."
+                        )
+                    else:
+                        completion_message = (
+                            f"Calibrazione {batch_index}/{batch_total} completata; "
+                            "profilo Snapmaker Orca aggiornato con backup. "
+                            "Avvio della bobina successiva."
+                        )
+                self._complete_calibration(
+                    selection,
+                    suite,
+                    started_at,
+                    state=completion_state,
+                    message=completion_message,
+                )
+                return True
             raise GUIError("Tempo massimo superato senza una suite ULTRA completa")
         except (GUIError, PrinterInstallError, PACaptureError, PAProfileError) as exc:
             self._set_job(
@@ -1134,6 +1250,7 @@ class CalibrationController:
                     started_at=started_at,
                 )
             )
+            return False
 
     def start_recovery(self) -> None:
         with self._lock:
