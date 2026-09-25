@@ -139,6 +139,26 @@ class StandardOrcaMirrorTests(unittest.TestCase):
             set_standard_orca_mirror_enabled(target, False)
             self.assertFalse(standard_orca_mirror_enabled(target))
 
+    def test_symlinked_metadata_directory_is_blocked_before_profile_creation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "snapmaker"
+            target = root / "orca"
+            external = root / "external-state"
+            target.mkdir()
+            external.mkdir()
+            write_profile(source, "DEEPLEE PLA")
+            (target / ".u1fa").symlink_to(external, target_is_directory=True)
+
+            self.assertFalse(standard_orca_mirror_enabled(target))
+            with self.assertRaisesRegex(
+                StandardOrcaMirrorError,
+                "link simbolico",
+            ):
+                plan_standard_orca_mirror(source, target, "DEEPLEE PLA")
+            self.assertFalse((target / "DEEPLEE PLA.json").exists())
+            self.assertEqual(list(external.iterdir()), [])
+
     def test_source_and_target_must_be_distinct(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
