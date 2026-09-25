@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8.3b2 — private firmware 2.0 AutoPA validation
+## 1.8.3b2 — firmware compatibility + AutoPA 2.0 validation
 
 - Integrati nella build privata i file AutoPA realmente validati su U1 firmware 2.0.0.205.
 - Adaptive PA usa una CHAIN a 5 punti con LOOP=6 e selezione algoritmo firmware-aware.
@@ -8,6 +8,10 @@
 - Aggiunta stabilizzazione termica di 3 secondi prima di ogni campione K; il cleanup stock a 170 °C resta invariato e il target viene ripristinato tra le celle della CHAIN.
 - Aggiornati gli SHA-256 protetti degli asset firmware 2.0; firmware o file non riconosciuti restano bloccati.
 - Confermata l'acquisizione automatica dei cinque risultati Adaptive PA per il successivo write-back nel profilo Orca.
+- Corretto il packaging Windows: gli asset protetti della stampante restano LF e mantengono lo SHA-256 atteso anche nell'installer Windows.
+- Aggiunto un messaggio diagnostico chiaro quando PAXX/Windows mostra Root Access attivo ma il servizio SSH rifiuta la connessione.
+- Convalidata in modo fail-closed la build PAXX `1.5.2-paxx12-21-2a8893`: viene accettata soltanto con identità build esatta e hash dei componenti Klipper verificati.
+- La linea firmware Snapmaker 1.5.2 resta supportata separatamente dalla nuova linea 2.0.0.205.
 
 ## 1.8.3b1 — private compatibility test
 
