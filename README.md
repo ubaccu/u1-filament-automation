@@ -130,6 +130,9 @@ Examples:
 - Rapid / Hyper / High Speed / HS / HF PLA → **Snapmaker PLA SnapSpeed**
 - PLA Silk → **Snapmaker PLA Silk**
 - PETG families → corresponding compatible **Snapmaker PETG** profile
+- TPU → **Snapmaker TPU @U1 0.4 nozzle**
+- PEBA 90A → **Snapmaker PEBA 90A @U1 0.4 nozzle**
+- PLA Rainbow → **Snapmaker PLA Rainbow @U1 0.4 nozzle**
 
 Profile-equivalence matching is intentionally conservative. If more than one equivalent profile is found, U1FA blocks the automatic choice instead of guessing.
 
