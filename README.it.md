@@ -35,6 +35,7 @@ Il repository pubblico è il canale ufficiale per **distribuzione, documentazion
 - **Gestione anti-doppione dei profili** — un profilo esatto già esistente viene riutilizzato; anche un singolo profilo legacy equivalente riconosciuto in modo prudente può essere riutilizzato senza crearne un secondo.
 - **Envelope di calibrazione specifico per filamento** — la modalità automatica legge il flusso volumetrico massimo ereditato da Orca e può applicare limiti produttore più prudenziali.
 - **Workflow Adaptive PA** — calibrazione guidata, recupero risultati, backup profilo e scrittura automatica PA.
+- **Compatibilità Snapmaker Orca 2.4** — Snapmaker ha nascosto dalla GUI i controlli Adaptive PA, ma configurazione e logica di slicing restano presenti; U1FA abilita direttamente `adaptive_pressure_advance` e salva il modello calibrato nel profilo filamento.
 - **Scelta chiara dopo la creazione** — dopo aver creato una bobina puoi calibrarla subito oppure crearne altre e usare successivamente la coda multi-bobina.
 - **Coda sequenziale 2–4 bobine** — prepara più bobine e le calibra rigorosamente una alla volta, salvando ogni profilo prima di passare alla successiva e fermandosi al primo errore.
 - **Orca Slicer standard opzionale** — Snapmaker Orca resta lo slicer principale; se Orca Slicer standard viene rilevato in modo univoco puoi attivare esplicitamente un mirror protetto dei profili U1FA.
