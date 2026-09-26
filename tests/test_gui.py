@@ -496,6 +496,35 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn("keep U1FA open", english)
         self.assertIn("Snapmaker Orca completely closed", english)
 
+    def test_completed_status_explains_hidden_snapmaker_orca_24_adaptive_pa(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                root / "system",
+            )
+            controller._job = JobSnapshot(
+                "completed",
+                "done",
+                report={
+                    "static_fallback": "0.0102",
+                    "adaptive_model": "0.012,4.0,2000\n0.010,8.0,6000\n0.008,12.0,10000",
+                    "backup_path": "/tmp/profile.json.bak",
+                },
+            )
+            italian = _status(controller, language="it")
+            english = _status(controller, language="en")
+
+        self.assertIn("Adaptive PA", italian)
+        self.assertIn("ATTIVA nel profilo", italian)
+        self.assertIn("3 punti modello", italian)
+        self.assertIn("Snapmaker Orca 2.4 nasconde", italian)
+        self.assertIn("ACTIVE in profile", english)
+        self.assertIn("3 model points", english)
+        self.assertIn("hides the Adaptive PA controls", english)
+
     def test_error_status_offers_bilingual_read_only_recovery(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
