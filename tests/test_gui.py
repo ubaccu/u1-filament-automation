@@ -80,6 +80,68 @@ class GUISafetyTests(unittest.TestCase):
         self.assertEqual(run, "APA_COIL_RUN_ULTRA EXTRUDER=2 TEMP=220")
         self.assertEqual(VALIDATED_U1_ENVELOPE.name, "U1 convalidato")
 
+    def test_soft_filament_k_range_is_added_only_when_requested(self):
+        _, normal = build_calibration_commands(1, 220)
+        _, soft = build_calibration_commands(
+            1,
+            235,
+            pa_k_min=0.15,
+            pa_k_max=0.45,
+        )
+        self.assertEqual(normal, "APA_COIL_RUN_ULTRA EXTRUDER=0 TEMP=220")
+        self.assertEqual(
+            soft,
+            "APA_COIL_RUN_ULTRA EXTRUDER=0 TEMP=235 MIN=0.15 MAX=0.45",
+        )
+        with self.assertRaises(GUIError):
+            build_calibration_commands(1, 235, pa_k_min=0.15)
+        with self.assertRaises(GUIError):
+            build_calibration_commands(1, 235, pa_k_min=0.5, pa_k_max=0.4)
+
+    def test_tpu_selection_uses_validated_u1_205_k_range(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            user = root / "user"
+            system = root / "system"
+            user.mkdir()
+            system.mkdir()
+            profile_name = "Generic TPU BLUE @Snapmaker U1 (0.4 nozzle)"
+            (user / f"{profile_name}.json").write_text(
+                json.dumps({
+                    "name": profile_name,
+                    "filament_max_volumetric_speed": ["10.5"],
+                }),
+                encoding="utf-8",
+            )
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                root / "sandbox",
+                system,
+                real_orca_dir=user,
+            )
+            controller._accept_inventory(SpoolmanInventory(
+                url="http://spoolman.test",
+                vendors=[{"id": 1, "name": "Generic"}],
+                filaments=[{
+                    "id": 2,
+                    "vendor_id": 1,
+                    "material": "TPU",
+                    "name": "TPU BLUE",
+                }],
+                spools=[{"id": 3, "filament_id": 2}],
+            ))
+
+            selection = controller.selection(profile_name, 2, 235)
+
+        self.assertEqual(selection.pa_k_min, 0.15)
+        self.assertEqual(selection.pa_k_max, 0.45)
+        self.assertIn("2.0.0.205", selection.pa_k_source)
+        self.assertEqual(
+            selection.commands[1],
+            "APA_COIL_RUN_ULTRA EXTRUDER=1 TEMP=235 MIN=0.15 MAX=0.45",
+        )
+
     def test_envelope_controls_offer_safe_auto_and_advanced_manual_modes(self):
         italian = _envelope_controls("it")
         english = _envelope_controls("en")
