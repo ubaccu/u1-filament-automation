@@ -71,6 +71,8 @@ chmod +x U1-Filament-Automation-*-Linux-x86_64.AppImage
 
 ## How it works
 
+> **IMPORTANT — Snapmaker Orca 2.4:** the dedicated **Adaptive Pressure Advance** toggle is no longer visible in the slicer UI. Snapmaker hides it from the interface, but the feature remains in the slicing engine. After calibration U1FA writes `adaptive_pressure_advance = 1` and the calibrated Adaptive PA model directly into the filament profile. Therefore **Adaptive PA can be enabled and working even though no dedicated toggle is visible in the slicer**. Real-U1 validation confirmed dynamically changing `pressure_advance` values during printing.
+
 1. Enter or select the physical spool in U1FA.
 2. U1FA creates or reuses the Spoolman vendor and filament, then creates the spool.
 3. U1FA creates the matching Snapmaker Orca user profile only when needed. Existing exact profiles are reused; one safely recognized equivalent legacy profile can also be reused.
