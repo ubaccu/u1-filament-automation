@@ -26,6 +26,7 @@ class GUIMaterialTests(unittest.TestCase):
             "PLA": "Snapmaker PLA Basic @U1",
             "PLA Rapid": "Snapmaker PLA SnapSpeed @U1",
             "PLA Silk": "Snapmaker PLA Silk",
+            "PLA Rainbow": "Snapmaker PLA Rainbow @U1 0.4 nozzle",
             "PLA Wood": "Snapmaker PLA Wood @U1 0.4 nozzle",
             "PLA Translucent": "Snapmaker PLA Translucent @U1 0.4 nozzle",
             "PLA-CF": "Snapmaker PLA-CF @U1 0.4 nozzle",
@@ -33,6 +34,8 @@ class GUIMaterialTests(unittest.TestCase):
             "PETG HF": "Snapmaker PETG HF",
             "PETG Translucent": "Snapmaker PETG Translucent @U1 0.4 nozzle",
             "PETG-CF": "Snapmaker PETG-CF @U1 0.4 nozzle",
+            "TPU": "Snapmaker TPU @U1 0.4 nozzle",
+            "PEBA 90A": "Snapmaker PEBA 90A @U1 0.4 nozzle",
         }
         for material, base in expected.items():
             with self.subTest(material=material):
@@ -54,10 +57,13 @@ class GUIMaterialTests(unittest.TestCase):
             "Snapmaker PLA SnapSpeed @U1",
         )
 
-    def test_petg_variants_keep_petg_family_defaults(self):
+    def test_material_defaults_include_orca_240_soft_and_rainbow_profiles(self):
         page = enhance_new_spool_page(_new_spool_form("safe-token"), "it")
+        self.assertIn("v==='TPU'?['1.22','235','35']", page)
+        self.assertIn("v==='PEBA 90A'?['1.21','235','100']", page)
+        self.assertIn("v==='PLA Rainbow'?['1.21','230','65']", page)
         self.assertIn("v.indexOf('PETG')===0?['1.27','240','75']", page)
-        self.assertIn("this.value==='PLA Silk'?['1.24','230','60']", page)
+        self.assertIn("v==='PLA Silk'?['1.24','230','60']", page)
         self.assertIn("['1.24','220','60']", page)
 
     def test_patch_installation_is_idempotent(self):
