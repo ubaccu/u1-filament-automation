@@ -191,6 +191,19 @@ class FirmwareCompatibilityTests(unittest.TestCase):
         )
         self.assertEqual(report.state, "legacy-v6-on-new-firmware-blocked")
 
+    def test_unknown_205_reports_exact_mismatched_component(self):
+        files = _firmware_files(
+            "2.0.0",
+            FULLVERSION_205,
+            bundled_asset("flow_calibrator_stock_205.py").read_bytes(),
+        )
+        files[EXTRAS / "print_task_config.py"] += b"# changed\n"
+        report = inspect_firmware(FirmwareFixtureTarget(files))
+        self.assertEqual(report.state, "unknown-blocked")
+        self.assertIn("print_task_config.py", report.message)
+        self.assertIn("trovato=", report.message)
+        self.assertIn("atteso=", report.message)
+
     def test_future_version_and_missing_component_fail_closed(self):
         files = _firmware_files(
             "2.0.0", FULLVERSION_205, bundled_asset("flow_calibrator_stock_205.py").read_bytes()
