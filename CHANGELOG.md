@@ -7,10 +7,13 @@
 - Asset firmware 2.0.0.205 byte-per-byte identici ai file validati sulla U1 reale.
 - Convalidata anche la variante Adaptive PA di `print_task_config.py` rilevata sulla U1 reale (SHA-256 `3770801d…`) mantenendo il fail-closed per qualsiasi altro hash.
 - Coda Adaptive PA da 2 a 4 bobine con esecuzione strettamente sequenziale e stop al primo errore.
+- Dopo la creazione di una bobina la GUI offre ora due percorsi espliciti: calibrare subito quella bobina oppure crearne altre e usare successivamente la coda multi-bobina.
 - Supporto opzionale a Orca Slicer standard tramite mirror protetto con opt-in esplicito, SHA-256 e backup.
+- Aggiunto il badge **Orca Slicer** nella testata della Home per rendere visibile la compatibilità opzionale senza cambiare il ruolo primario di Snapmaker Orca.
 - Corretto il packaging Windows LF/CRLF degli asset protetti e migliorata la diagnostica SSH.
 - Corretto l'avvio desktop quando resta attiva una vecchia 1.8.2: la 1.8.3 non la riapre più come se fosse la nuova versione.
 - Updater verificato da 1.8.2 stabile a 1.8.3 stabile; le beta restano escluse dal canale stabile.
+- Aggiornati README italiano/inglese, guide incluse nel DMG e note di release per descrivere il nuovo flusso singolo/multi-bobina e la compatibilità Orca Slicer.
 - Pacchetti verificati su Windows x64, Linux x86_64, macOS Intel e Apple Silicon; archivio sorgente GPL verificato.
 
 ## 1.8.3b4 — standard Orca Slicer profile mirroring
