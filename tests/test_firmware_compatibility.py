@@ -176,8 +176,10 @@ def _adaptive_205_print_task_config() -> bytes:
             '                self.gcode.run_script_from_command(f"FLOW_RESET_K EXTRUDER={config_extruder}\\r\\n")\n',
         ),
         (
-            "        if print_stats is not None and print_stats.state in ['printing', 'paused']:\n",
-            "        if print_stats is not None and print_stats.state in ['printing', 'paused'] and not self._force_preference_honoured(gcmd):\n",
+            "        if print_stats is not None and print_stats.state in ['printing', 'paused']:\n"
+            "            if bed_level is not None or flow_calibrate is not None or shaper_calibrate is not None or \\",
+            "        if print_stats is not None and print_stats.state in ['printing', 'paused'] and not self._force_preference_honoured(gcmd):\n"
+            "            if bed_level is not None or flow_calibrate is not None or shaper_calibrate is not None or \\",
         ),
         (
             '                    self.gcode.run_script_from_command(f"FLOW_RESET_K EXTRUDER={extruder_index}\\r\\n")\n',
