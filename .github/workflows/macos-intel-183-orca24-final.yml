@@ -1,0 +1,73 @@
+name: macOS Intel 1.8.3 Orca 2.4 final validation
+
+on:
+  push:
+    branches:
+      - release/1.8.3-prep
+    paths:
+      - ".github/workflows/macos-intel-183-orca24-final.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  macos-intel:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install and run full test suite
+        run: |
+          python -m pip install . pyinstaller
+          python -m unittest discover -s tests
+      - name: Validate Orca 2.4 U1 0.4 material support
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, "src")
+          from u1_filament_automation import __version__
+          from u1_filament_automation.gui import build_calibration_commands
+          from u1_filament_automation.gui_materials import MATERIAL_OPTIONS
+          from u1_filament_automation.sync import choose_base
+
+          assert __version__ == "1.8.3"
+          expected = {
+              "TPU": "Snapmaker TPU @U1 0.4 nozzle",
+              "PEBA 90A": "Snapmaker PEBA 90A @U1 0.4 nozzle",
+              "PLA Rainbow": "Snapmaker PLA Rainbow @U1 0.4 nozzle",
+          }
+          for material, base in expected.items():
+              assert material in MATERIAL_OPTIONS
+              assert choose_base("Snapmaker", material, material) == base
+
+          _, tpu = build_calibration_commands(1, 235, pa_k_min=0.15, pa_k_max=0.45)
+          _, peba = build_calibration_commands(2, 235, pa_k_min=0.15, pa_k_max=0.45)
+          _, rainbow = build_calibration_commands(3, 230)
+
+          assert tpu == "APA_COIL_RUN_ULTRA EXTRUDER=0 TEMP=235 MIN=0.15 MAX=0.45"
+          assert peba == "APA_COIL_RUN_ULTRA EXTRUDER=1 TEMP=235 MIN=0.15 MAX=0.45"
+          assert rainbow == "APA_COIL_RUN_ULTRA EXTRUDER=2 TEMP=230"
+          PY
+      - name: Build Intel DMG
+        env:
+          U1FA_ARCH: x86_64
+        run: packaging/macos/build_dmg.sh
+      - name: Verify final bundle and packaged guides
+        run: |
+          APP="dist/U1 Filament Automation.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" = "1.8.3"
+          test -f "dist/U1-Filament-Automation-v1.8.3-macOS-x86_64.dmg"
+          grep -q "TPU" packaging/macos/README_FIRST_macOS.html
+          grep -q "PEBA 90A" packaging/macos/README_FIRST_macOS.html
+          grep -q "PLA Rainbow" packaging/macos/README_FIRST_macOS.html
+          grep -q "TPU" packaging/macos/README_FIRST_macOS_EN.html
+          grep -q "PEBA 90A" packaging/macos/README_FIRST_macOS_EN.html
+          grep -q "PLA Rainbow" packaging/macos/README_FIRST_macOS_EN.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: U1FA-1.8.3-macOS-x86_64-Orca24-final
+          path: dist/U1-Filament-Automation-v1.8.3-macOS-x86_64.dmg
+          if-no-files-found: error
