@@ -16,7 +16,7 @@ U1FA include nel proprio pacchetto la modifica e la macro validate, ma **non ins
 |---|---|---|
 | Snapmaker U1 1.5.2 / baseline legacy riconosciuta | Convalidato | Installazione/ripristino protetti consentiti dopo conferma esplicita |
 | PAXX `1.5.2-paxx12-21-2a8893` | Convalidato in modalità fail-closed | Consentito solo con identità build esatta e hash dei componenti Klipper convalidati; file diversi restano bloccati |
-| Snapmaker U1 2.0.0.205 (`2.0.0.205_20260914173503`) | Convalidato | Porting AutoPA dedicato, asset incorporati byte-per-byte identici ai file validati sulla U1 reale |
+| Snapmaker U1 2.0.0.205 (`2.0.0.205_20260914173503`) | Convalidato | Porting AutoPA dedicato; accettati sia il `print_task_config.py` stock convalidato sia la variante Adaptive PA convalidata SHA-256 `3770801d…` |
 | Versioni U1 future o componenti con hash diverso | Bloccato | Nessuna scrittura né calibrazione finché non vengono esaminati |
 
 Snapmaker pubblica le note ufficiali del firmware U1 qui:
@@ -40,6 +40,6 @@ https://wiki.snapmaker.com/en/snapmaker_u1/firmware/release_notes
 
 L'installazione sulla stampante modifica file Klipper attivi. Un aggiornamento firmware può cambiare l'implementazione Snapmaker, quindi riapplicare alla cieca una patch preparata per un file precedente potrebbe compromettere la calibrazione o il comportamento della stampante.
 
-Per questo U1FA confronta SHA-256 conosciuti e si blocca intenzionalmente quando il file sorgente non è riconosciuto. Non aggirare manualmente questa protezione.
+Per questo U1FA confronta SHA-256 conosciuti e si blocca intenzionalmente quando il file sorgente non è riconosciuto. Sul firmware 2.0.0.205 la variante Adaptive PA con hash `3770801d859dcc33cd12eaf5bff775973df46d79cd70622e26b46bd029714d4a` è stata confrontata con il fixture stock: aggiunge esclusivamente i guard per sospendere i reset PA e autorizzare il parametro FORCE durante il flusso Adaptive PA. Qualsiasi altra variante resta bloccata. Non aggirare manualmente questa protezione.
 
 Consulta [Installazione e ripristino della stampante](INSTALLAZIONE_STAMPANTE.md) per la procedura completa.
