@@ -11,6 +11,7 @@ Manage real filament spools, generate or safely reuse Snapmaker Orca profiles, o
 ![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-4c8bf5)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 ![Status](https://img.shields.io/badge/status-stable-brightgreen)
+[![Discord](https://img.shields.io/badge/Discord-Join%20the%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/VVf7ubPdAT)
 
 **[Download U1FA](https://github.com/ubaccu/u1-filament-automation/releases)** · **[Report a bug](https://github.com/ubaccu/u1-filament-automation/issues/new/choose)** · **[Documentation](docs/PRINTER_SETUP.md)** · **[Italiano](README.it.md)**
 
@@ -138,6 +139,26 @@ Examples:
 - PLA Rainbow → **Snapmaker PLA Rainbow @U1 0.4 nozzle**
 
 Profile-equivalence matching is intentionally conservative. If more than one equivalent profile is found, U1FA blocks the automatic choice instead of guessing.
+
+## Community & Support
+
+Join the official **U1FA Discord Community**:
+
+**[Join the U1FA Discord server](https://discord.gg/VVf7ubPdAT)**
+
+Use Discord to:
+
+- get installation and configuration help;
+- report reproducible bugs and share logs or screenshots;
+- suggest features and workflow improvements;
+- participate in beta testing;
+- share Snapmaker U1 setups;
+- share exported Snapmaker Orca filament profiles;
+- discuss U1FA with other users.
+
+> U1FA is developed in my free time. Support is community-based and immediate responses are not guaranteed.
+>
+> Please avoid sending private messages for technical support. Use the appropriate public channels so answers can also help other users.
 
 ## Support and bug reports
 
