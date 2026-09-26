@@ -21,6 +21,7 @@ MATERIAL_OPTIONS = (
     "PLA",
     "PLA Rapid",
     "PLA Silk",
+    "PLA Rainbow",
     "PLA Wood",
     "PLA Translucent",
     "PLA-CF",
@@ -28,6 +29,8 @@ MATERIAL_OPTIONS = (
     "PETG HF",
     "PETG Translucent",
     "PETG-CF",
+    "TPU",
+    "PEBA 90A",
 )
 _MATERIAL_SELECT_START = '<select name="material" id="material">'
 _SELECT_END = "</select>"
@@ -73,9 +76,11 @@ _OLD_MATERIAL_JS = (
 )
 _NEW_MATERIAL_JS = (
     "document.getElementById('material').addEventListener('change',function(){var v=this.value;"
-    "var p=v.indexOf('PETG')===0?['1.27','240','75']:this.value==='PLA Silk'?"
-    "['1.24','230','60']:['1.24','220','60'];document.getElementById('density').value=p[0];"
-    "document.getElementById('nozzle-temp').value=p[1];document.getElementById('bed-temp').value=p[2];});"
+    "var p=v==='TPU'?['1.22','235','35']:v==='PEBA 90A'?['1.21','235','100']:"
+    "v==='PLA Rainbow'?['1.21','230','65']:v.indexOf('PETG')===0?['1.27','240','75']:"
+    "v==='PLA Silk'?['1.24','230','60']:['1.24','220','60'];"
+    "document.getElementById('density').value=p[0];document.getElementById('nozzle-temp').value=p[1];"
+    "document.getElementById('bed-temp').value=p[2];});"
 )
 
 
@@ -141,14 +146,16 @@ def enhance_new_spool_page(page: str, language: str = "it") -> str:
         if language == "en":
             hint = (
                 "Supported families: PLA, PLA Rapid, PLA Silk, PLA Wood, PLA Translucent, "
-                "PLA-CF, PETG, PETG HF, PETG Translucent and PETG-CF. Each choice maps "
+                "PLA-CF, PETG, PETG HF, PETG Translucent, PETG-CF, TPU, PEBA 90A and "
+                "PLA Rainbow. Each choice maps "
                 "to an existing Snapmaker base profile. Temperature, density and the "
                 "other spool values must still follow the manufacturer's specifications."
             )
         else:
             hint = (
                 "Famiglie supportate: PLA, PLA Rapid, PLA Silk, PLA Wood, PLA Translucent, "
-                "PLA-CF, PETG, PETG HF, PETG Translucent e PETG-CF. Ogni scelta usa un "
+                "PLA-CF, PETG, PETG HF, PETG Translucent, PETG-CF, TPU, PEBA 90A e "
+                "PLA Rainbow. Ogni scelta usa un "
                 "profilo base Snapmaker già supportato. Temperatura, densità e gli altri "
                 "dati devono comunque seguire le specifiche della bobina reale."
             )
