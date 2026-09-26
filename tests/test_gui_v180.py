@@ -6,6 +6,7 @@ from pathlib import Path
 from u1_filament_automation import __version__, gui
 from u1_filament_automation import gui_182_final_ui
 from u1_filament_automation.gui_b24 import install_b24_patch
+from u1_filament_automation.gui_182_nav_repair import repair_sidebar
 from u1_filament_automation.gui_v180 import (
     PreparedSpoolCreationV180,
     inspect_orca_profile,
@@ -77,6 +78,18 @@ class FinalPreviewTests(unittest.TestCase):
             }],
             spools=[{"id": 14, "filament_id": 15}],
         )
+
+    def test_last_stage_home_repair_replaces_stale_1_8_2_labels(self):
+        page = (
+            '<span class="u1fa-side-version">v1.8.2</span>'
+            '<div>BOTTEGA3DLAB · U1FA 1.8.2</div>'
+            '<nav><a><svg></svg><span>Sistema</span></a></nav>'
+        )
+        repaired = repair_sidebar(page, "it")
+        self.assertIn(f'v{__version__}', repaired)
+        self.assertIn(f'U1FA {__version__}', repaired)
+        self.assertNotIn('>v1.8.2<', repaired)
+        self.assertNotIn('U1FA 1.8.2</div>', repaired)
 
     def test_final_visual_shell_renders_runtime_version_not_1_8_2_literal(self):
         sidebar = gui_182_final_ui._sidebar("it")
