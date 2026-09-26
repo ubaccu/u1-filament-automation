@@ -33,7 +33,8 @@ $DataFiles = @(
     "flow_calibrator_v6.py",
     "flow_calibrator_stock_205.py",
     "flow_calibrator_205_candidate.py",
-    "adaptive_pa_macro.cfg"
+    "adaptive_pa_macro.cfg",
+    "adaptive_pa_macro_205.cfg"
 )
 $ProductImage = Join-Path $AssetsDir "snapmaker_u1_official.webp"
 if (Test-Path $ProductImage) {
