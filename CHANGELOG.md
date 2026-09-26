@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8.3 — release preparation
+## 1.8.3 — 2026-09-26
 
 - Mantiene invariati grafica, stile e flusso principale della 1.8.2.
 - Supporto separato e fail-closed per Snapmaker U1 1.5.2, PAXX 1.5.2-paxx12-21-2a8893 e firmware 2.0.0.205.
@@ -20,6 +20,7 @@
 - Updater verificato da 1.8.2 stabile a 1.8.3 stabile; le beta restano escluse dal canale stabile.
 - Aggiornati README italiano/inglese, guide incluse nel DMG e note di release per descrivere il nuovo flusso singolo/multi-bobina e la compatibilità Orca Slicer.
 - Pacchetti verificati su Windows x64, Linux x86_64, macOS Intel e Apple Silicon; archivio sorgente GPL verificato.
+- Release stabile `v1.8.3` pubblicata su GitHub con pacchetti per tutte le piattaforme supportate, archivio sorgente corrispondente e `SHA256SUMS.txt`.
 
 ## 1.8.3b4 — standard Orca Slicer profile mirroring
 
