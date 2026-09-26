@@ -3,7 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from u1_filament_automation import gui
+from u1_filament_automation import __version__, gui
+from u1_filament_automation import gui_182_final_ui
 from u1_filament_automation.gui_b24 import install_b24_patch
 from u1_filament_automation.gui_v180 import (
     PreparedSpoolCreationV180,
@@ -76,6 +77,16 @@ class FinalPreviewTests(unittest.TestCase):
             }],
             spools=[{"id": 14, "filament_id": 15}],
         )
+
+    def test_final_visual_shell_renders_runtime_version_not_1_8_2_literal(self):
+        sidebar = gui_182_final_ui._sidebar("it")
+        hero = gui_182_final_ui._hero("it")
+
+        self.assertIn(f"v{__version__}", sidebar)
+        self.assertIn(f"U1FA {__version__}", hero)
+        if __version__ != "1.8.2":
+            self.assertNotIn(">v1.8.2<", sidebar)
+            self.assertNotIn("U1FA 1.8.2</div>", hero)
 
     def test_exact_profile_with_dynamic_pa_is_detected_read_only(self):
         with tempfile.TemporaryDirectory() as temporary:
