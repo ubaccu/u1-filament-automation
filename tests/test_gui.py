@@ -765,7 +765,7 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn("Root Access", page)
         self.assertIn("Settings → Maintenance → Advanced Mode → Agree → Enable", page)
         self.assertIn("Settings → Maintenance → Root Access → Agree → Open", page)
-        self.assertIn("U1 firmware 2.0.0.205 is recognized", page)
+        self.assertIn("U1 firmware 2.0.0.205 is supported with guarded checks", page)
         self.assertIn("Safety and liability notice", page)
         self.assertIn("If you are unsure, do not proceed", page)
         self.assertIn("provided without warranty under GPLv3", page)
