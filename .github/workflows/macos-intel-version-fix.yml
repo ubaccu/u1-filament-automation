@@ -1,0 +1,53 @@
+name: macOS Intel 1.8.3 version-fix validation
+
+on:
+  push:
+    branches:
+      - release/1.8.3-prep
+
+permissions:
+  contents: read
+
+jobs:
+  macos-intel:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install and run tests
+        run: |
+          python -m pip install . pyinstaller
+          python -m unittest discover -s tests
+      - name: Verify rendered app version before packaging
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, "src")
+          import u1_filament_automation as pkg
+          from u1_filament_automation import gui_182_final_ui as ui
+          assert pkg.__version__ == "1.8.3", pkg.__version__
+          sidebar = ui._sidebar("it")
+          hero = ui._hero("it")
+          assert "v1.8.3" in sidebar, sidebar
+          assert "U1FA 1.8.3" in hero, hero
+          assert ">v1.8.2<" not in sidebar
+          assert "U1FA 1.8.2</div>" not in hero
+          print("Rendered UI version:", pkg.__version__)
+          PY
+      - name: Build Intel DMG
+        env:
+          U1FA_ARCH: x86_64
+        run: packaging/macos/build_dmg.sh
+      - name: Verify bundle version
+        run: |
+          APP="dist/U1 Filament Automation.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" = "1.8.3"
+          test -f "dist/U1-Filament-Automation-v1.8.3-macOS-x86_64.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: U1FA-1.8.3-macOS-x86_64-version-fix
+          path: dist/U1-Filament-Automation-v1.8.3-macOS-x86_64.dmg
+          if-no-files-found: error
