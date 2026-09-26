@@ -232,6 +232,9 @@ class CalibrationSelection:
     manufacturer_max_speed: float | None = None
     limiting_source: str = ""
     weak_signal_warning: bool = False
+    pa_k_min: float | None = None
+    pa_k_max: float | None = None
+    pa_k_source: str = ""
 
     @property
     def commands(self) -> tuple[str, str]:
@@ -239,6 +242,8 @@ class CalibrationSelection:
             self.physical_slot,
             self.temperature,
             self.envelope,
+            self.pa_k_min,
+            self.pa_k_max,
         )
 
 
@@ -304,6 +309,26 @@ def validate_temperature(value: int) -> int:
     return value
 
 
+def _material_pa_k_range(
+    material: str,
+) -> tuple[float | None, float | None, str]:
+    """Return the validated 0.4 mm K sweep override for soft 2.0 materials.
+
+    The stock U1 2.0.0.205 filament table uses a much wider Dynamic Flow
+    Calibration range for generic TPU and PEBA than the U1FA PLA/PETG default.
+    Keeping the override material-specific avoids applying the old 0.005-0.040
+    sweep to flexible profiles where the stock K is far above that range.
+    """
+    normalized = material.strip().upper().replace("-", " ")
+    if normalized.startswith("TPU") or normalized.startswith("PEBA"):
+        return (
+            0.15,
+            0.45,
+            "Snapmaker U1 2.0.0.205 · ugello 0.4 mm",
+        )
+    return None, None, ""
+
+
 def _moonraker_retry_delay(failure_number: int, poll_interval: float) -> float:
     """Backoff breve e limitato per errori transitori di Moonraker."""
     exponent = max(0, min(failure_number - 1, 4))
@@ -329,6 +354,8 @@ def build_calibration_commands(
     physical_slot: int,
     temperature: int,
     envelope: Envelope = VALIDATED_U1_ENVELOPE,
+    pa_k_min: float | None = None,
+    pa_k_max: float | None = None,
 ) -> tuple[str, str]:
     extruder = physical_to_internal(physical_slot)
     temperature = validate_temperature(temperature)
@@ -352,8 +379,15 @@ def build_calibration_commands(
         f"MID_ACCEL={envelope.mid_accel} "
         f"HIGH_ACCEL={envelope.high_accel}"
     )
+    if (pa_k_min is None) != (pa_k_max is None):
+        raise GUIError("Intervallo K incompleto: comando bloccato")
+    k_range = ""
+    if pa_k_min is not None and pa_k_max is not None:
+        if not (0 <= pa_k_min < pa_k_max <= 1.0):
+            raise GUIError("Intervallo K non valido: comando bloccato")
+        k_range = f" MIN={pa_k_min:g} MAX={pa_k_max:g}"
     run_command = (
-        f"APA_COIL_RUN_ULTRA EXTRUDER={extruder} TEMP={temperature}"
+        f"APA_COIL_RUN_ULTRA EXTRUDER={extruder} TEMP={temperature}{k_range}"
     )
     return envelope_command, run_command
 
@@ -1037,6 +1071,7 @@ class CalibrationController:
         if self.real_orca_dir is None:
             raise GUIError("Cartella reale di Snapmaker Orca non configurata")
         profile_path = find_profile_path(self.real_orca_dir, matches[0].profile_name)
+        pa_k_min, pa_k_max, pa_k_source = _material_pa_k_range(matches[0].material)
         if envelope_mode not in {"auto", "manual"}:
             raise GUIError("Modalità envelope non valida")
 
@@ -1044,7 +1079,13 @@ class CalibrationController:
             if manual_envelope is None:
                 raise GUIError("Inserire tutti i valori dell'envelope manuale")
             # Reuse the final command validator before showing any confirmation.
-            build_calibration_commands(physical_slot, temperature, manual_envelope)
+            build_calibration_commands(
+                physical_slot,
+                temperature,
+                manual_envelope,
+                pa_k_min,
+                pa_k_max,
+            )
             envelope = manual_envelope
             resolved_value = None
             resolved_source = ""
@@ -1103,6 +1144,9 @@ class CalibrationController:
             manufacturer_max_speed=manufacturer_max_speed,
             limiting_source=limiting_source,
             weak_signal_warning=weak_signal_warning,
+            pa_k_min=pa_k_min,
+            pa_k_max=pa_k_max,
+            pa_k_source=pa_k_source,
         )
 
     def snapshot(self) -> JobSnapshot:
@@ -1818,6 +1862,11 @@ def _batch_preview(
             + f"{_tr(language, 'Slot fisico', 'Physical slot')} {selection.physical_slot} → "
             + f"EXTRUDER={selection.internal_extruder}; {selection.temperature} °C<br>"
             + f"LOW/MID/HIGH {envelope.low_speed}/{envelope.mid_speed}/{envelope.high_speed} mm/s"
+            + (
+                f"<br>K {selection.pa_k_min:g}–{selection.pa_k_max:g}"
+                if selection.pa_k_min is not None and selection.pa_k_max is not None
+                else ""
+            )
             + "</li>"
         )
         hidden.extend([
@@ -2237,6 +2286,18 @@ def _preview(
 <strong>{_tr(language, 'Limite determinante', 'Limiting factor')}:</strong> {html.escape(limiting_labels.get(selection.limiting_source, selection.limiting_source))}</p>"""
     else:
         envelope_details = f"<p><strong>{_tr(language, 'Modalità envelope', 'Envelope mode')}:</strong> {_tr(language, 'manuale avanzata', 'advanced manual')}</p>"
+    k_range_details = ""
+    if selection.pa_k_min is not None and selection.pa_k_max is not None:
+        k_range_details = (
+            f"<p><strong>{_tr(language, 'Intervallo K calibrazione', 'Calibration K range')}:</strong> "
+            f"{selection.pa_k_min:g}–{selection.pa_k_max:g}"
+            + (
+                f' <span class="muted">({html.escape(selection.pa_k_source)})</span>'
+                if selection.pa_k_source
+                else ""
+            )
+            + "</p>"
+        )
     weak_warning = ""
     if selection.weak_signal_warning:
         weak_warning = f"""<p class="warn"><strong>{_tr(language, 'Avviso segnale:', 'Signal warning:')}</strong> {_tr(language, 'il limite scelto mantiene HIGH sotto 100 mm/s. È più prudente per il filamento, ma il segnale di calibrazione può essere debole; l’app non deve salvare risultati incompleti.', 'the selected limit keeps HIGH below 100 mm/s. This is more conservative for the filament, but the calibration signal may be weak; the app must not save incomplete results.')}</p>"""
@@ -2249,6 +2310,7 @@ def _preview(
 <p><strong>{_tr(language, 'Estrusore', 'Extruder')}:</strong> {_tr(language, 'slot fisico', 'physical slot')} {selection.physical_slot} → <strong>EXTRUDER={selection.internal_extruder}</strong></p>
 <p><strong>{_tr(language, 'Temperatura', 'Temperature')}:</strong> {selection.temperature} °C</p>
 {envelope_details}
+{k_range_details}
 <p><strong>Envelope:</strong> {envelope.low_speed} / {envelope.mid_speed} / {envelope.high_speed} mm/s — {envelope.low_accel} / {envelope.mid_accel} / {envelope.high_accel} mm/s²<br>
 <strong>{_tr(language, 'Flussi di prova', 'Test flows')}:</strong> {flows[0]:.2f} / {flows[1]:.2f} / {flows[2]:.2f} mm³/s</p>
 <pre>{html.escape(envelope_command)}\n{html.escape(run_command)}</pre>
