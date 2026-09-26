@@ -71,6 +71,8 @@ chmod +x U1-Filament-Automation-*-Linux-x86_64.AppImage
 
 ## Come funziona
 
+> **IMPORTANTE — Snapmaker Orca 2.4:** non vedrai più il pulsante/interruttore grafico di **Adaptive Pressure Advance** nello slicer. Snapmaker lo ha nascosto dall'interfaccia, ma la funzione resta nel motore di slicing. Dopo la calibrazione U1FA scrive direttamente nel profilo filamento `adaptive_pressure_advance = 1` e il modello Adaptive PA calibrato. Quindi **Adaptive PA può essere attiva e funzionare anche se nello slicer non compare alcun toggle dedicato**. La validazione su U1 reale ha confermato valori `pressure_advance` dinamici durante la stampa.
+
 1. Inserisci o seleziona la bobina fisica in U1FA.
 2. U1FA crea o riutilizza vendor e filamento in Spoolman, quindi crea la bobina.
 3. Crea il relativo profilo utente Snapmaker Orca soltanto se serve. I profili esatti già esistenti vengono riutilizzati; anche un singolo profilo legacy equivalente riconosciuto in sicurezza può essere riutilizzato.
