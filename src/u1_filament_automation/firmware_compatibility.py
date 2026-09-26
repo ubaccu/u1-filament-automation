@@ -28,6 +28,7 @@ MACRO_205_TESTED_SHA256 = MACRO_205_SHA256
 FULLVERSION_205 = '2.0.0.205_20260914173503'
 PAXX_152_V21_BUILD = '1.5.2-paxx12-21-2a8893'
 PAXX_152_V21_PRINT_TASK_CONFIG = '83c9a6614e4b6ff8d39c60b5cd9d458479126df0e6f687c95def9193141f539a'
+ADAPTIVE_205_PRINT_TASK_CONFIG = '3770801d859dcc33cd12eaf5bff775973df46d79cd70622e26b46bd029714d4a'
 DEPENDENCIES_152 = {
     'filament_parameters.py': 'd353a6d055155448b16cb4b16f19768ee86166c9aeb706dac7be06a1dcbc3770',
     'machine_state_manager.py': 'aadb9762606480a5fd9985634c22d8434c8a295dec2a133d87068fa0bb22c2f0',
@@ -38,6 +39,18 @@ DEPENDENCIES_205 = {
     'machine_state_manager.py': '8e63a052b2e0ba02d111e59658d4a0af237ec9851817687cd6424ded667f7ccc',
     'print_task_config.py': 'c3f90b20f2bb64fd363ed13df5464920477f87d092f115b80683e304089643f4',
 }
+PRINT_TASK_CONFIG_205_HASHES = frozenset({
+    DEPENDENCIES_205['print_task_config.py'],
+    ADAPTIVE_205_PRINT_TASK_CONFIG,
+})
+
+
+def _matches_205_dependencies(hashes: dict[str, str]) -> bool:
+    return (
+        hashes.get('filament_parameters.py') == DEPENDENCIES_205['filament_parameters.py']
+        and hashes.get('machine_state_manager.py') == DEPENDENCIES_205['machine_state_manager.py']
+        and hashes.get('print_task_config.py') in PRINT_TASK_CONFIG_205_HASHES
+    )
 
 
 @dataclass(frozen=True)
@@ -122,7 +135,7 @@ def inspect_firmware(target) -> FirmwareCompatibility:
             install = True
             calibration = calibrator == LEGACY_V6 and hashes.get('adaptive_pa_macro.cfg') == MACRO_SHA256
     elif version == '2.0.0' and full == FULLVERSION_205:
-        if all(hashes.get(k) == v for k, v in DEPENDENCIES_205.items()):
+        if _matches_205_dependencies(hashes):
             if calibrator == STOCK_205:
                 state = 'stock-205-compatible'
                 message = ('Firmware 2.0.0.205 originale riconosciuto; installazione AutoPA '
@@ -150,9 +163,15 @@ def inspect_firmware(target) -> FirmwareCompatibility:
                 )
             for name, expected in DEPENDENCIES_205.items():
                 actual = hashes.get(name)
-                if actual != expected:
+                accepted = (
+                    PRINT_TASK_CONFIG_205_HASHES
+                    if name == 'print_task_config.py'
+                    else frozenset({expected})
+                )
+                if actual not in accepted:
+                    expected_text = "|".join(sorted(accepted))
                     details.append(
-                        f"{name} trovato={actual or '<mancante>'} atteso={expected}"
+                        f"{name} trovato={actual or '<mancante>'} atteso={expected_text}"
                     )
             if calibrator not in {
                 STOCK_205,
