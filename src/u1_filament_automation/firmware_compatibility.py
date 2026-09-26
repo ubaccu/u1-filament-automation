@@ -141,6 +141,45 @@ def inspect_firmware(target) -> FirmwareCompatibility:
                 state = 'legacy-v6-on-new-firmware-blocked'
                 message = ('Vecchio AutoPA v6 su firmware nuovo: incompatibile / '
                            'Old AutoPA v6 on new firmware: incompatible.')
+    if state == 'unknown-blocked':
+        details = []
+        if version == '2.0.0':
+            if full != FULLVERSION_205:
+                details.append(
+                    f"FULLVERSION trovato={full or '<vuoto>'} atteso={FULLVERSION_205}"
+                )
+            for name, expected in DEPENDENCIES_205.items():
+                actual = hashes.get(name)
+                if actual != expected:
+                    details.append(
+                        f"{name} trovato={actual or '<mancante>'} atteso={expected}"
+                    )
+            if calibrator not in {
+                STOCK_205,
+                CANDIDATE_205,
+                TESTED_205,
+                LEGACY_V6,
+            }:
+                details.append(
+                    f"flow_calibrator.py trovato={calibrator or '<mancante>'}"
+                )
+        elif version == '1.5.2':
+            details.append(
+                "baseline 1.5.2/PAXX non corrisponde agli hash convalidati"
+            )
+            if build:
+                details.append(f"BUILD_VERSION={build}")
+        else:
+            details.append(
+                f"VERSION trovato={version or '<vuoto>'} FULLVERSION={full or '<vuoto>'}"
+            )
+        if missing:
+            details.append("file mancanti=" + ", ".join(missing))
+        message = (
+            "Firmware/componenti non convalidati: "
+            + "; ".join(details)
+            + " / Firmware or components not validated."
+        )
     return FirmwareCompatibility(version, full, build, state, message, hashes, tuple(missing), install, calibration)
 
 
