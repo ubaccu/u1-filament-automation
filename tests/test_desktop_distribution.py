@@ -114,8 +114,12 @@ class DesktopDistributionTests(unittest.TestCase):
         self.assertIn("U1FA_DESKTOP_SELFTEST", windows_source)
         self.assertIn("Inno Setup", windows_script.read_text(encoding="utf-8"))
         self.assertIn("appimagetool", linux_source)
+        self.assertIn("adaptive_pa_macro.cfg", macos_source)
         self.assertIn("adaptive_pa_macro.cfg", windows_source)
         self.assertIn("adaptive_pa_macro.cfg", linux_source)
+        self.assertIn("adaptive_pa_macro_205.cfg", macos_source)
+        self.assertIn("adaptive_pa_macro_205.cfg", windows_source)
+        self.assertIn("adaptive_pa_macro_205.cfg", linux_source)
         for source in (macos_source, windows_source, linux_source):
             self.assertIn("collect-data", source)
             self.assertIn("certifi", source)
