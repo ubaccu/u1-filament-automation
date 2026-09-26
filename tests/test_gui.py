@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -26,6 +27,7 @@ from u1_filament_automation.gui import (
     _status,
     _standard_orca_page,
     _shutdown_page,
+    _spool_created,
     _updates_page,
     build_calibration_commands,
     physical_to_internal,
@@ -272,6 +274,31 @@ class GUISafetyTests(unittest.TestCase):
         self.assertIn('name="temperature_2" value="240"', page)
         self.assertIn("≈ 20 min", page)
         self.assertIn("una bobina alla volta", page)
+
+    def test_spool_created_offers_single_or_deferred_multi_spool_choices(self):
+        receipt = SimpleNamespace(
+            result=SimpleNamespace(
+                plan=SimpleNamespace(
+                    request=SimpleNamespace(nozzle_temperature=220),
+                    profile_name="DEEPLEE PLA BLACK @Snapmaker U1 (0.4 nozzle)",
+                ),
+                vendor_id=1,
+                filament_id=2,
+                spool_id=3,
+                vendor_created=True,
+                filament_created=True,
+            ),
+            real_profile_path=Path("/tmp/profile.json"),
+        )
+        italian = _spool_created(receipt, "safe-token", language="it")
+        english = _spool_created(receipt, "safe-token", language="en")
+
+        self.assertIn("Calibra questa bobina ora", italian)
+        self.assertIn("Crea un’altra bobina / calibra più bobine dopo", italian)
+        self.assertIn('href="/new-spool"', italian)
+        self.assertIn("Calibra 2–4 bobine in sequenza", italian)
+        self.assertIn("Calibrate this spool now", english)
+        self.assertIn("Create another spool / calibrate multiple spools later", english)
 
     def test_standard_orca_card_is_only_added_when_standard_orca_is_detected(self):
         with tempfile.TemporaryDirectory() as temporary:
