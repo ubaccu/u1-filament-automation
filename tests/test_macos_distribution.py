@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from u1_filament_automation import __version__
 from u1_filament_automation.desktop_app import APP_URL, main
 from u1_filament_automation.macos_app import application_support_dir, log_path
 
@@ -27,15 +28,34 @@ class MacOSDistributionTests(unittest.TestCase):
             home / "Library" / "Logs" / "U1 Filament Automation" / "app.log",
         )
 
-    def test_existing_instance_is_reopened_without_starting_another_server(self):
+    def test_existing_same_version_instance_is_reopened_without_starting_another_server(self):
         with (
-            patch("u1_filament_automation.desktop_app.server_is_running", return_value=True),
+            patch(
+                "u1_filament_automation.desktop_app.running_server_version",
+                return_value=__version__,
+            ),
             patch("u1_filament_automation.desktop_app.show_native_window") as window,
             patch("u1_filament_automation.desktop_app.start_desktop_runtime") as runtime,
         ):
             self.assertEqual(main(), 0)
         window.assert_called_once_with(APP_URL)
         runtime.assert_not_called()
+
+    def test_existing_older_instance_is_not_silently_reopened(self):
+        with (
+            patch(
+                "u1_filament_automation.desktop_app.running_server_version",
+                return_value="1.8.2",
+            ),
+            patch("u1_filament_automation.desktop_app.show_native_window") as window,
+            patch("u1_filament_automation.desktop_app.show_error") as error,
+            patch("u1_filament_automation.desktop_app.start_desktop_runtime") as runtime,
+        ):
+            self.assertEqual(main(), 2)
+        window.assert_not_called()
+        runtime.assert_not_called()
+        self.assertIn("1.8.2", error.call_args.args[0])
+        self.assertIn(__version__, error.call_args.args[0])
 
     def test_builder_creates_windowed_self_contained_dmg(self):
         bash = shutil.which("bash")
