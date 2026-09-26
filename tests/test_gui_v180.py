@@ -97,6 +97,8 @@ class FinalPreviewTests(unittest.TestCase):
 
         self.assertIn(f"v{__version__}", sidebar)
         self.assertIn(f"U1FA {__version__}", hero)
+        self.assertIn("Snapmaker Orca", hero)
+        self.assertIn("Orca Slicer", hero)
         if __version__ != "1.8.2":
             self.assertNotIn(">v1.8.2<", sidebar)
             self.assertNotIn("U1FA 1.8.2</div>", hero)
