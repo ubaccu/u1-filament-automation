@@ -17,6 +17,9 @@ U1FA 1.8.3 mantiene la grafica e il flusso principale della 1.8.2, aggiungendo c
 - dopo la creazione di una bobina la schermata finale distingue chiaramente tra **Calibra questa bobina ora** e **Crea un'altra bobina / calibra più bobine dopo**, così il percorso multi-bobina non richiede di avviare calibrazioni singole intermedie;
 - Snapmaker Orca resta lo slicer principale;
 - Orca Slicer standard può essere rilevato separatamente e, solo dopo opt-in esplicito, ricevere un mirror protetto dei profili U1FA; la Home mostra ora anche un badge **Orca Slicer** per rendere visibile questa compatibilità;
+- aggiunti i profili filamento U1 0,4 mm di Snapmaker Orca 2.4.0 per **TPU**, **PEBA 90A** e **PLA Rainbow**, usando le basi ufficiali Snapmaker e i relativi valori iniziali di temperatura/densità;
+- per TPU e PEBA la calibrazione Adaptive PA passa automaticamente l'intervallo K **0,15–0,45**, coerente con `filament_parameters.py` del firmware 2.0.0.205; PLA Rainbow mantiene **0,005–0,040**;
+- U1FA 1.8.3 resta focalizzata sui profili filamento U1 **0,4 mm**: i nuovi preset 2.4.0 esclusivi 0,2/0,6/0,8 mm non vengono dichiarati supportati e i preset processo/stampa non richiedono un proprio write-back PA;
 - profili Orca Slicer esterni o modificati manualmente non vengono sovrascritti: i target gestiti sono tracciati tramite SHA-256, con backup prima degli aggiornamenti;
 - la modalità singola e la modalità manuale avanzata restano disponibili;
 - Fast Max Flow automatico resta escluso;
@@ -42,6 +45,9 @@ U1FA 1.8.3 keeps the 1.8.2 visual layout and main workflow while adding broader 
 - after creating a spool, the completion screen now clearly separates **Calibrate this spool now** from **Create another spool / calibrate multiple spools later**, so the multi-spool workflow does not require intermediate single calibrations;
 - Snapmaker Orca remains the primary slicer;
 - standard Orca Slicer may be detected separately and, only after explicit opt-in, receive a protected mirror of U1FA profiles; the Home hero now also shows an **Orca Slicer** badge to make this compatibility visible;
+- adds the Snapmaker Orca 2.4.0 U1 0.4 mm filament profiles for **TPU**, **PEBA 90A** and **PLA Rainbow**, using the official Snapmaker bases and matching initial temperature/density values;
+- TPU and PEBA Adaptive PA calibration automatically uses K range **0.15–0.45**, matching firmware 2.0.0.205 `filament_parameters.py`; PLA Rainbow keeps **0.005–0.040**;
+- U1FA 1.8.3 remains focused on U1 **0.4 mm** filament profiles: new 2.4.0 presets exclusive to 0.2/0.6/0.8 mm are not claimed as supported, and process/print presets do not require their own PA write-back;
 - foreign or manually modified standard Orca profiles are never overwritten: managed targets are tracked by SHA-256 and backed up before updates;
 - single-spool and advanced manual calibration remain available;
 - automatic Fast Max Flow remains out of scope;
