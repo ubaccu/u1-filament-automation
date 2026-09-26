@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 from unittest.mock import patch
 
 from u1_filament_automation.firmware_compatibility import (
+    ADAPTIVE_205_PRINT_TASK_CONFIG,
     BUILD_VERSION_PATH,
     CANDIDATE_205,
     DEPENDENCIES_152,
@@ -129,6 +130,71 @@ def _paxx_v21_print_task_config() -> bytes:
     return source.encode("utf-8")
 
 
+def _adaptive_205_print_task_config() -> bytes:
+    """Rebuild the reviewed 2.0.0.205 Adaptive-PA print-task variant exactly."""
+    source = (FIXTURES / "firmware_205" / "print_task_config.py").read_text(
+        encoding="utf-8"
+    )
+
+    replacements = (
+        (
+            "        self.gcode = self.printer.lookup_object('gcode')\n",
+            "        self.gcode = self.printer.lookup_object('gcode')\n"
+            "        self._pressure_advance_reset_suppressed_by = set()\n"
+            "        self._force_preference_param_allowed_by = set()\n",
+        ),
+        (
+            '        self.printer.register_event_handler("klippy:ready", self._ready)\n\n'
+            "    def _handle_set_print_preferences(self, web_request):\n",
+            '        self.printer.register_event_handler("klippy:ready", self._ready)\n\n'
+            "    def suppress_pressure_advance_reset(self, owner):\n"
+            "        self._pressure_advance_reset_suppressed_by.add(owner)\n\n"
+            "    def resume_pressure_advance_reset(self, owner):\n"
+            "        self._pressure_advance_reset_suppressed_by.discard(owner)\n\n"
+            "    def allow_force_preference_param(self, owner):\n"
+            "        self._force_preference_param_allowed_by.add(owner)\n\n"
+            "    def disallow_force_preference_param(self, owner):\n"
+            "        self._force_preference_param_allowed_by.discard(owner)\n\n"
+            "    def _force_preference_honoured(self, gcmd):\n"
+            "        return bool(self._force_preference_param_allowed_by) and gcmd.get_int('FORCE', 0) == 1\n\n"
+            "    def _handle_set_print_preferences(self, web_request):\n",
+        ),
+        (
+            '            self.gcode.run_script(f"FLOW_RESET_K EXTRUDER={channel}\\r\\n")\n',
+            '            if self._pressure_advance_reset_suppressed_by:\n'
+            '                logging.info("print_task_config: pressure advance reset skipped, suppressed by %s",\n'
+            '                             sorted(self._pressure_advance_reset_suppressed_by))\n'
+            '            else:\n'
+            '                self.gcode.run_script(f"FLOW_RESET_K EXTRUDER={channel}\\r\\n")\n',
+        ),
+        (
+            '            self.gcode.run_script_from_command(f"FLOW_RESET_K EXTRUDER={config_extruder}\\r\\n")\n',
+            '            if self._pressure_advance_reset_suppressed_by:\n'
+            '                logging.info("print_task_config: pressure advance reset skipped, suppressed by %s",\n'
+            '                             sorted(self._pressure_advance_reset_suppressed_by))\n'
+            '            else:\n'
+            '                self.gcode.run_script_from_command(f"FLOW_RESET_K EXTRUDER={config_extruder}\\r\\n")\n',
+        ),
+        (
+            "        if print_stats is not None and print_stats.state in ['printing', 'paused']:\n",
+            "        if print_stats is not None and print_stats.state in ['printing', 'paused'] and not self._force_preference_honoured(gcmd):\n",
+        ),
+        (
+            '                    self.gcode.run_script_from_command(f"FLOW_RESET_K EXTRUDER={extruder_index}\\r\\n")\n',
+            '                    if self._pressure_advance_reset_suppressed_by:\n'
+            '                        logging.info("print_task_config: pressure advance reset skipped, suppressed by %s",\n'
+            '                                     sorted(self._pressure_advance_reset_suppressed_by))\n'
+            '                    else:\n'
+            '                        self.gcode.run_script_from_command(f"FLOW_RESET_K EXTRUDER={extruder_index}\\r\\n")\n',
+        ),
+    )
+    for before, after in replacements:
+        if source.count(before) != 1:
+            raise AssertionError("Adaptive 2.0 print_task_config fixture patch anchor missing")
+        source = source.replace(before, after, 1)
+    return source.encode("utf-8")
+
+
 def _firmware_files(version: str, full_version: str, calibrator: bytes):
     files = {
         VERSION_PATH: version.encode() + b"\n",
@@ -178,6 +244,46 @@ class FirmwareCompatibilityTests(unittest.TestCase):
         self.assertEqual(require_live_firmware(
             FirmwareFixtureTarget(files), calibration=True
         ), report)
+
+    def test_reviewed_adaptive_print_task_variant_is_accepted_on_205(self):
+        adaptive_print_task = _adaptive_205_print_task_config()
+        self.assertEqual(
+            sha256_bytes(adaptive_print_task),
+            ADAPTIVE_205_PRINT_TASK_CONFIG,
+        )
+        files = _firmware_files(
+            "2.0.0",
+            FULLVERSION_205,
+            bundled_asset("flow_calibrator_205_candidate.py").read_bytes(),
+        )
+        files[EXTRAS / "print_task_config.py"] = adaptive_print_task
+        files[MACRO_PATH] = bundled_asset("adaptive_pa_macro_205.cfg").read_bytes()
+
+        report = inspect_firmware(FirmwareFixtureTarget(files))
+        self.assertEqual(report.state, "candidate-205-installed")
+        self.assertEqual(
+            report.hashes["print_task_config.py"],
+            ADAPTIVE_205_PRINT_TASK_CONFIG,
+        )
+        self.assertTrue(report.live_install_allowed)
+        self.assertTrue(report.live_calibration_allowed)
+        self.assertEqual(
+            require_live_firmware(FirmwareFixtureTarget(files), calibration=True),
+            report,
+        )
+
+    def test_unknown_205_print_task_variant_still_fails_closed(self):
+        files = _firmware_files(
+            "2.0.0",
+            FULLVERSION_205,
+            bundled_asset("flow_calibrator_205_candidate.py").read_bytes(),
+        )
+        files[EXTRAS / "print_task_config.py"] = _adaptive_205_print_task_config() + b"# changed\n"
+        files[MACRO_PATH] = bundled_asset("adaptive_pa_macro_205.cfg").read_bytes()
+        report = inspect_firmware(FirmwareFixtureTarget(files))
+        self.assertEqual(report.state, "unknown-blocked")
+        self.assertFalse(report.live_install_allowed)
+        self.assertFalse(report.live_calibration_allowed)
 
     def test_legacy_v6_on_205_is_incompatible(self):
         report = inspect_firmware(
