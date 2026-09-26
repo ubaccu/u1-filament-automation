@@ -1555,6 +1555,165 @@ class GUISpoolCreationTests(unittest.TestCase):
             self.assertEqual(list(sandbox.glob("*.json")), [])
             self.assertEqual([kind for kind, _ in fake.calls], ["vendor", "filament", "spool"])
 
+    def test_new_spool_is_immediately_available_for_single_calibration(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sandbox = root / "sandbox"
+            real_orca = root / "real-orca"
+            system = root / "system"
+            system.mkdir()
+            (system / "Snapmaker PLA SnapSpeed @U1.json").write_text(
+                json.dumps({
+                    "name": "Snapmaker PLA SnapSpeed @U1",
+                    "filament_max_volumetric_speed": ["20"],
+                }),
+                encoding="utf-8",
+            )
+            fake = _GUIFakeSpoolman()
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                sandbox,
+                system,
+                spoolman_client_factory=lambda: fake,
+                real_orca_dir=real_orca,
+            )
+            request = NewSpoolRequest(
+                vendor="Deeplee",
+                material="PLA",
+                name="PLA PRO RAPID BLUE",
+                color_hex="2563EB",
+                density=1.24,
+                diameter=1.75,
+                filament_weight=1000,
+                empty_spool_weight=220,
+                remaining_weight=1000,
+                nozzle_temperature=220,
+                bed_temperature=60,
+            )
+
+            prepared = controller.prepare_spool_creation(request)
+            receipt = controller.create_prepared_spool(prepared.ticket)
+            profile_name = receipt.result.plan.profile_name
+            selection = controller.selection(profile_name, 1, 220)
+
+        self.assertEqual(selection.profile_name, profile_name)
+        self.assertEqual(selection.physical_slot, 1)
+        self.assertEqual(selection.internal_extruder, 0)
+        self.assertEqual(selection.temperature, 220)
+        self.assertEqual(selection.max_volumetric_speed, 20.0)
+        self.assertTrue(selection.commands[0].startswith("APA_COIL_SET_ENVELOPE "))
+        self.assertEqual(
+            selection.commands[1],
+            "APA_COIL_RUN_ULTRA EXTRUDER=0 TEMP=220",
+        )
+
+    def test_multiple_new_spools_feed_sequential_batch_in_creation_order(self):
+        class FakeStatus:
+            print_state = "standby"
+            idle_state = "Idle"
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sandbox = root / "sandbox"
+            real_orca = root / "real-orca"
+            system = root / "system"
+            system.mkdir()
+            (system / "Snapmaker PLA SnapSpeed @U1.json").write_text(
+                json.dumps({
+                    "name": "Snapmaker PLA SnapSpeed @U1",
+                    "filament_max_volumetric_speed": ["20"],
+                }),
+                encoding="utf-8",
+            )
+            fake = _GUIFakeSpoolman()
+            controller = CalibrationController(
+                "http://printer.test",
+                "http://spoolman.test",
+                sandbox,
+                system,
+                spoolman_client_factory=lambda: fake,
+                real_orca_dir=real_orca,
+            )
+
+            names = []
+            for suffix, color in (
+                ("BLUE", "2563EB"),
+                ("RED", "DC2626"),
+                ("GREEN", "16A34A"),
+            ):
+                request = NewSpoolRequest(
+                    vendor="Deeplee",
+                    material="PLA",
+                    name=f"PLA PRO RAPID {suffix}",
+                    color_hex=color,
+                    density=1.24,
+                    diameter=1.75,
+                    filament_weight=1000,
+                    empty_spool_weight=220,
+                    remaining_weight=1000,
+                    nozzle_temperature=220,
+                    bed_temperature=60,
+                )
+                prepared = controller.prepare_spool_creation(request)
+                receipt = controller.create_prepared_spool(prepared.ticket)
+                names.append(receipt.result.plan.profile_name)
+
+            values = {}
+            for index, profile_name in enumerate(names, start=1):
+                values[f"profile_name_{index}"] = profile_name
+                values[f"physical_slot_{index}"] = str(index)
+                values[f"temperature_{index}"] = "220"
+            values["profile_name_4"] = ""
+            values["physical_slot_4"] = "4"
+            values["temperature_4"] = "220"
+
+            selections = _batch_selections_from_values(controller, values)
+            prepared_names = []
+            executed = []
+
+            def prepare(selection):
+                prepared_names.append(selection.profile_name)
+                return FakeStatus(), []
+
+            def run_job(
+                selection,
+                baseline,
+                started_at=None,
+                *,
+                batch_index=None,
+                batch_total=None,
+            ):
+                executed.append((selection.profile_name, batch_index, batch_total))
+                controller._set_job(
+                    JobSnapshot(
+                        "completed" if batch_index == batch_total else "running",
+                        "test",
+                        selection,
+                        started_at=started_at,
+                    )
+                )
+                return True
+
+            with patch.object(
+                controller, "_prepare_calibration", side_effect=prepare
+            ), patch.object(
+                controller, "_run_job", side_effect=run_job
+            ):
+                controller._run_batch(selections)
+
+        self.assertEqual([item.profile_name for item in selections], names)
+        self.assertEqual(prepared_names, names)
+        self.assertEqual(
+            executed,
+            [
+                (names[0], 1, 3),
+                (names[1], 2, 3),
+                (names[2], 3, 3),
+            ],
+        )
+        self.assertEqual(controller.snapshot().state, "completed")
+
     def test_existing_real_profile_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
