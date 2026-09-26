@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Mapping, TextIO
 from urllib.parse import urlparse
 
+from . import __version__
 from . import gui as gui_module
 from .config import (
     ConfigError,
@@ -88,13 +89,34 @@ def desktop_log_path(
     return root / APP_NAME / "app.log"
 
 
-def server_is_running(url: str = APP_URL) -> bool:
+def running_server_version(url: str = APP_URL) -> str | None:
+    """Return the version of an already-running local U1FA instance.
+
+    None means no U1FA service answered. An empty string means the service
+    is U1FA but its version could not be identified. This keeps a newly
+    installed release from silently reopening an older process still bound to
+    the fixed desktop port.
+    """
     try:
         with urllib.request.urlopen(url, timeout=1.0) as response:
-            body = response.read(8192)
-            return 200 <= response.status < 500 and b"U1 Filament Automation" in body
+            body = response.read(65536)
+            if not (200 <= response.status < 500) or b"U1 Filament Automation" not in body:
+                return None
     except (OSError, urllib.error.URLError, ValueError):
-        return False
+        return None
+
+    page = body.decode("utf-8", errors="ignore")
+    for marker in ('u1fa-side-version">v', 'by Bottega3DLab · v'):
+        if marker not in page:
+            continue
+        value = page.split(marker, 1)[1].split("<", 1)[0].strip()
+        if value:
+            return value
+    return ""
+
+
+def server_is_running(url: str = APP_URL) -> bool:
+    return running_server_version(url) is not None
 
 
 def _write_windows_stdout(data: bytes) -> bool:
@@ -327,9 +349,21 @@ def main() -> int:
         return emit_askpass_password()
     if os.environ.get(DESKTOP_SELFTEST_ENV) == "1":
         return desktop_self_test()
-    if server_is_running():
-        show_native_window(APP_URL)
-        return 0
+    existing_version = running_server_version()
+    if existing_version is not None:
+        if existing_version == __version__:
+            show_native_window(APP_URL)
+            return 0
+        running_label = (
+            f"v{existing_version}" if existing_version else "una versione precedente/sconosciuta"
+        )
+        show_error(
+            f"È già in esecuzione U1FA {running_label}. "
+            f"Chiudi completamente la versione già aperta e riavvia U1FA v{__version__}. "
+            f"/ U1FA {running_label} is already running. "
+            f"Close the existing app completely, then start U1FA v{__version__}."
+        )
+        return 2
 
     output = _open_log()
     original_stdout = sys.stdout
