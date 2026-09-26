@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
+from . import __version__
+
 _STYLE_ID = 'u1fa-final-home-182'
 _SIDEBAR_ID = 'u1fa-sidebar-final-182'
 _HERO_ID = 'u1fa-hero-182'
@@ -81,7 +83,7 @@ def _sidebar(language: str) -> str:
     return (
         f'<aside id=\"{_SIDEBAR_ID}\"><div class=\"u1fa-side-brand\">'
         '<img src=\"/assets/u1fa-logo.png\" alt=\"U1FA\"><strong>U1 Filament Automation</strong>'
-        '<small>by Bottega3DLab</small><span class=\"u1fa-side-version\">v1.8.2</span></div>'
+        '<small>by Bottega3DLab</small><span class=\"u1fa-side-version\">v{__version__}</span></div>'
         '<nav class=\"u1fa-side-nav\">'
         f'<a class=\"active\" href=\"/\">{_svg("home")}<span>{labels[0]}</span></a>'
         f'<a href=\"#u1fa-quick-zone\">{_svg("spool")}<span>{labels[1]}</span></a>'
@@ -103,7 +105,7 @@ def _hero(language: str) -> str:
     )
     return (
         f'<section id=\"{_HERO_ID}\"><div class=\"u1fa-final-hero-copy\">'
-        '<div class=\"u1fa-final-kicker\">BOTTEGA3DLAB · U1FA 1.8.2</div>'
+        f'<div class=\"u1fa-final-kicker\">BOTTEGA3DLAB · U1FA {__version__}</div>'
         '<div class=\"u1fa-final-title\">U1 Filament <span>Automation</span></div>'
         f'<p class=\"u1fa-final-sub\">{subtitle}</p><div class=\"u1fa-final-chips\">'
         '<span class=\"u1fa-final-chip\"><span class=\"u1fa-badge-icon spool\">◎</span>Spoolman</span>'
