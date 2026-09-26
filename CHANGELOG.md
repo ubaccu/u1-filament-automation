@@ -11,6 +11,7 @@
 - Supporto opzionale a Orca Slicer standard tramite mirror protetto con opt-in esplicito, SHA-256 e backup.
 - Aggiornati i mapping filamento per Snapmaker Orca 2.4.0 su U1 0,4 mm: aggiunti TPU, PEBA 90A e PLA Rainbow con le rispettive basi ufficiali.
 - Verificato il comportamento Snapmaker Orca 2.4.0: i controlli Adaptive PA sono stati nascosti intenzionalmente dalla GUI, mentre chiavi di configurazione e logica di slicing restano nel codice. U1FA continua quindi ad abilitarli direttamente nel JSON del profilo e ora lo segnala chiaramente nella GUI.
+- Validazione end-to-end completata su U1 reale con Snapmaker Orca 2.4.0: durante una stampa Fluidd/Klipper ha mostrato valori `pressure_advance` variabili nel tempo (es. `0.015340 → 0.016000 → 0.015000 → 0.010000 → 0.011000`), confermando che il modello Adaptive PA scritto da U1FA viene effettivamente utilizzato in slicing e applicato dalla stampante.
 - TPU e PEBA usano un intervallo Adaptive PA K 0,15–0,45 coerente con la tabella filamenti del firmware U1 2.0.0.205; PLA Rainbow mantiene 0,005–0,040.
 - I preset Orca 2.4.0 disponibili soltanto per ugelli 0,2/0,6/0,8 mm restano fuori dallo scope della 1.8.3; i preset processo/stampa non vengono trattati come profili PA.
 - Aggiunto il badge **Orca Slicer** nella testata della Home per rendere visibile la compatibilità opzionale senza cambiare il ruolo primario di Snapmaker Orca.
