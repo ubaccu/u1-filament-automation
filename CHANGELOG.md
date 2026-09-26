@@ -5,9 +5,11 @@
 - Mantiene invariati grafica, stile e flusso principale della 1.8.2.
 - Supporto separato e fail-closed per Snapmaker U1 1.5.2, PAXX 1.5.2-paxx12-21-2a8893 e firmware 2.0.0.205.
 - Asset firmware 2.0.0.205 byte-per-byte identici ai file validati sulla U1 reale.
+- Convalidata anche la variante Adaptive PA di `print_task_config.py` rilevata sulla U1 reale (SHA-256 `3770801d…`) mantenendo il fail-closed per qualsiasi altro hash.
 - Coda Adaptive PA da 2 a 4 bobine con esecuzione strettamente sequenziale e stop al primo errore.
 - Supporto opzionale a Orca Slicer standard tramite mirror protetto con opt-in esplicito, SHA-256 e backup.
 - Corretto il packaging Windows LF/CRLF degli asset protetti e migliorata la diagnostica SSH.
+- Corretto l'avvio desktop quando resta attiva una vecchia 1.8.2: la 1.8.3 non la riapre più come se fosse la nuova versione.
 - Updater verificato da 1.8.2 stabile a 1.8.3 stabile; le beta restano escluse dal canale stabile.
 - Pacchetti verificati su Windows x64, Linux x86_64, macOS Intel e Apple Silicon; archivio sorgente GPL verificato.
 
