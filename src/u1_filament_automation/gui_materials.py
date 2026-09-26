@@ -147,17 +147,19 @@ def enhance_new_spool_page(page: str, language: str = "it") -> str:
             hint = (
                 "Supported families: PLA, PLA Rapid, PLA Silk, PLA Wood, PLA Translucent, "
                 "PLA-CF, PETG, PETG HF, PETG Translucent, PETG-CF, TPU, PEBA 90A and "
-                "PLA Rainbow. Each choice maps "
-                "to an existing Snapmaker base profile. Temperature, density and the "
-                "other spool values must still follow the manufacturer's specifications."
+                "PLA Rainbow. U1FA 1.8.3 creates U1 0.4 mm filament profiles; TPU, "
+                "PEBA 90A and PLA Rainbow use the official Snapmaker Orca 2.4.0 U1 "
+                "0.4 mm bases. Temperature, density and the other spool values must "
+                "still follow the manufacturer's specifications."
             )
         else:
             hint = (
                 "Famiglie supportate: PLA, PLA Rapid, PLA Silk, PLA Wood, PLA Translucent, "
                 "PLA-CF, PETG, PETG HF, PETG Translucent, PETG-CF, TPU, PEBA 90A e "
-                "PLA Rainbow. Ogni scelta usa un "
-                "profilo base Snapmaker già supportato. Temperatura, densità e gli altri "
-                "dati devono comunque seguire le specifiche della bobina reale."
+                "PLA Rainbow. U1FA 1.8.3 crea profili filamento U1 per ugello 0,4 mm; "
+                "TPU, PEBA 90A e PLA Rainbow usano le basi ufficiali Snapmaker Orca "
+                "2.4.0 per U1 0,4 mm. Temperatura, densità e gli altri dati devono "
+                "comunque seguire le specifiche della bobina reale."
             )
         page = page.replace(
             _FORM_MARKER,
