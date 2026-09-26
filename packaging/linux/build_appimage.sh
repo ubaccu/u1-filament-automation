@@ -45,6 +45,7 @@ python3 -m PyInstaller \
     --add-data "$PROJECT_DIR/src/u1_filament_automation/assets/flow_calibrator_stock_205.py:u1_filament_automation/assets" \
     --add-data "$PROJECT_DIR/src/u1_filament_automation/assets/flow_calibrator_205_candidate.py:u1_filament_automation/assets" \
     --add-data "$PROJECT_DIR/src/u1_filament_automation/assets/adaptive_pa_macro.cfg:u1_filament_automation/assets" \
+    --add-data "$PROJECT_DIR/src/u1_filament_automation/assets/adaptive_pa_macro_205.cfg:u1_filament_automation/assets" \
     "${PRODUCT_IMAGE_ARGS[@]}" \
     --workpath "$PYINSTALLER_WORK" \
     --specpath "$BUILD_ROOT" \
