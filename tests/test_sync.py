@@ -27,6 +27,22 @@ class SyncTests(unittest.TestCase):
             "Snapmaker PETG HF",
         )
         self.assertEqual(
+            choose_base("Snapmaker", "PLA Rainbow", "PLA Rainbow"),
+            "Snapmaker PLA Rainbow @U1 0.4 nozzle",
+        )
+        self.assertEqual(
+            choose_base("Generic", "PLA", "Rainbow multicolor", multicolor=True),
+            "Snapmaker PLA Rainbow @U1 0.4 nozzle",
+        )
+        self.assertEqual(
+            choose_base("Snapmaker", "TPU", "TPU"),
+            "Snapmaker TPU @U1 0.4 nozzle",
+        )
+        self.assertEqual(
+            choose_base("Snapmaker", "PEBA 90A", "PEBA 90A"),
+            "Snapmaker PEBA 90A @U1 0.4 nozzle",
+        )
+        self.assertEqual(
             choose_base("Snapmaker", "PLA", "Silk Sunset Ember"),
             "Snapmaker PLA Silk",
         )
