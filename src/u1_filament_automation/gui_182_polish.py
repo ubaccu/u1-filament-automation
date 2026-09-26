@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any, Callable
+
+from . import __version__
 from urllib.parse import urlsplit
 
 
@@ -144,7 +146,7 @@ def _hero(language: str) -> str:
     return (
         f'<section id="{_HERO_ID}">'
         '<div class="u1fa-hero-copy">'
-        '<div class="u1fa-hero-kicker">BOTTEGA3DLAB · U1FA 1.8.2</div>'
+        f'<div class="u1fa-hero-kicker">BOTTEGA3DLAB · U1FA {__version__}</div>'
         '<div class="u1fa-hero-title">U1 Filament <span>Automation</span></div>'
         f'<p class="u1fa-hero-sub">{subtitle}</p>'
         '<div class="u1fa-hero-chips">'
