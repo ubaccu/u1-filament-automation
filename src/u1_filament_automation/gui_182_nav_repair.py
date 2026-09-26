@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any, Callable
 
+from . import __version__
+
 _FILAMENT_ID = "u1fa-filament-group"
 _STYLE_ID = "u1fa-182-nav-repair"
 
@@ -19,6 +21,16 @@ def _icon() -> str:
 
 
 def repair_sidebar(page: str, language: str = "it") -> str:
+    # This patch is installed last in desktop_app_v180, so it is the final
+    # guard against stale release labels left by older presentation wrappers.
+    page = page.replace(
+        '<span class="u1fa-side-version">v1.8.2</span>',
+        f'<span class="u1fa-side-version">v{__version__}</span>',
+    )
+    page = page.replace(
+        'BOTTEGA3DLAB · U1FA 1.8.2</div>',
+        f'BOTTEGA3DLAB · U1FA {__version__}</div>',
+    )
     combined = "Filaments &amp; PA" if language == "en" else "Filamenti &amp; PA"
     system = "System" if language == "en" else "Sistema"
     if f"<span>{combined}</span>" in page:
