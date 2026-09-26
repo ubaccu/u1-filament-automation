@@ -5,7 +5,7 @@
 ### Spoolman → Snapmaker Orca → Adaptive Pressure Advance
 
 **Companion desktop per Snapmaker U1 by Bottega3DLab**  
-Gestisce bobine reali, genera o riutilizza in sicurezza i profili Orca, guida la calibrazione Adaptive PA e mantiene gli aggiornamenti dell'app separati dal firmware della stampante.
+Gestisce bobine reali, genera o riutilizza in sicurezza i profili Snapmaker Orca, può mantenere un mirror protetto opzionale in Orca Slicer standard, guida la calibrazione Adaptive PA e mantiene gli aggiornamenti dell'app separati dal firmware della stampante.
 
 [![Release](https://img.shields.io/github/v/release/ubaccu/u1-filament-automation?label=release)](https://github.com/ubaccu/u1-filament-automation/releases)
 ![Piattaforme](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-4c8bf5)
@@ -35,6 +35,7 @@ Il repository pubblico è il canale ufficiale per **distribuzione, documentazion
 - **Gestione anti-doppione dei profili** — un profilo esatto già esistente viene riutilizzato; anche un singolo profilo legacy equivalente riconosciuto in modo prudente può essere riutilizzato senza crearne un secondo.
 - **Envelope di calibrazione specifico per filamento** — la modalità automatica legge il flusso volumetrico massimo ereditato da Orca e può applicare limiti produttore più prudenziali.
 - **Workflow Adaptive PA** — calibrazione guidata, recupero risultati, backup profilo e scrittura automatica PA.
+- **Scelta chiara dopo la creazione** — dopo aver creato una bobina puoi calibrarla subito oppure crearne altre e usare successivamente la coda multi-bobina.
 - **Coda sequenziale 2–4 bobine** — prepara più bobine e le calibra rigorosamente una alla volta, salvando ogni profilo prima di passare alla successiva e fermandosi al primo errore.
 - **Orca Slicer standard opzionale** — Snapmaker Orca resta lo slicer principale; se Orca Slicer standard viene rilevato in modo univoco puoi attivare esplicitamente un mirror protetto dei profili U1FA.
 - **Controllo configurazione stampante** — installazione e ripristino di U1FA AutoPA Mod protetti da validazione file, controllo stato stampante e conferme esplicite.
@@ -72,11 +73,11 @@ chmod +x U1-Filament-Automation-*-Linux-x86_64.AppImage
 1. Inserisci o seleziona la bobina fisica in U1FA.
 2. U1FA crea o riutilizza vendor e filamento in Spoolman, quindi crea la bobina.
 3. Crea il relativo profilo utente Snapmaker Orca soltanto se serve. I profili esatti già esistenti vengono riutilizzati; anche un singolo profilo legacy equivalente riconosciuto in sicurezza può essere riutilizzato.
-4. Calcola l'envelope consigliato partendo dal limite di flusso volumetrico ereditato dal profilo.
-5. Ti mostra velocità, flussi e operazioni previste prima della conferma esplicita della calibrazione.
+4. Dopo la creazione scegli se **calibrare subito quella bobina** oppure **crearne altre e calibrare 2–4 bobine in sequenza più tardi**.
+5. U1FA calcola l'envelope consigliato partendo dal limite di flusso volumetrico ereditato dal profilo e mostra velocità, flussi e operazioni previste prima della conferma.
 6. A calibrazione conclusa crea un backup del JSON Orca e scrive i valori PA validati nello stesso profilo.
-7. In alternativa puoi preparare una coda da 2 a 4 bobine: U1FA esegue ogni calibrazione in sequenza e interrompe la coda al primo errore.
-8. Se abiliti volontariamente il mirror Orca Slicer standard, U1FA mantiene una copia protetta dei profili gestiti senza sovrascrivere profili esterni o modificati manualmente.
+7. Nella coda multi-bobina ogni calibrazione termina e salva il proprio profilo prima che inizi la successiva; al primo errore la coda si ferma.
+8. Se abiliti volontariamente il mirror **Orca Slicer standard**, U1FA mantiene una copia protetta dei profili gestiti senza sovrascrivere profili esterni o modificati manualmente. Snapmaker Orca resta lo slicer principale.
 
 Per l'uso normale è consigliata la modalità **Automatico dal profilo filamento**. La modalità manuale avanzata resta disponibile per utenti esperti.
 
