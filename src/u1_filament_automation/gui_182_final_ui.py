@@ -83,7 +83,7 @@ def _sidebar(language: str) -> str:
     return (
         f'<aside id=\"{_SIDEBAR_ID}\"><div class=\"u1fa-side-brand\">'
         '<img src=\"/assets/u1fa-logo.png\" alt=\"U1FA\"><strong>U1 Filament Automation</strong>'
-        '<small>by Bottega3DLab</small><span class=\"u1fa-side-version\">v{__version__}</span></div>'
+        f'<small>by Bottega3DLab</small><span class=\"u1fa-side-version\">v{__version__}</span></div>'
         '<nav class=\"u1fa-side-nav\">'
         f'<a class=\"active\" href=\"/\">{_svg("home")}<span>{labels[0]}</span></a>'
         f'<a href=\"#u1fa-quick-zone\">{_svg("spool")}<span>{labels[1]}</span></a>'
