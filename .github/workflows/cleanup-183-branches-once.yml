@@ -1,0 +1,31 @@
+name: Cleanup obsolete U1FA 1.8.3 branches once
+
+on:
+  push:
+    branches:
+      - release/1.8.3-prep
+    paths:
+      - ".github/workflows/cleanup-183-branches-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Remove superseded beta and feature branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          for branch in             beta/1.8.3b2-fw2-autopa             feature/1.8.3b3-orca-batch-foundation             feature/1.8.3b4-standard-orca-profiles
+          do
+            if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null 2>&1; then
+              git push origin --delete "$branch"
+            fi
+          done
