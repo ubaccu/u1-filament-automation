@@ -9,6 +9,9 @@
 - Coda Adaptive PA da 2 a 4 bobine con esecuzione strettamente sequenziale e stop al primo errore.
 - Dopo la creazione di una bobina la GUI offre ora due percorsi espliciti: calibrare subito quella bobina oppure crearne altre e usare successivamente la coda multi-bobina.
 - Supporto opzionale a Orca Slicer standard tramite mirror protetto con opt-in esplicito, SHA-256 e backup.
+- Aggiornati i mapping filamento per Snapmaker Orca 2.4.0 su U1 0,4 mm: aggiunti TPU, PEBA 90A e PLA Rainbow con le rispettive basi ufficiali.
+- TPU e PEBA usano un intervallo Adaptive PA K 0,15–0,45 coerente con la tabella filamenti del firmware U1 2.0.0.205; PLA Rainbow mantiene 0,005–0,040.
+- I preset Orca 2.4.0 disponibili soltanto per ugelli 0,2/0,6/0,8 mm restano fuori dallo scope della 1.8.3; i preset processo/stampa non vengono trattati come profili PA.
 - Aggiunto il badge **Orca Slicer** nella testata della Home per rendere visibile la compatibilità opzionale senza cambiare il ruolo primario di Snapmaker Orca.
 - Corretto il packaging Windows LF/CRLF degli asset protetti e migliorata la diagnostica SSH.
 - Corretto l'avvio desktop quando resta attiva una vecchia 1.8.2: la 1.8.3 non la riapre più come se fosse la nuova versione.
