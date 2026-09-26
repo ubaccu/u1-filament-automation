@@ -5,7 +5,7 @@
 ### Spoolman → Snapmaker Orca → Adaptive Pressure Advance
 
 **Companion desktop per Snapmaker U1 by Bottega3DLab**  
-Gestisce bobine reali, genera o riutilizza in sicurezza i profili Orca, guida la calibrazione Adaptive PA e mantiene gli aggiornamenti dell'app separati dal firmware della stampante.
+Gestisce bobine reali, genera o riutilizza in sicurezza i profili Snapmaker Orca, può mantenere un mirror protetto opzionale in Orca Slicer standard, guida la calibrazione Adaptive PA e mantiene gli aggiornamenti dell'app separati dal firmware della stampante.
 
 [![Release](https://img.shields.io/github/v/release/ubaccu/u1-filament-automation?label=release)](https://github.com/ubaccu/u1-filament-automation/releases)
 ![Piattaforme](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-4c8bf5)
@@ -26,8 +26,6 @@ U1 Filament Automation è un'applicazione desktop community indipendente per **S
 
 Il repository pubblico è il canale ufficiale per **distribuzione, documentazione e supporto**. Lo sviluppo viene mantenuto separatamente. Le release pubbliche includono installer per le piattaforme supportate, checksum SHA-256 e un archivio sorgente GPL corrispondente alla stessa versione.
 
-> **Compatibilità firmware:** U1FA 1.8.0 e il relativo flusso protetto di configurazione stampante / AutoPA Mod sono stati testati su **firmware Snapmaker U1 1.5**. **Il firmware 1.6.0 non è stato validato per installazione/ripristino dei file stampante in questa release.** Dopo un aggiornamento non dare per scontata la compatibilità: esegui il controllo in sola lettura e fermati se U1FA segnala uno stato sconosciuto o bloccato. Vedi [Compatibilità firmware U1](docs/COMPATIBILITA_FIRMWARE.md).
-
 ## Funzioni principali
 
 - **Workflow Spoolman reale** — crea o riutilizza vendor e filamenti, poi crea bobine reali con colore, peso, tara, temperature, posizione di stoccaggio e lotto.
@@ -37,6 +35,10 @@ Il repository pubblico è il canale ufficiale per **distribuzione, documentazion
 - **Gestione anti-doppione dei profili** — un profilo esatto già esistente viene riutilizzato; anche un singolo profilo legacy equivalente riconosciuto in modo prudente può essere riutilizzato senza crearne un secondo.
 - **Envelope di calibrazione specifico per filamento** — la modalità automatica legge il flusso volumetrico massimo ereditato da Orca e può applicare limiti produttore più prudenziali.
 - **Workflow Adaptive PA** — calibrazione guidata, recupero risultati, backup profilo e scrittura automatica PA.
+- **Compatibilità Snapmaker Orca 2.4** — Snapmaker ha nascosto dalla GUI i controlli Adaptive PA, ma configurazione e logica di slicing restano presenti; U1FA abilita direttamente `adaptive_pressure_advance` e salva il modello calibrato nel profilo filamento.
+- **Scelta chiara dopo la creazione** — dopo aver creato una bobina puoi calibrarla subito oppure crearne altre e usare successivamente la coda multi-bobina.
+- **Coda sequenziale 2–4 bobine** — prepara più bobine e le calibra rigorosamente una alla volta, salvando ogni profilo prima di passare alla successiva e fermandosi al primo errore.
+- **Orca Slicer standard opzionale** — Snapmaker Orca resta lo slicer principale; se Orca Slicer standard viene rilevato in modo univoco puoi attivare esplicitamente un mirror protetto dei profili U1FA.
 - **Controllo configurazione stampante** — installazione e ripristino di U1FA AutoPA Mod protetti da validazione file, controllo stato stampante e conferme esplicite.
 - **Updater integrato** — seleziona il pacchetto corretto per la piattaforma e lo verifica tramite SHA-256. Aggiornare U1FA **non aggiorna il firmware U1**.
 
@@ -69,12 +71,16 @@ chmod +x U1-Filament-Automation-*-Linux-x86_64.AppImage
 
 ## Come funziona
 
+> **IMPORTANTE — Snapmaker Orca 2.4:** non vedrai più il pulsante/interruttore grafico di **Adaptive Pressure Advance** nello slicer. Snapmaker lo ha nascosto dall'interfaccia, ma la funzione resta nel motore di slicing. Dopo la calibrazione U1FA scrive direttamente nel profilo filamento `adaptive_pressure_advance = 1` e il modello Adaptive PA calibrato. Quindi **Adaptive PA può essere attiva e funzionare anche se nello slicer non compare alcun toggle dedicato**. La validazione su U1 reale ha confermato valori `pressure_advance` dinamici durante la stampa.
+
 1. Inserisci o seleziona la bobina fisica in U1FA.
 2. U1FA crea o riutilizza vendor e filamento in Spoolman, quindi crea la bobina.
 3. Crea il relativo profilo utente Snapmaker Orca soltanto se serve. I profili esatti già esistenti vengono riutilizzati; anche un singolo profilo legacy equivalente riconosciuto in sicurezza può essere riutilizzato.
-4. Calcola l'envelope consigliato partendo dal limite di flusso volumetrico ereditato dal profilo.
-5. Ti mostra velocità, flussi e operazioni previste prima della conferma esplicita della calibrazione.
+4. Dopo la creazione scegli se **calibrare subito quella bobina** oppure **crearne altre e calibrare 2–4 bobine in sequenza più tardi**.
+5. U1FA calcola l'envelope consigliato partendo dal limite di flusso volumetrico ereditato dal profilo e mostra velocità, flussi e operazioni previste prima della conferma.
 6. A calibrazione conclusa crea un backup del JSON Orca e scrive i valori PA validati nello stesso profilo.
+7. Nella coda multi-bobina ogni calibrazione termina e salva il proprio profilo prima che inizi la successiva; al primo errore la coda si ferma.
+8. Se abiliti volontariamente il mirror **Orca Slicer standard**, U1FA mantiene una copia protetta dei profili gestiti senza sovrascrivere profili esterni o modificati manualmente. Snapmaker Orca resta lo slicer principale.
 
 Per l'uso normale è consigliata la modalità **Automatico dal profilo filamento**. La modalità manuale avanzata resta disponibile per utenti esperti.
 
@@ -102,7 +108,7 @@ Prima della configurazione protetta abilita dal touchscreen:
 1. **Impostazioni → Manutenzione → Modalità avanzata → Accetto → Abilita**
 2. **Impostazioni → Manutenzione → Accesso Root → Accetto → Apri**
 
-Poi usa **Controlla configurazione stampante** dentro U1FA. L'app può prima rilevare automaticamente in rete locale l'endpoint U1/Moonraker tramite controlli in sola lettura; la configurazione manuale resta disponibile. **Il flusso protetto sui file stampante di U1FA 1.8.0 è validato sul firmware 1.5; il firmware 1.6.0 non è ancora validato.** Dopo ogni aggiornamento firmware U1, esegui nuovamente il controllo prima di calibrare e non forzare un'installazione bloccata.
+Poi usa **Controlla configurazione stampante** dentro U1FA. L'app può prima rilevare automaticamente in rete locale l'endpoint U1/Moonraker tramite controlli in sola lettura; la configurazione manuale resta disponibile. Dopo ogni aggiornamento firmware U1, esegui nuovamente il controllo prima di calibrare.
 
 Guide complete:
 
@@ -113,7 +119,13 @@ Guide complete:
 
 ## Famiglie profilo filamento supportate
 
-U1FA include mapping automatici per le famiglie PLA/PETG supportate da Snapmaker Orca, comprese le varianti standard, rapid/high-speed, silk, wood, translucent e carbon-fibre quando è disponibile un profilo base compatibile.
+U1FA 1.8.3 genera profili filamento per **Snapmaker U1 con ugello 0,4 mm**. Oltre alle famiglie PLA/PETG già supportate (standard, rapid/high-speed, silk, wood, translucent e carbon-fibre), riconosce i profili U1 0,4 mm introdotti in **Snapmaker Orca 2.4.0** per **TPU**, **PEBA 90A** e **PLA Rainbow**.
+
+Per questi profili vengono usate direttamente le basi ufficiali `Snapmaker TPU @U1 0.4 nozzle`, `Snapmaker PEBA 90A @U1 0.4 nozzle` e `Snapmaker PLA Rainbow @U1 0.4 nozzle`. I valori iniziali della schermata nuova bobina seguono i preset Snapmaker 2.4.0; l'envelope Adaptive PA continua invece a essere calcolato dal `filament_max_volumetric_speed` del profilo reale.
+
+Su firmware U1 2.0.0.205, TPU e PEBA usano inoltre l'intervallo K **0,15–0,45** previsto dalla tabella filamenti del firmware, invece dell'intervallo PLA/PETG predefinito 0,005–0,040. PLA Rainbow usa il normale intervallo 0,005–0,040.
+
+I nuovi preset 2.4.0 disponibili soltanto per ugelli 0,2/0,6/0,8 mm non vengono dichiarati supportati dalla 1.8.3. I preset di **processo/stampa** di Orca non richiedono una calibrazione PA separata: U1FA calibra e aggiorna il profilo **filamento**.
 
 Esempi:
 
@@ -121,6 +133,9 @@ Esempi:
 - PLA Rapid / Hyper / High Speed / HS / HF → **Snapmaker PLA SnapSpeed**
 - PLA Silk → **Snapmaker PLA Silk**
 - famiglie PETG → relativo profilo compatibile **Snapmaker PETG**
+- TPU → **Snapmaker TPU @U1 0.4 nozzle**
+- PEBA 90A → **Snapmaker PEBA 90A @U1 0.4 nozzle**
+- PLA Rainbow → **Snapmaker PLA Rainbow @U1 0.4 nozzle**
 
 Il riconoscimento dei profili equivalenti è volutamente prudente. Se U1FA trova più di un profilo equivalente, blocca la scelta automatica invece di indovinare.
 

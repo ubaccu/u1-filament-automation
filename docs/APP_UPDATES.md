@@ -8,6 +8,7 @@ U1FA checks the project's public releases in the background at startup. This che
 
 1. The app reads public releases over HTTPS without using personal credentials.
 2. A stable release considers only stable releases; a beta can receive later betas and stable releases.
+   In practice, users on stable 1.8.2 will not be offered a 1.8.3 beta automatically; the updater will offer 1.8.3 once it is published as a stable release. Users running a 1.8.3 beta may move to a later beta or to the final stable 1.8.3 release.
 3. U1FA selects only the package matching the current operating system and architecture: macOS DMG, Windows installer or Linux AppImage.
 4. Before download, U1FA shows the release version, release notes, package size and SHA-256.
 5. The download is first written to a temporary file and is accepted only when both size and SHA-256 match the published release data.
