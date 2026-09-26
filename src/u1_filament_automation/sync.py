@@ -74,6 +74,15 @@ def choose_base(
         or "hyper" in tokens
     )
 
+    # Snapmaker Orca 2.4.0 added these U1 filament families for the
+    # 0.4 mm nozzle. Keep them ahead of the generic PLA/PETG rules so Rainbow
+    # multicolor spools are not accidentally routed to PLA Silk.
+    if "peba" in normalized:
+        return "Snapmaker PEBA 90A @U1 0.4 nozzle"
+
+    if "tpu" in normalized:
+        return "Snapmaker TPU @U1 0.4 nozzle"
+
     if "petg" in normalized:
         if "cf" in tokens or "carbon fiber" in normalized or "carbon fibre" in normalized:
             return "Snapmaker PETG-CF @U1 0.4 nozzle"
@@ -84,6 +93,8 @@ def choose_base(
         return "Snapmaker PETG @U1"
 
     if "pla" in normalized:
+        if "rainbow" in normalized:
+            return "Snapmaker PLA Rainbow @U1 0.4 nozzle"
         if "cf" in tokens or "carbon fiber" in normalized or "carbon fibre" in normalized:
             return "Snapmaker PLA-CF @U1 0.4 nozzle"
         if "silk" in normalized or (multicolor and not fast):
