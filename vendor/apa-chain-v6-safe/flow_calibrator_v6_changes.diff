@@ -1,0 +1,195 @@
+--- flow_calibrator_U1_ORIGINALE.py
++++ flow_calibrator_CHAIN_v6.py
+@@ -240,6 +240,9 @@
+         self._abort_calibration = False
+         self._abort_reason = None
+ 
++        # APA CHAIN state. Stock behavior remains default unless CHAIN=1.
++        self._apa_chain_active = False
++
+         # register gcode commands
+         self._gcode = self._printer.lookup_object('gcode')
+         self._gcode.register_command('ACCEL_TIME_MEASURE',
+@@ -255,6 +258,10 @@
+                                self.cmd_FLOW_RESET_K)
+         self._gcode.register_command('FLOW_APPLY_CALIBRATE_K',
+                                self.cmd_FLOW_APPLY_CALIBRATE_K)
++        self._gcode.register_command('FLOW_CHAIN_STATUS',
++                               self.cmd_FLOW_CHAIN_STATUS)
++        self._gcode.register_command('FLOW_CHAIN_CLOSE',
++                               self.cmd_FLOW_CHAIN_CLOSE)
+         self._bg_client = None
+         self._motion_report: motion_report.PrinterMotionReport = None
+         self._printer.register_event_handler("klippy:ready", self._handle_ready)
+@@ -517,6 +524,36 @@
+ 
+         self._set_pressure_advance(extruder, self._current_k[extruder.get_name()])
+ 
++    def cmd_FLOW_CHAIN_STATUS(self, gcmd):
++        gcmd.respond_info(
++            "[flow_calibrate] APA CHAIN active: %s" %
++            ("YES" if self._apa_chain_active else "NO"))
++
++    def cmd_FLOW_CHAIN_CLOSE(self, gcmd):
++        """Safely close an APA CHAIN left open between cells."""
++        extruder = self._toolhead.get_extruder()
++        pheaters = self._printer.lookup_object('heaters')
++        machine_state_manager = self._printer.lookup_object('machine_state_manager', None)
++
++        if self._apa_chain_active:
++            gcmd.respond_info("[flow_calibrate] APA CHAIN: manual safe close")
++            # Previous K already performed the standard per-K cleaning.
++            # Perform the stock final calibration cleanup once.
++            self._end_of_calibration(extruder)
++            self._printer.send_event('flow_calibration:end')
++            self._apa_chain_active = False
++
++        self._gcode.run_script_from_command("MOVE_TO_XY_IDLE_POSITION_EXTRUDER")
++        self._toolhead.wait_moves()
++        pheaters.set_temperature(extruder.get_heater(), 0)
++
++        if machine_state_manager is not None:
++            cur_sta = machine_state_manager.get_status()
++            if str(cur_sta["main_state"]) == "PRINTING":
++                self._gcode.run_script_from_command("SET_ACTION_CODE ACTION=IDLE")
++            elif str(cur_sta["main_state"]) == "FLOW_CALIBRATION":
++                self._gcode.run_script_from_command("SET_MAIN_STATE MAIN_STATE=IDLE")
++
+     def cmd_FLOW_RESET_K(self, gcmd):
+         extruder_index = gcmd.get_int("EXTRUDER")
+         self._reset_pressure_advance(extruder_index)
+@@ -538,11 +575,14 @@
+     FASTD   -> extrude distance in fast velocity, default 8mm/s
+     ACCEL   -> acceleration for extruding, default 200mm/s^2
+     LOOP    -> extrude count for one loop, default 14 round
++    CHAIN   -> 1 enables chained APA cells without closing calibration between cells
++    CHAIN_LAST -> 0 intermediate cell, 1 final cell (normal stock final cleanup)
+     """
+     def cmd_FLOW_CALIBRATE(self, gcmd):
+         self._abort_calibration = False
+         self._abort_reason = None
+         machine_state_manager = None
++        chain_continue = False
+ 
+         if self._task_config is None or self._filament_parameters is None:
+             raise gcmd.error("[flow_calibrate] cannot get necessary objects")
+@@ -692,6 +732,8 @@
+         slow_v = gcmd.get_float('SLOWV', flow_slow_v, minval=0)
+         accel = gcmd.get_float('ACCEL', flow_accel, minval=0)
+         loop = gcmd.get_int('LOOP', flow_loop, minval=0)
++        chain_mode = gcmd.get_int('CHAIN', 0, minval=0, maxval=1)
++        chain_last = gcmd.get_int('CHAIN_LAST', 1, minval=0, maxval=1)
+         algorithm = gcmd.get('ALGORITHM', ALGORITHM_TYPE_LINEAR_FITTING)
+         start_vel = gcmd.get_float('STARTV', (fast_v + slow_v) / 2.0, minval=0)
+         k_min = gcmd.get_float('MIN', flow_k_min, minval=0, maxval=1.0)
+@@ -731,6 +773,10 @@
+                         task_config_status['filament_type'][extruder_index],
+                         task_config_status['filament_sub_type'][extruder_index],
+                         str(cali_params)))
++        if chain_mode:
++            gcmd.respond_info(
++                f'[flow_calibrate] APA CHAIN v6: CHAIN=1 CHAIN_LAST={chain_last} '
++                f'ACTIVE_BEFORE={1 if self._apa_chain_active else 0}')
+ 
+         try:
+             self._toolhead.wait_moves()
+@@ -739,8 +785,10 @@
+                 cur_sta = machine_state_manager.get_status()
+                 if str(cur_sta["main_state"]) == "PRINTING":
+                     self._gcode.run_script_from_command("SET_ACTION_CODE ACTION={}_FLOW_CALIBRATING".format(extruder.get_name().upper()))
++                elif not (chain_mode == 1 and self._apa_chain_active):
++                    self._gcode.run_script_from_command("SET_MAIN_STATE MAIN_STATE=FLOW_CALIBRATION ACTION={}_FLOW_CALIBRATING".format(extruder.get_name().upper()))
+                 else:
+-                    self._gcode.run_script_from_command("SET_MAIN_STATE MAIN_STATE=FLOW_CALIBRATION ACTION={}_FLOW_CALIBRATING".format(extruder.get_name().upper()))
++                    gcmd.respond_info("[flow_calibrate] APA CHAIN: continuing existing FLOW_CALIBRATION state")
+ 
+             if not extruder.check_xy_homing():
+                 self._gcode.run_script_from_command("G28 X Y")
+@@ -793,8 +841,17 @@
+                 if not os.path.exists(extruder_dir):
+                     os.makedirs(extruder_dir)
+ 
+-            # notify other objects to start flow calibration
+-            self._printer.send_event('flow_calibration:begin')
++            # Notify other objects once at the beginning of a CHAIN.
++            # Normal non-chain FLOW_CALIBRATE retains the stock begin event.
++            if chain_mode == 1:
++                if not self._apa_chain_active:
++                    self._printer.send_event('flow_calibration:begin')
++                    self._apa_chain_active = True
++                    gcmd.respond_info("[flow_calibrate] APA CHAIN: begin event opened")
++                else:
++                    gcmd.respond_info("[flow_calibrate] APA CHAIN: begin event already open")
++            else:
++                self._printer.send_event('flow_calibration:begin')
+             try:
+                 if algorithm == ALGORITHM_TYPE_DICHOTOMY:
+                     # gcmd.respond_info("Starting flow calibration, algorithm: dichotomy")
+@@ -942,8 +999,20 @@
+                         level = 2)
+ 
+             finally:
+-                # notify other objects to end flow calibration
+-                self._printer.send_event('flow_calibration:end')
++                # Decide continuation BEFORE emitting flow_calibration:end.
++                chain_continue = bool(
++                    chain_mode == 1 and chain_last == 0
++                    and not self._abort_calibration
++                    and measure_success_k is not None)
++
++                # Normal commands, final CHAIN cell, and failures keep stock END.
++                # Valid intermediate cells intentionally leave the event open.
++                if not chain_continue:
++                    self._printer.send_event('flow_calibration:end')
++                    if self._apa_chain_active:
++                        self._apa_chain_active = False
++                        gcmd.respond_info("[flow_calibrate] APA CHAIN: end event closed")
++
+                 virtual_sdcard = self._printer.lookup_object('virtual_sdcard', None)
+                 # measure success
+                 if not self._abort_calibration and measure_success_k != None:
+@@ -958,7 +1027,16 @@
+ 
+                     if print_stats and print_stats.state == 'printing':
+                         self._calibrated_in_printing[extruder.get_name()] = True
+-                    self._end_of_calibration(extruder)
++
++                    if chain_continue:
++                        # _measure_k() already ran the normal per-K cutoff /
++                        # rough nozzle clean / discard operation.
++                        gcmd.respond_info(
++                            "[flow_calibrate] APA CHAIN: intermediate cell complete; "
++                            "per-K cleaning preserved, keeping hotend/calibration active")
++                    else:
++                        # Final CHAIN cell and normal commands keep stock cleanup.
++                        self._end_of_calibration(extruder)
+ 
+                 # measure failure
+                 else:
+@@ -978,12 +1056,22 @@
+ 
+                 self._abort_calibration = False
+                 self._abort_reason = None
+-                self._gcode.run_script_from_command("MOVE_TO_XY_IDLE_POSITION_EXTRUDER")
+-                self._toolhead.wait_moves()
+-                pheaters.set_temperature(extruder.get_heater(), 0)
++
++                if chain_continue:
++                    # Last per-K cleaning leaves the nozzle at Snapmaker's
++                    # cleaning temperature. Command requested temp immediately
++                    # (non-blocking) so the next cell can start reheating.
++                    pheaters.set_temperature(extruder.get_heater(), temperature, False)
++                    gcmd.respond_info(
++                        f"[flow_calibrate] APA CHAIN: target restored to {temperature}C; "
++                        "remaining over discard container")
++                else:
++                    self._gcode.run_script_from_command("MOVE_TO_XY_IDLE_POSITION_EXTRUDER")
++                    self._toolhead.wait_moves()
++                    pheaters.set_temperature(extruder.get_heater(), 0)
+ 
+         finally:
+-            if machine_state_manager is not None:
++            if machine_state_manager is not None and not chain_continue:
+                 cur_sta = machine_state_manager.get_status()
+                 if str(cur_sta["main_state"]) == "PRINTING":
+                     self._gcode.run_script_from_command("SET_ACTION_CODE ACTION=IDLE")

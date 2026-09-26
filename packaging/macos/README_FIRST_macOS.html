@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>U1FA - LEGGIMI PRIMA</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f141b;color:#eef4fb;margin:0;padding:32px;line-height:1.5}main{max-width:760px;margin:auto;background:#171f29;border:1px solid #2d3948;border-radius:18px;padding:28px}h1{margin-top:0;font-size:30px}h2{margin-top:28px}ol{padding-left:24px}li{margin:10px 0}.note{background:#202b38;border-radius:12px;padding:14px;margin-top:20px;color:#cbd7e5}.ok{color:#7ee2a8;font-weight:700}.warn{color:#ffd27a;font-weight:700}</style>
+</head>
+<body>
+<main>
+<h1>U1 Filament Automation - LEGGIMI PRIMA</h1>
+<p>Questa versione di U1FA non è notarizzata da Apple. macOS può quindi bloccare il primo avvio anche se l'app è stata scaricata dalla release ufficiale.</p>
+<h2>Installazione su macOS</h2>
+<ol>
+<li>Trascina <strong>U1 Filament Automation</strong> nella cartella <strong>Applications</strong>.</li>
+<li>Apri <strong>Applications</strong>, fai <strong>clic destro</strong> su U1 Filament Automation e scegli <strong>Apri</strong>.</li>
+<li>Se compare una nuova finestra di conferma, scegli ancora <strong>Apri</strong>.</li>
+<li>Se macOS continua a bloccare l'app, vai in <strong>Impostazioni di Sistema → Privacy e sicurezza</strong>, scorri fino al messaggio relativo a U1 Filament Automation e premi <strong>Apri comunque</strong>. Conferma quando richiesto.</li>
+</ol>
+<p class="note"><span class="warn">Non disattivare Gatekeeper</span> e non usare comandi Terminale per rimuovere le protezioni di macOS. È sufficiente autorizzare questa app con i passaggi sopra.</p>
+<p class="note"><span class="ok">Nota:</span> l'autorizzazione serve normalmente solo al primo avvio della specifica applicazione scaricata.</p>
+<h2>Primo utilizzo e calibrazioni</h2>
+<p class="note"><span class="warn">IMPORTANTE — Snapmaker Orca 2.4:</span> il pulsante grafico di <strong>Adaptive Pressure Advance</strong> non è più visibile nello slicer. Questo <strong>non significa che Adaptive PA sia disattivata</strong>: U1FA abilita la funzione direttamente nel profilo filamento e salva il modello calibrato. La PA dinamica continua quindi a funzionare anche senza un toggle visibile in Snapmaker Orca.</p>
+<ol>
+<li>Prima della prima calibrazione usa <strong>Controlla configurazione stampante</strong> e verifica che U1FA AutoPA Mod risulti pronta.</li>
+<li>Crea la bobina: U1FA crea o riutilizza i dati Spoolman e prepara il relativo profilo Snapmaker Orca.</li>
+<li>Dopo la creazione puoi scegliere <strong>Calibra questa bobina ora</strong> oppure <strong>Crea un'altra bobina / calibra più bobine dopo</strong>.</li>
+<li>Per 2–4 bobine, creale prima tutte e poi dalla Home usa <strong>Calibra 2–4 bobine in sequenza</strong>. U1FA le esegue una alla volta, salvando ogni profilo prima di passare al successivo.</li>
+<li>Se viene rilevato <strong>Orca Slicer standard</strong>, puoi attivare volontariamente un mirror protetto dei profili U1FA. Snapmaker Orca resta lo slicer principale e i profili Orca esterni o modificati manualmente non vengono sovrascritti.</li>
+<li>Con Snapmaker Orca 2.4.0, U1FA 1.8.3 supporta i nuovi profili filamento U1 <strong>0,4 mm</strong> per <strong>TPU, PEBA 90A e PLA Rainbow</strong>. TPU e PEBA usano automaticamente il range K 0,15–0,45 previsto dal firmware U1 2.0.0.205; PLA Rainbow usa il range standard 0,005–0,040.</li>
+<li><strong>Adaptive PA in Snapmaker Orca 2.4:</strong> Snapmaker ha nascosto i relativi controlli nell'interfaccia, ma la funzione resta nel motore di slicing. U1FA abilita direttamente Adaptive PA nel profilo filamento e salva il modello calibrato; al termine della calibrazione lo stato viene mostrato nell'app.</li>
+</ol>
+<p class="note"><span class="warn">Durante la calibrazione</span> lascia U1FA aperta e Snapmaker Orca completamente chiuso; non inviare altri comandi alla U1 da Fluidd o dal display.</p>
+</main>
+</body>
+</html>
