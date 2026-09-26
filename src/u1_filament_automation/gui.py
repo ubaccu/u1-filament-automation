@@ -2189,7 +2189,8 @@ def _spool_created(
 {_tr(language, 'Bobina Spoolman', 'Spoolman spool')} ID <strong>{html.escape(str(result.spool_id))}</strong>: {_tr(language, 'creata', 'created')}</p>
 <p><strong>{_tr(language, 'Profilo Snapmaker Orca', 'Snapmaker Orca profile')}:</strong> {html.escape(result.plan.profile_name)}<br>
 <span class="muted">{html.escape(str(receipt.real_profile_path))}</span></p></div>
-<div class="card"><h2>{_tr(language, 'Procedi con la calibrazione PA', 'Continue with PA calibration')}</h2>
+<div class="card"><h2>{_tr(language, 'Calibra questa bobina ora', 'Calibrate this spool now')}</h2>
+<p class="muted">{_tr(language, 'Se questa è l’unica bobina che vuoi calibrare adesso, scegli slot e temperatura e continua con l’anteprima PA.', 'If this is the only spool you want to calibrate now, choose its slot and temperature and continue to the PA preview.')}</p>
 <form method="post" action="/preview"><input type="hidden" name="token" value="{token}">
 <input type="hidden" name="profile_name" value="{html.escape(result.plan.profile_name, quote=True)}">
 <div class="grid"><div><label>{_tr(language, 'Estrusore fisico', 'Physical extruder')}</label><select name="physical_slot">
@@ -2197,8 +2198,11 @@ def _spool_created(
 <option value="3">3 → {_tr(language, 'interno', 'internal')} 2</option><option value="4">4 → {_tr(language, 'interno', 'internal')} 3</option></select></div>
 <div><label>{_tr(language, 'Temperatura', 'Temperature')} °C</label><input name="temperature" type="number" min="170" max="300" value="{item.nozzle_temperature}" required></div></div>
 {_envelope_controls(language)}
-<p><button type="submit">{_tr(language, 'Controlla e mostra i comandi PA', 'Check and show PA commands')}</button></p></form>
-<p class="muted">{_tr(language, 'La stampante non è stata ancora avviata. Il comando partirà soltanto dopo la successiva conferma.', 'The printer has not been started yet. The command will run only after the next confirmation.')}</p></div>"""
+<p><button type="submit">{_tr(language, 'Calibra questa bobina ora', 'Calibrate this spool now')}</button></p></form>
+<p class="muted">{_tr(language, 'La stampante non è stata ancora avviata. Il comando partirà soltanto dopo la successiva conferma.', 'The printer has not been started yet. The command will run only after the next confirmation.')}</p></div>
+<div class="card"><h2>{_tr(language, 'Vuoi preparare più bobine?', 'Want to prepare more spools?')}</h2>
+<p>{_tr(language, 'Crea prima tutte le bobine che vuoi usare. Quando hai finito, torna alla schermata iniziale e usa “Calibra 2–4 bobine in sequenza”: U1FA le eseguirà una alla volta e salverà ogni profilo prima di passare al successivo.', 'Create all the spools you want to use first. When you are done, return to the home screen and choose “Calibrate 2–4 spools sequentially”: U1FA will run them one at a time and save each profile before moving to the next.')}</p>
+<p><a class="button secondary" href="/new-spool">{_tr(language, 'Crea un’altra bobina / calibra più bobine dopo', 'Create another spool / calibrate multiple spools later')}</a></p></div>"""
     return _page(_tr(language, "Bobina pronta", "Spool ready"), body, language=language)
 
 
