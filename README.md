@@ -35,6 +35,7 @@ The public repository is the official **distribution, documentation and support 
 - **Duplicate-safe profile handling** — an existing exact profile is reused; one conservatively recognized equivalent legacy profile can also be reused without creating a duplicate.
 - **Filament-specific calibration envelope** — automatic mode reads Orca's inherited maximum volumetric speed and can apply stricter manufacturer limits.
 - **Adaptive PA workflow** — guided calibration, automatic result recovery, profile backup and PA write-back.
+- **Snapmaker Orca 2.4 compatibility** — Snapmaker hides the Adaptive PA controls from the GUI, but the configuration keys and slicing logic remain; U1FA enables `adaptive_pressure_advance` directly and stores the calibrated model in the filament profile.
 - **Clear post-creation choice** — after creating a spool, calibrate it immediately or create more spools and use the multi-spool queue later.
 - **Sequential 2–4 spool queue** — prepare multiple spools and calibrate them strictly one at a time, saving each profile before the next starts and stopping at the first error.
 - **Optional standard Orca Slicer mirror** — Snapmaker Orca remains primary; when standard Orca is detected unambiguously you can explicitly enable a protected U1FA profile mirror.
