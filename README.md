@@ -116,7 +116,13 @@ See the full guides:
 
 ## Supported filament profile families
 
-U1FA includes automatic mappings for supported PLA/PETG families used by Snapmaker Orca, including standard, rapid/high-speed, silk, wood, translucent and carbon-fibre variants where a compatible base profile is available.
+U1FA 1.8.3 generates filament profiles for the **Snapmaker U1 with a 0.4 mm nozzle**. In addition to the previously supported PLA/PETG families (standard, rapid/high-speed, silk, wood, translucent and carbon-fibre), it recognizes the U1 0.4 mm profiles introduced in **Snapmaker Orca 2.4.0** for **TPU**, **PEBA 90A** and **PLA Rainbow**.
+
+These use the official `Snapmaker TPU @U1 0.4 nozzle`, `Snapmaker PEBA 90A @U1 0.4 nozzle` and `Snapmaker PLA Rainbow @U1 0.4 nozzle` bases. Initial values in the new-spool screen follow the Snapmaker 2.4.0 presets, while the Adaptive PA envelope is still calculated from the real profile's `filament_max_volumetric_speed`.
+
+On U1 firmware 2.0.0.205, TPU and PEBA also use the firmware filament-table K range **0.15–0.45** instead of the default PLA/PETG range 0.005–0.040. PLA Rainbow keeps the normal 0.005–0.040 range.
+
+New 2.4.0 presets that exist only for 0.2/0.6/0.8 mm nozzles are not claimed as supported by U1FA 1.8.3. Orca **process/print presets** do not require a separate PA calibration: U1FA calibrates and updates the **filament** profile.
 
 Examples:
 
