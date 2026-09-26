@@ -761,7 +761,7 @@ class GUISafetyTests(unittest.TestCase):
     def test_material_selector_offers_pla_silk_with_230_degree_default(self):
         page = _new_spool_form("safe-token")
         self.assertIn('<option value="PLA Silk">PLA Silk</option>', page)
-        self.assertIn("this.value==='PLA Silk'?['1.24','230','60']", page)
+        self.assertIn("v==='PLA Silk'?['1.24','230','60']", page)
 
     def test_selected_pink_hex_is_preserved_for_spoolman(self):
         request = _new_spool_request({
