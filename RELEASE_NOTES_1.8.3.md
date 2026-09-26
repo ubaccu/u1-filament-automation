@@ -14,13 +14,15 @@ U1FA 1.8.3 mantiene la grafica e il flusso principale della 1.8.2, aggiungendo c
 - migliorata la diagnosi SSH quando Root Access risulta attivo ma il servizio SSH rifiuta la connessione;
 - l'app desktop non riapre più silenziosamente un vecchio processo U1FA 1.8.2 rimasto sulla porta locale: una 1.8.3 riusa soltanto un'istanza della stessa versione e segnala esplicitamente una versione precedente;
 - aggiunta una coda da 2 a 4 bobine: le calibrazioni vengono eseguite rigorosamente una alla volta, ogni profilo viene salvato prima di passare al successivo e la coda si ferma al primo errore;
+- dopo la creazione di una bobina la schermata finale distingue chiaramente tra **Calibra questa bobina ora** e **Crea un'altra bobina / calibra più bobine dopo**, così il percorso multi-bobina non richiede di avviare calibrazioni singole intermedie;
 - Snapmaker Orca resta lo slicer principale;
-- Orca Slicer standard può essere rilevato separatamente e, solo dopo opt-in esplicito, ricevere un mirror protetto dei profili U1FA;
+- Orca Slicer standard può essere rilevato separatamente e, solo dopo opt-in esplicito, ricevere un mirror protetto dei profili U1FA; la Home mostra ora anche un badge **Orca Slicer** per rendere visibile questa compatibilità;
 - profili Orca Slicer esterni o modificati manualmente non vengono sovrascritti: i target gestiti sono tracciati tramite SHA-256, con backup prima degli aggiornamenti;
 - la modalità singola e la modalità manuale avanzata restano disponibili;
 - Fast Max Flow automatico resta escluso;
 - updater verificato per il passaggio da 1.8.2 stabile a 1.8.3 stabile: le beta 1.8.3 non vengono proposte automaticamente agli utenti stabili;
 - pacchetti già verificati su Windows x64, Linux x86_64, macOS Intel e macOS Apple Silicon;
+- README GitHub italiano/inglese e guide incluse nel DMG aggiornati al flusso finale 1.8.3.
 - archivio sorgente GPL corrispondente verificato separatamente.
 
 ## English
@@ -37,11 +39,13 @@ U1FA 1.8.3 keeps the 1.8.2 visual layout and main workflow while adding broader 
 - improves SSH diagnostics when Root Access appears enabled but the SSH service still refuses the connection;
 - the desktop app no longer silently reopens an older U1FA 1.8.2 process left on the local port: 1.8.3 reuses only an instance of the same version and explicitly reports an older one;
 - adds a 2-to-4-spool queue: calibrations run strictly one at a time, each profile is saved before the next spool starts, and the queue stops at the first error;
+- after creating a spool, the completion screen now clearly separates **Calibrate this spool now** from **Create another spool / calibrate multiple spools later**, so the multi-spool workflow does not require intermediate single calibrations;
 - Snapmaker Orca remains the primary slicer;
-- standard Orca Slicer may be detected separately and, only after explicit opt-in, receive a protected mirror of U1FA profiles;
+- standard Orca Slicer may be detected separately and, only after explicit opt-in, receive a protected mirror of U1FA profiles; the Home hero now also shows an **Orca Slicer** badge to make this compatibility visible;
 - foreign or manually modified standard Orca profiles are never overwritten: managed targets are tracked by SHA-256 and backed up before updates;
 - single-spool and advanced manual calibration remain available;
 - automatic Fast Max Flow remains out of scope;
 - updater path is verified from stable 1.8.2 to stable 1.8.3: 1.8.3 betas are not offered automatically to stable users;
 - packages have already been validated on Windows x64, Linux x86_64, macOS Intel and macOS Apple Silicon;
+- GitHub README files and the Italian/English guides included in the DMG are updated for the final 1.8.3 workflow.
 - matching GPL source archive validated separately.
