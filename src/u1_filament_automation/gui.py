@@ -1773,7 +1773,7 @@ def _home(
 <div class="card">{error_box}<h2>{_tr(language, '1. Nuova bobina', '1. New spool')}</h2>
 <p>{_tr(language, "Inserisci i dati una volta sola: l'app crea o riusa vendor e filamento in Spoolman, crea la bobina e genera un solo nuovo profilo direttamente in Snapmaker Orca.", "Enter the data once: the app creates or reuses the vendor and filament in Spoolman, creates the spool and generates one new profile directly in Snapmaker Orca.")}</p>
 <p><a class="button danger" href="/new-spool">{_tr(language, 'Aggiungi nuova bobina', 'Add new spool')}</a></p></div>
-<div class="card"><h2>{_tr(language, '2. Calibra una bobina già presente', '2. Calibrate an existing spool')}</h2><p class="muted">{_tr(language, 'Durata indicativa della calibrazione Adaptive PA: circa 10 minuti.', 'Estimated Adaptive PA calibration time: approximately 10 minutes.')}</p><p class="warn"><strong>{_tr(language, 'Durante tutta la calibrazione lascia U1FA aperta e Snapmaker Orca completamente chiuso.', 'Keep U1FA open and Snapmaker Orca completely closed throughout the calibration.')}</strong></p>{calibration_form}<p><a class="button secondary" href="/batch-calibration">{_tr(language, 'Calibra 2–4 bobine in sequenza', 'Calibrate 2–4 spools sequentially')}</a></p></div>
+<div class="card"><h2>{_tr(language, '2. Calibra una bobina già presente', '2. Calibrate an existing spool')}</h2><p class="muted">{_tr(language, 'Durata indicativa della calibrazione Adaptive PA: circa 10 minuti.', 'Estimated Adaptive PA calibration time: approximately 10 minutes.')}</p><p class="muted">{_tr(language, 'Nota Snapmaker Orca 2.4: il comando Adaptive PA non è più mostrato nell’interfaccia di Orca. La funzione resta nel motore di slicing e U1FA la abilita direttamente nel profilo filamento insieme al modello calibrato.', 'Snapmaker Orca 2.4 note: the Adaptive PA control is no longer shown in Orca\'s interface. The feature remains in the slicing engine and U1FA enables it directly in the filament profile together with the calibrated model.')}</p><p class="warn"><strong>{_tr(language, 'Durante tutta la calibrazione lascia U1FA aperta e Snapmaker Orca completamente chiuso.', 'Keep U1FA open and Snapmaker Orca completely closed throughout the calibration.')}</strong></p>{calibration_form}<p><a class="button secondary" href="/batch-calibration">{_tr(language, 'Calibra 2–4 bobine in sequenza', 'Calibrate 2–4 spools sequentially')}</a></p></div>
 <div class="card"><p><strong>{monitor_heading}</strong></p><p class="{monitor_class}">{html.escape(monitor_message)}{monitor_time}</p><p class="muted">{_tr(language, 'Anche le bobine aggiunte manualmente dal sito Spoolman vengono rilevate mentre l’app è aperta. I profili mancanti vengono creati in Orca senza sovrascrivere quelli esistenti; una cancellazione manuale viene rispettata.', 'Spools added manually from the Spoolman website are also detected while the app is open. Missing Orca profiles are created without overwriting existing ones; manual deletion is respected.')}</p></div>
 {standard_orca_box}
 <div class="card"><p><strong>{_tr(language, 'Protezione attiva', 'Active protection')}</strong></p><p class="muted">{_tr(language, "Il pulsante di avvio appare solo dopo l'anteprima. Prima dell'invio vengono verificati stampante inattiva, macro caricate, profilo esatto e mapping dello slot.", 'The start button appears only after the preview. Before sending commands, the app verifies that the printer is idle, the macros are loaded, the exact profile exists and the slot mapping is correct.')}</p></div>"""
@@ -2353,9 +2353,21 @@ def _status(
         )
     report = ""
     if job.report:
+        adaptive_model = str(job.report.get("adaptive_model", "") or "")
+        adaptive_rows = len(
+            [line for line in adaptive_model.splitlines() if line.strip()]
+        )
+        adaptive_line = ""
+        if adaptive_rows:
+            adaptive_line = (
+                f"<br><strong>{_tr(language, 'Adaptive PA', 'Adaptive PA')}:</strong> "
+                f"<span class=\"ok\">{_tr(language, 'ATTIVA nel profilo', 'ACTIVE in profile')}</span> "
+                f"({adaptive_rows} {_tr(language, 'punti modello', 'model points')})"
+                f"<br><span class=\"muted\">{_tr(language, 'Snapmaker Orca 2.4 nasconde i controlli Adaptive PA dalla GUI, ma mantiene configurazione e logica di slicing. U1FA scrive direttamente i campi del profilo.', 'Snapmaker Orca 2.4 hides the Adaptive PA controls from the GUI, but keeps the configuration and slicing logic. U1FA writes the profile fields directly.')}</span>"
+            )
         report = (
-            f"<p class=\"ok\">{_tr(language, 'PA statico', 'Static PA')}: {html.escape(str(job.report.get('static_fallback', '')))}<br>"
-            f"Backup: {html.escape(str(job.report.get('backup_path', '')))}</p>"
+            f"<p class=\"ok\">{_tr(language, 'PA statico', 'Static PA')}: {html.escape(str(job.report.get('static_fallback', '')))}"
+            f"{adaptive_line}<br>Backup: {html.escape(str(job.report.get('backup_path', '')))}</p>"
         )
     message = job.message
     if language == "en":
