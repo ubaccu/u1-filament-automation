@@ -1,9 +1,18 @@
 # Changelog
 
+## 1.8.4 — PAXX first-setup hotfix
+
+- Corretto l'identificatore esatto della build PAXX 12-21: `1.5.2-paxx12-21-2a889322`.
+- Gli hash dei componenti Klipper PAXX già convalidati restano invariati.
+- L'assenza di `adaptive_pa_macro.cfg` prima del primo setup non viene più segnalata come file firmware mancante: la macro viene creata da U1FA durante l'installazione protetta.
+- Migliorata la diagnostica quando il `BUILD_VERSION` PAXX non corrisponde.
+- Nessuna modifica agli asset AutoPA, alla logica Adaptive PA, ai profili Orca o al supporto firmware 2.0.0.205 rispetto alla 1.8.3.
+
+
 ## 1.8.3 — release preparation
 
 - Mantiene invariati grafica, stile e flusso principale della 1.8.2.
-- Supporto separato e fail-closed per Snapmaker U1 1.5.2, PAXX 1.5.2-paxx12-21-2a8893 e firmware 2.0.0.205.
+- Supporto separato e fail-closed per Snapmaker U1 1.5.2, PAXX 1.5.2-paxx12-21-2a88932 e firmware 2.0.0.205.
 - Asset firmware 2.0.0.205 byte-per-byte identici ai file validati sulla U1 reale.
 - Convalidata anche la variante Adaptive PA di `print_task_config.py` rilevata sulla U1 reale (SHA-256 `3770801d…`) mantenendo il fail-closed per qualsiasi altro hash.
 - Coda Adaptive PA da 2 a 4 bobine con esecuzione strettamente sequenziale e stop al primo errore.
@@ -55,7 +64,7 @@
 - Confermata l'acquisizione automatica dei cinque risultati Adaptive PA per il successivo write-back nel profilo Orca.
 - Corretto il packaging Windows: gli asset protetti della stampante restano LF e mantengono lo SHA-256 atteso anche nell'installer Windows.
 - Aggiunto un messaggio diagnostico chiaro quando PAXX/Windows mostra Root Access attivo ma il servizio SSH rifiuta la connessione.
-- Convalidata in modo fail-closed la build PAXX `1.5.2-paxx12-21-2a8893`: viene accettata soltanto con identità build esatta e hash dei componenti Klipper verificati.
+- Convalidata in modo fail-closed la build PAXX `1.5.2-paxx12-21-2a88932`: viene accettata soltanto con identità build esatta e hash dei componenti Klipper verificati.
 - La linea firmware Snapmaker 1.5.2 resta supportata separatamente dalla nuova linea 2.0.0.205.
 
 ## 1.8.3b1 — private compatibility test
