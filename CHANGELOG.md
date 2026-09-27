@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.8.5 — PAXX 12-22 compatibility
+## 2.0.0 — PAXX 12-22 compatibility milestone
 
 - Aggiunto supporto fail-closed per la release stabile PAXX `v1.6.0-paxx12-22`, validata direttamente dal firmware ufficiale pubblicato da PAXX.
 - Identità esatta accettata: `VERSION=1.6.0`, `FULLVERSION=1.6.0.267_20260815150420`, `BUILD_VERSION=1.6.0-paxx12-22-31c5a38`, profilo `extended`.
