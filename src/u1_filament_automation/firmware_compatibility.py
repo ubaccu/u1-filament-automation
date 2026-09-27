@@ -26,7 +26,7 @@ TESTED_205 = CANDIDATE_205
 MACRO_205_SHA256 = 'a1e8ec08e0f07f8cb264b60bc10960e38ae6e40560fd46749e93cd0474f150a7'
 MACRO_205_TESTED_SHA256 = MACRO_205_SHA256
 FULLVERSION_205 = '2.0.0.205_20260914173503'
-PAXX_152_V21_BUILD = '1.5.2-paxx12-21-2a8893'
+PAXX_152_V21_BUILD = '1.5.2-paxx12-21-2a88932'
 PAXX_152_V21_PRINT_TASK_CONFIG = '83c9a6614e4b6ff8d39c60b5cd9d458479126df0e6f687c95def9193141f539a'
 ADAPTIVE_205_PRINT_TASK_CONFIG = '3770801d859dcc33cd12eaf5bff775973df46d79cd70622e26b46bd029714d4a'
 DEPENDENCIES_152 = {
@@ -105,7 +105,13 @@ def inspect_firmware(target) -> FirmwareCompatibility:
         data = read(EXTRAS / name)
         if data is not None:
             hashes[name] = hashlib.sha256(data).hexdigest()
-    data = read(MACRO_PATH)
+    # The Adaptive PA macro is installed by U1FA during first setup. Its
+    # absence before installation is expected and must not be reported as a
+    # missing firmware component.
+    try:
+        data = target.read_path_bytes(MACRO_PATH)
+    except FileNotFoundError:
+        data = None
     if data is not None:
         hashes['adaptive_pa_macro.cfg'] = hashlib.sha256(data).hexdigest()
 
@@ -187,7 +193,7 @@ def inspect_firmware(target) -> FirmwareCompatibility:
                 "baseline 1.5.2/PAXX non corrisponde agli hash convalidati"
             )
             if build:
-                details.append(f"BUILD_VERSION={build}")
+                details.append(f"BUILD_VERSION trovato={build} atteso={PAXX_152_V21_BUILD}")
         else:
             details.append(
                 f"VERSION trovato={version or '<vuoto>'} FULLVERSION={full or '<vuoto>'}"
