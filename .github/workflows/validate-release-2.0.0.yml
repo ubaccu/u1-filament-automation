@@ -1,0 +1,223 @@
+name: Validate U1FA 2.0.0 PAXX 12-22
+
+on:
+  push:
+    branches:
+      - release/2.0.0-paxx12-22
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Verify version and compile U1FA
+        run: |
+          python - <<'PY'
+          import pathlib, tomllib
+          version = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          assert version == "2.0.0", version
+          PY
+          python -m compileall -q src/u1_filament_automation
+          python -m pip install .
+          PYTHONPATH=src python -m unittest tests.test_paxx_184_hotfix
+          python - <<'PY'
+          from u1_filament_automation.update import is_newer_version, select_update
+
+          assert is_newer_version("2.0.0", "1.8.3")
+          assert is_newer_version("2.0.0", "1.8.4")
+          fake_release = [{
+              "draft": False,
+              "prerelease": False,
+              "tag_name": "v2.0.0",
+              "name": "U1 Filament Automation 2.0",
+              "body": "test",
+              "html_url": "https://github.com/ubaccu/u1-filament-automation/releases/tag/v2.0.0",
+              "assets": [{
+                  "name": "U1-Filament-Automation-v2.0.0-macOS-x86_64.dmg",
+                  "browser_download_url": "https://github.com/ubaccu/u1-filament-automation/releases/download/v2.0.0/U1-Filament-Automation-v2.0.0-macOS-x86_64.dmg",
+                  "size": 1,
+                  "digest": "sha256:" + ("0" * 64),
+              }],
+          }]
+          selected = select_update(fake_release, "1.8.3", "stable", "Darwin", "x86_64")
+          assert selected is not None
+          assert selected.version == "2.0.0"
+          print("Direct updater path 1.8.3 -> 2.0.0: PASS")
+          PY
+
+      - name: Install firmware extraction tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools build-essential libssl-dev
+          git clone --depth 1 --branch v1.6.0-paxx12-22             https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware.git paxx-src
+          make -C paxx-src/tools/upfile
+          make -C paxx-src/tools/rk2918_tools
+
+      - name: Download exact official PAXX 12-22 release
+        run: |
+          curl --fail --location --retry 3             -o paxx12-22.bin             https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware/releases/download/v1.6.0-paxx12-22/U1_extended_1.6.0-paxx12-22_upgrade.bin
+          echo "eea907c22847b6f165640f0ae5e835ca42181f7a39b722ff062fd138d47a689c  paxx12-22.bin" | sha256sum -c -
+
+      - name: Extract exact PAXX rootfs
+        run: |
+          set -euo pipefail
+          mkdir -p paxx
+          paxx-src/tools/upfile/upfile unpack paxx12-22.bin paxx
+          cd paxx
+          ../paxx-src/tools/rk2918_tools/img_unpack update.img rk-loader.img rk-rom.img
+          ../paxx-src/tools/rk2918_tools/afptool -unpack rk-rom.img rk-unpacked
+          unsquashfs -no-progress -d rootfs rk-unpacked/rootfs.img
+
+      - name: Validate exact identity, hashes and AutoPA baseline
+        run: |
+          set -euo pipefail
+          ROOT=paxx/rootfs
+          test "$(cat "$ROOT/etc/VERSION")" = "1.6.0"
+          test "$(cat "$ROOT/etc/FULLVERSION")" = "1.6.0.267_20260815150420"
+          test "$(cat "$ROOT/etc/BUILD_VERSION")" = "1.6.0-paxx12-22-31c5a38"
+          test "$(cat "$ROOT/etc/BUILD_PROFILE")" = "extended"
+
+          echo "c8e9576a2ce891877c8bc8b216ca80790b12b89d92a703c3c0a2a4c6e7e4ebfa  $ROOT/home/lava/klipper/klippy/extras/flow_calibrator.py" | sha256sum -c -
+          echo "6d20c3cdb8121e08b04111865efb20b33898b0528cbe32b0c6aa8d2e9e5a232f  $ROOT/home/lava/klipper/klippy/extras/filament_parameters.py" | sha256sum -c -
+          echo "6a45ab5778916b97cc71532df0edb8c33aac3b5721a1f250f0dd67c897ee7183  $ROOT/home/lava/klipper/klippy/extras/machine_state_manager.py" | sha256sum -c -
+          echo "80bed5981e82207bccfe3f50b0713a65f37ec94be83f94691b751a44f66bc501  $ROOT/home/lava/klipper/klippy/extras/print_task_config.py" | sha256sum -c -
+
+          cmp "$ROOT/home/lava/klipper/klippy/extras/flow_calibrator.py"               src/u1_filament_automation/assets/flow_calibrator_stock_205.py
+          grep -F "def get_status" "$ROOT/home/lava/klipper/klippy/extras/machine_state_manager.py"
+          for token in             "MOVE_TO_XY_IDLE_POSITION_EXTRUDER"             "SET_ACTION_CODE ACTION=IDLE"             "SET_MAIN_STATE MAIN_STATE=IDLE"             "lookup_object('heaters')"             "get_extruder()"             "set_temperature(extruder.get_heater(), 0)"; do
+            grep -F "$token" "$ROOT/home/lava/klipper/klippy/extras/flow_calibrator.py"
+          done
+
+          python -m py_compile             "$ROOT/home/lava/klipper/klippy/extras/filament_parameters.py"             "$ROOT/home/lava/klipper/klippy/extras/machine_state_manager.py"             "$ROOT/home/lava/klipper/klippy/extras/print_task_config.py"             src/u1_filament_automation/assets/flow_calibrator_205_candidate.py
+
+          echo "6225503bb6a5aa5bf1680160b590efc0904bf44da01ed8c3eaf84d3ab649a47b  src/u1_filament_automation/assets/flow_calibrator_205_candidate.py" | sha256sum -c -
+          echo "a1e8ec08e0f07f8cb264b60bc10960e38ae6e40560fd46749e93cd0474f150a7  src/u1_filament_automation/assets/adaptive_pa_macro_205.cfg" | sha256sum -c -
+
+      - name: Exercise fail-closed firmware recognition on real extracted files
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import u1_filament_automation.firmware_compatibility as fc
+
+          root = Path("paxx/rootfs")
+
+          class RootTarget:
+              def __init__(self, root, overrides=None):
+                  self.root = root
+                  self.overrides = overrides or {}
+
+              def read_path_bytes(self, path: PurePosixPath) -> bytes:
+                  if path in self.overrides:
+                      value = self.overrides[path]
+                      if value is None:
+                          raise FileNotFoundError(str(path))
+                      return value
+                  local = self.root.joinpath(*path.parts[1:])
+                  return local.read_bytes()
+
+          base = RootTarget(root)
+          report = fc.inspect_firmware(base)
+          assert report.state == "paxx-160-v22-compatible", report
+          assert report.live_install_allowed is True, report
+          assert report.live_calibration_allowed is False, report
+          assert str(fc.MACRO_PATH) not in report.missing, report
+
+          candidate = Path("src/u1_filament_automation/assets/flow_calibrator_205_candidate.py").read_bytes()
+          macro = Path("src/u1_filament_automation/assets/adaptive_pa_macro_205.cfg").read_bytes()
+          installed = RootTarget(root, {
+              fc.EXTRAS / "flow_calibrator.py": candidate,
+              fc.MACRO_PATH: macro,
+          })
+          report2 = fc.inspect_firmware(installed)
+          assert report2.state == "paxx-160-v22-autopa-installed", report2
+          assert report2.live_install_allowed is True, report2
+          assert report2.live_calibration_allowed is True, report2
+
+          wrong_build = RootTarget(root, {
+              fc.BUILD_VERSION_PATH: b"1.6.0-paxx12-22-WRONG\n",
+          })
+          report3 = fc.inspect_firmware(wrong_build)
+          assert report3.state == "unknown-blocked", report3
+          assert report3.live_install_allowed is False, report3
+          assert fc.PAXX_160_V22_BUILD in report3.message, report3.message
+
+          wrong_dep = RootTarget(root, {
+              fc.EXTRAS / "print_task_config.py": b"modified\n",
+          })
+          report4 = fc.inspect_firmware(wrong_dep)
+          assert report4.state == "unknown-blocked", report4
+          assert report4.live_install_allowed is False, report4
+
+          wrong_full = RootTarget(root, {
+              fc.FULLVERSION_PATH: b"1.6.0.999_UNKNOWN\n",
+          })
+          report5 = fc.inspect_firmware(wrong_full)
+          assert report5.state == "unknown-blocked", report5
+          assert report5.live_install_allowed is False, report5
+
+          print("Exact PAXX 12-22 firmware recognition: PASS")
+          print("Installed U1FA AutoPA recognition: PASS")
+          print("Wrong build/hash/fullversion fail-closed tests: PASS")
+          PY
+
+      - name: Sandbox complete protected installation on extracted PAXX
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          import hashlib
+          import shutil
+          import tempfile
+          from pathlib import Path
+          from u1_filament_automation.printer import (
+              LocalPrinterTarget,
+              FLOW_CALIBRATOR_PATH,
+              PRINTER_CFG_PATH,
+              ADAPTIVE_PA_MACRO_PATH,
+              CANDIDATE_205,
+              ADAPTIVE_PA_MACRO_205_SHA256,
+              plan_printer_setup,
+              install_printer_setup,
+          )
+
+          rootfs = Path("paxx/rootfs")
+          with tempfile.TemporaryDirectory() as td:
+              sandbox = Path(td)
+              flow_src = rootfs / "home/lava/klipper/klippy/extras/flow_calibrator.py"
+              flow_dst = sandbox.joinpath(*FLOW_CALIBRATOR_PATH.parts[1:])
+              flow_dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(flow_src, flow_dst)
+
+              cfg_src = rootfs / "home/lava/origin_printer_data/config/printer.cfg"
+              cfg_dst = sandbox.joinpath(*PRINTER_CFG_PATH.parts[1:])
+              cfg_dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(cfg_src, cfg_dst)
+
+              target = LocalPrinterTarget(sandbox)
+              before = plan_printer_setup(target, loaded_by_klipper=False)
+              assert before.calibrator.state == "stock-compatible", before
+              assert before.macro.state == "missing", before
+              assert before.install_calibrator is True, before
+              assert before.create_macro is True, before
+
+              result = install_printer_setup(target, loaded_by_klipper=False)
+              assert result.calibrator.sha256 == CANDIDATE_205, result
+              macro = sandbox.joinpath(*ADAPTIVE_PA_MACRO_PATH.parts[1:])
+              assert hashlib.sha256(macro.read_bytes()).hexdigest() == ADAPTIVE_PA_MACRO_205_SHA256
+              cfg_text = cfg_dst.read_text(encoding="utf-8")
+              assert cfg_text.count("[include adaptive_pa_macro.cfg]") == 1
+
+              again = plan_printer_setup(target, loaded_by_klipper=True)
+              assert again.install_calibrator is False, again
+              assert again.create_macro is False, again
+              assert again.update_printer_cfg is False, again
+
+          print("Complete PAXX 12-22 protected install sandbox: PASS")
+          PY
