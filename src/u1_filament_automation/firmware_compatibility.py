@@ -28,6 +28,13 @@ MACRO_205_TESTED_SHA256 = MACRO_205_SHA256
 FULLVERSION_205 = '2.0.0.205_20260914173503'
 PAXX_152_V21_BUILD = '1.5.2-paxx12-21-2a88932'
 PAXX_152_V21_PRINT_TASK_CONFIG = '83c9a6614e4b6ff8d39c60b5cd9d458479126df0e6f687c95def9193141f539a'
+PAXX_160_V22_FULLVERSION = '1.6.0.267_20260815150420'
+PAXX_160_V22_BUILD = '1.6.0-paxx12-22-31c5a38'
+PAXX_160_V22_DEPENDENCIES = {
+    'filament_parameters.py': '6d20c3cdb8121e08b04111865efb20b33898b0528cbe32b0c6aa8d2e9e5a232f',
+    'machine_state_manager.py': '6a45ab5778916b97cc71532df0edb8c33aac3b5721a1f250f0dd67c897ee7183',
+    'print_task_config.py': '80bed5981e82207bccfe3f50b0713a65f37ec94be83f94691b751a44f66bc501',
+}
 ADAPTIVE_205_PRINT_TASK_CONFIG = '3770801d859dcc33cd12eaf5bff775973df46d79cd70622e26b46bd029714d4a'
 DEPENDENCIES_152 = {
     'filament_parameters.py': 'd353a6d055155448b16cb4b16f19768ee86166c9aeb706dac7be06a1dcbc3770',
@@ -51,6 +58,10 @@ def _matches_205_dependencies(hashes: dict[str, str]) -> bool:
         and hashes.get('machine_state_manager.py') == DEPENDENCIES_205['machine_state_manager.py']
         and hashes.get('print_task_config.py') in PRINT_TASK_CONFIG_205_HASHES
     )
+
+
+def _matches_paxx_160_v22_dependencies(hashes: dict[str, str]) -> bool:
+    return all(hashes.get(name) == expected for name, expected in PAXX_160_V22_DEPENDENCIES.items())
 
 
 @dataclass(frozen=True)
@@ -140,6 +151,36 @@ def inspect_firmware(target) -> FirmwareCompatibility:
                 message = 'Baseline originale 1.5.2 riconosciuta / Original 1.5.2 baseline recognized.'
             install = True
             calibration = calibrator == LEGACY_V6 and hashes.get('adaptive_pa_macro.cfg') == MACRO_SHA256
+    elif (
+        version == '1.6.0'
+        and full == PAXX_160_V22_FULLVERSION
+        and build == PAXX_160_V22_BUILD
+        and _matches_paxx_160_v22_dependencies(hashes)
+    ):
+        if calibrator == STOCK_205:
+            state = 'paxx-160-v22-compatible'
+            message = (
+                'PAXX 1.6.0-paxx12-22 riconosciuto; installazione AutoPA 2.0 '
+                'controllata consentita / PAXX 1.6.0-paxx12-22 recognized; '
+                'guarded AutoPA 2.0 installation allowed.'
+            )
+            install = True
+        elif calibrator in {CANDIDATE_205, TESTED_205}:
+            state = 'paxx-160-v22-autopa-installed'
+            message = (
+                'AutoPA U1FA per PAXX 1.6.0-paxx12-22 riconosciuto / '
+                'U1FA AutoPA for PAXX 1.6.0-paxx12-22 recognized.'
+            )
+            install = True
+            calibration = hashes.get('adaptive_pa_macro.cfg') in {
+                MACRO_205_SHA256, MACRO_205_TESTED_SHA256
+            }
+        elif calibrator == LEGACY_V6:
+            state = 'legacy-v6-on-paxx-v22-blocked'
+            message = (
+                'Vecchio AutoPA v6 su PAXX 12-22: incompatibile / '
+                'Old AutoPA v6 on PAXX 12-22: incompatible.'
+            )
     elif version == '2.0.0' and full == FULLVERSION_205:
         if _matches_205_dependencies(hashes):
             if calibrator == STOCK_205:
@@ -162,7 +203,31 @@ def inspect_firmware(target) -> FirmwareCompatibility:
                            'Old AutoPA v6 on new firmware: incompatible.')
     if state == 'unknown-blocked':
         details = []
-        if version == '2.0.0':
+        if version == '1.6.0':
+            if full != PAXX_160_V22_FULLVERSION:
+                details.append(
+                    f"FULLVERSION trovato={full or '<vuoto>'} atteso={PAXX_160_V22_FULLVERSION}"
+                )
+            if build != PAXX_160_V22_BUILD:
+                details.append(
+                    f"BUILD_VERSION trovato={build or '<vuoto>'} atteso={PAXX_160_V22_BUILD}"
+                )
+            for name, expected in PAXX_160_V22_DEPENDENCIES.items():
+                actual = hashes.get(name)
+                if actual != expected:
+                    details.append(
+                        f"{name} trovato={actual or '<mancante>'} atteso={expected}"
+                    )
+            if calibrator not in {
+                STOCK_205,
+                CANDIDATE_205,
+                TESTED_205,
+                LEGACY_V6,
+            }:
+                details.append(
+                    f"flow_calibrator.py trovato={calibrator or '<mancante>'}"
+                )
+        elif version == '2.0.0':
             if full != FULLVERSION_205:
                 details.append(
                     f"FULLVERSION trovato={full or '<vuoto>'} atteso={FULLVERSION_205}"
