@@ -3,7 +3,7 @@ name: Build and publish U1FA 2.0.0
 on:
   push:
     branches:
-      - main
+      - release/2.0.0-paxx12-22
 
 permissions:
   contents: write
