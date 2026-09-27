@@ -1,8 +1,20 @@
 # Changelog
 
+## 1.8.5 — PAXX 12-22 compatibility
+
+- Aggiunto supporto fail-closed per la release stabile PAXX `v1.6.0-paxx12-22`, validata direttamente dal firmware ufficiale pubblicato da PAXX.
+- Identità esatta accettata: `VERSION=1.6.0`, `FULLVERSION=1.6.0.267_20260815150420`, `BUILD_VERSION=1.6.0-paxx12-22-31c5a38`, profilo `extended`.
+- Convalidati gli SHA-256 reali di `flow_calibrator.py`, `filament_parameters.py`, `machine_state_manager.py` e `print_task_config.py` estratti dal firmware ufficiale PAXX 12-22.
+- Verificato byte-per-byte che il `flow_calibrator.py` stock di PAXX 12-22 è identico al calibratore stock Snapmaker 2.0.0.205 già usato come base del porting AutoPA U1FA.
+- Verificata la superficie API richiesta dal porting AutoPA 2.0 e completata con successo un'installazione U1FA in sandbox sul rootfs PAXX 12-22 estratto.
+- PAXX 12-22 usa quindi il porting AutoPA 2.0 già protetto da SHA-256; qualsiasi build o componente diverso resta bloccato.
+- PAXX 12-21 resta supportato separatamente per gli utenti che lo utilizzano ancora.
+- Nessun supporto generico a build PAXX future: ogni nuova release deve essere acquisita e validata prima di essere autorizzata.
+
+
 ## 1.8.4 — PAXX first-setup hotfix
 
-- Corretto l'identificatore esatto della build PAXX 12-21: `1.5.2-paxx12-21-2a889322`.
+- Corretto l'identificatore esatto della build PAXX 12-21: `1.5.2-paxx12-21-2a88932`.
 - Gli hash dei componenti Klipper PAXX già convalidati restano invariati.
 - L'assenza di `adaptive_pa_macro.cfg` prima del primo setup non viene più segnalata come file firmware mancante: la macro viene creata da U1FA durante l'installazione protetta.
 - Migliorata la diagnostica quando il `BUILD_VERSION` PAXX non corrisponde.
