@@ -27,7 +27,7 @@ jobs:
           assert version == "1.8.5", version
           PY
           python -m compileall -q src/u1_filament_automation
-          python -m unittest tests.test_paxx_184_hotfix
+          PYTHONPATH=src python -m unittest tests.test_paxx_184_hotfix
 
       - name: Install firmware extraction tools
         run: |
