@@ -1,11 +1,11 @@
 # Changelog
 
-## 2.0.1rc1 — Windows packaging + Spoolman HTTPS test build
+## 2.0.1 — Windows setup & Spoolman HTTPS hotfix
 
-- Corretto il packaging Windows degli asset protetti Adaptive PA: gli asset vengono mantenuti/canonicalizzati in LF prima della verifica SHA-256.
-- Aggiunta regressione sull'hash CRLF segnalato da un utente Windows.
-- Il client Spoolman HTTPS usa ora lo stesso trust store di sistema + certifi già usato dall'updater, senza disattivare TLS.
-- Build RC destinata a test reale prima della 2.0.1 stabile.
+- Corretto il problema Windows che poteva convertire gli asset protetti Adaptive PA in CRLF, causando un errore SHA-256 durante il setup della stampante.
+- Corretto l'accesso HTTPS a Spoolman usando il trust store di sistema + certifi, mantenendo attiva la verifica TLS.
+- Aggiunti controlli di regressione e packaging per impedire che gli asset protetti vengano alterati nelle build Windows.
+- Nessuna modifica alla compatibilità firmware, alla logica Adaptive PA o ai profili Orca.
 
 
 ## 2.0.0 — PAXX 12-22 compatibility milestone
