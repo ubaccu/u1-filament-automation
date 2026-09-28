@@ -68,16 +68,29 @@ def bundled_asset(name: str) -> Path:
     return Path(__file__).resolve().parent / "assets" / name
 
 
+def _canonical_asset_bytes(data: bytes) -> bytes:
+    """Canonicalize protected text assets to LF before SHA validation/install.
+
+    Windows checkouts may rewrite LF to CRLF. The protected printer assets are
+    validated against their canonical LF digests, so normalize only CRLF line
+    endings before hashing. Any other byte change still fails closed.
+    """
+    return data.replace(b"\r\n", b"\n")
+
+
 def validated_asset(name: str, expected_sha256: str) -> bytes:
     path = bundled_asset(name)
     try:
-        data = path.read_bytes()
+        raw_data = path.read_bytes()
     except OSError as exc:
         raise PrinterInstallError(f"Asset incorporato non leggibile: {path}") from exc
+    data = _canonical_asset_bytes(raw_data)
     actual = sha256_bytes(data)
     if actual != expected_sha256:
+        raw_actual = sha256_bytes(raw_data)
+        detail = "" if raw_actual == actual else f" (raw {raw_actual})"
         raise PrinterInstallError(
-            f"Asset incorporato non valido: atteso {expected_sha256}, trovato {actual}"
+            f"Asset incorporato non valido: atteso {expected_sha256}, trovato {actual}{detail}"
         )
     return data
 

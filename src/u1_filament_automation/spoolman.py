@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from .models import SpoolmanInventory
+from .update import github_ssl_context
 
 
 class ServiceError(RuntimeError):
@@ -33,7 +34,7 @@ def request_json(
     method: str = "GET",
     payload: dict[str, Any] | None = None,
     timeout: float = 2.0,
-    opener: Callable[..., Any] = urlopen,
+    opener: Callable[..., Any] | None = None,
 ) -> Any:
     data = None
     headers = {
@@ -45,7 +46,15 @@ def request_json(
         headers["Content-Type"] = "application/json"
     request = Request(url, data=data, headers=headers, method=method.upper())
     try:
-        with opener(request, timeout=timeout) as response:
+        if opener is None:
+            response_cm = urlopen(
+                request,
+                timeout=timeout,
+                context=github_ssl_context(),
+            )
+        else:
+            response_cm = opener(request, timeout=timeout)
+        with response_cm as response:
             charset = response.headers.get_content_charset() or "utf-8"
             return json.loads(response.read().decode(charset))
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
@@ -59,7 +68,7 @@ class SpoolmanClient:
         self,
         base_url: str,
         timeout: float = 2.0,
-        opener: Callable[..., Any] = urlopen,
+        opener: Callable[..., Any] | None = None,
     ) -> None:
         self.base_url = normalize_url(base_url)
         self.timeout = timeout

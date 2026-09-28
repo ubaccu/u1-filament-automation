@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.1 — Windows setup & Spoolman HTTPS hotfix
+
+- Corretto il problema Windows che poteva convertire gli asset protetti Adaptive PA in CRLF, causando un errore SHA-256 durante il setup della stampante.
+- Corretto l'accesso HTTPS a Spoolman usando il trust store di sistema + certifi, mantenendo attiva la verifica TLS.
+- Aggiunti controlli di regressione e packaging per impedire che gli asset protetti vengano alterati nelle build Windows.
+- Nessuna modifica alla compatibilità firmware, alla logica Adaptive PA o ai profili Orca.
+
+
 ## 2.0.0 — PAXX 12-22 compatibility milestone
 
 - Aggiunto supporto fail-closed per la release stabile PAXX `v1.6.0-paxx12-22`, validata direttamente dal firmware ufficiale pubblicato da PAXX.
