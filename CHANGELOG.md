@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.1rc1 — Windows packaging + Spoolman HTTPS test build
+
+- Corretto il packaging Windows degli asset protetti Adaptive PA: gli asset vengono mantenuti/canonicalizzati in LF prima della verifica SHA-256.
+- Aggiunta regressione sull'hash CRLF segnalato da un utente Windows.
+- Il client Spoolman HTTPS usa ora lo stesso trust store di sistema + certifi già usato dall'updater, senza disattivare TLS.
+- Build RC destinata a test reale prima della 2.0.1 stabile.
+
+
 ## 2.0.0 — PAXX 12-22 compatibility milestone
 
 - Aggiunto supporto fail-closed per la release stabile PAXX `v1.6.0-paxx12-22`, validata direttamente dal firmware ufficiale pubblicato da PAXX.
