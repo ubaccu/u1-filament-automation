@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: u1fa-2.0.1-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -28,9 +28,11 @@ jobs:
           version = tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
           if version != "2.0.1":
               raise SystemExit(f"Expected 2.0.1, found {version}")
-          from u1_filament_automation import __version__
-          if __version__ != "2.0.1":
-              raise SystemExit(f"Package version mismatch: {__version__}")
+          import re
+          init_text = pathlib.Path("src/u1_filament_automation/__init__.py").read_text()
+          match = re.search(r'__version__\\s*=\\s*"([^"]+)"', init_text)
+          if not match or match.group(1) != "2.0.1":
+              raise SystemExit(f"Package version mismatch: {match.group(1) if match else 'missing'}")
           print("Release version 2.0.1: PASS")
           PY
       - name: Install package
