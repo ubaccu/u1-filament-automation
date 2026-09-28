@@ -48,6 +48,14 @@ class U1FA201HotfixTests(unittest.TestCase):
         self.assertNotIn(b"\r\n", validated)
 
     def test_windows_crlf_macro_205_is_canonicalized_before_hashing(self):
+        canonical = printer._canonical_asset_bytes(
+            printer.bundled_asset("adaptive_pa_macro_205.cfg").read_bytes()
+        )
+        # Exact digest reported by the Windows 2.0.0 package in the field.
+        self.assertEqual(
+            hashlib.sha256(canonical.replace(b"\n", b"\r\n")).hexdigest(),
+            "2eadf1c33c9d1e6adb63a8b2ce02b851950b168fbfb5594ba05a5f9f64383b53",
+        )
         self._check_crlf_asset(
             "adaptive_pa_macro_205.cfg",
             printer.ADAPTIVE_PA_MACRO_205_SHA256,
