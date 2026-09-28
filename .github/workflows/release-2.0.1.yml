@@ -30,7 +30,7 @@ jobs:
               raise SystemExit(f"Expected 2.0.1, found {version}")
           import re
           init_text = pathlib.Path("src/u1_filament_automation/__init__.py").read_text()
-          match = re.search(r'__version__\\s*=\\s*"([^"]+)"', init_text)
+          match = re.search(r'__version__\s*=\s*"([^"]+)"', init_text)
           if not match or match.group(1) != "2.0.1":
               raise SystemExit(f"Package version mismatch: {match.group(1) if match else 'missing'}")
           print("Release version 2.0.1: PASS")
