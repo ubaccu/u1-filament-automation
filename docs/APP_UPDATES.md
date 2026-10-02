@@ -4,6 +4,8 @@
 
 U1FA checks the project's public releases in the background at startup. This check concerns only the desktop application installed on the computer: **it does not inspect, update or restart Snapmaker U1 firmware**.
 
+If the home screen opens while the check is still running, the Home page refreshes automatically when the result is ready. You do not need to press **Check now** to discover a new version; the button remains available only to force another manual check.
+
 ## How it works
 
 1. The app reads public releases over HTTPS without using personal credentials.
