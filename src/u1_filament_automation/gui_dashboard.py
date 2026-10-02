@@ -35,6 +35,9 @@ _DASHBOARD_CSS = f"""
 .u1fa-status-detail{{font-size:12px;color:#aeb9c8;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .u1fa-actions{{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}}
 .u1fa-dash-foot{{margin:12px 2px 0;color:#8290a3;font-size:12px}}
+.u1fa-update-alert{{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;padding:12px 14px;border:1px solid #806b25;border-radius:12px;background:#2a2516;color:#ffe08a}}
+.u1fa-update-alert strong{{font-size:14px}}
+.u1fa-update-alert .button{{white-space:nowrap}}
 .u1fa-setup-notice{{background:#211f18;border:1px solid #6b5921;border-radius:14px;padding:18px 20px;margin:14px 0}}
 .u1fa-setup-notice strong{{display:block;color:#ffd166;font-size:17px;margin-bottom:6px}}
 .u1fa-setup-notice p{{margin:6px 0 12px;color:#d4d9e1}}
@@ -160,6 +163,34 @@ def build_dashboard(controller: Any, language: str = "it") -> str:
             "Il controllo aggiornamenti non aggiorna il firmware e non invia comandi alla U1."
         )
 
+    if update_state == "available":
+        notice_text = (
+            "A new U1FA version is available. Open the update page to review the release notes."
+            if language == "en"
+            else "È disponibile una nuova versione di U1FA. Apri la pagina aggiornamenti per vedere le note di rilascio."
+        )
+        notice_button = "View update" if language == "en" else "Mostra aggiornamento"
+        update_notice = (
+            '<div class="u1fa-update-alert">'
+            f'<strong>{html.escape(notice_text)}</strong>'
+            f'<a class="button secondary" href="/updates">{html.escape(notice_button)}</a>'
+            '</div>'
+        )
+    else:
+        update_notice = ""
+
+    # The update check already starts in the background before the local web UI
+    # opens. If the first home render happens while that check is still running,
+    # refresh only the home page after a short delay so the result becomes visible
+    # without requiring the user to press "Check now".
+    auto_refresh = (
+        '<script id="u1fa-update-autorefresh">'
+        'window.setTimeout(function(){window.location.reload();},1800);'
+        '</script>'
+        if update_state == "checking"
+        else ""
+    )
+
     status_cards = "".join(
         (
             _card(
@@ -195,10 +226,12 @@ def build_dashboard(controller: Any, language: str = "it") -> str:
         f'<div class="u1fa-dash-sub">{html.escape(subtitle)}</div></div>'
         f'<div class="u1fa-badge"><span class="u1fa-dot {update_tone}"></span>{html.escape(update_value)}</div>'
         '</div>'
+        f'{update_notice}'
         f'<div class="u1fa-status-grid">{status_cards}</div>'
         f'<div class="u1fa-actions">{actions}</div>'
         f'<div class="u1fa-dash-foot">{html.escape(foot)}</div>'
         '</section>'
+        f'{auto_refresh}'
     )
 
 
