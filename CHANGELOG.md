@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — automatic update visibility
+
+- Il controllo delle nuove versioni resta automatico e non bloccante all'avvio di U1FA.
+- Se la Home viene aperta mentre il controllo è ancora in corso, si aggiorna automaticamente appena possibile: non serve premere **Controlla ora**.
+- Quando è disponibile una nuova versione, la Home mostra un avviso evidente con il collegamento diretto alla pagina aggiornamenti.
+- Download, verifica SHA-256 e apertura dell'installer restano separati e richiedono le conferme già previste.
+
 ## 2.0.3 — Snapmaker Orca filament type regression fix
 
 - Corretta la regressione introdotta nella 2.0.2: U1FA non forza più sottotipi inventati nel campo `filament_type` dei profili materializzati.
