@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — PLA Rapid runtime type hotfix
+
+- Corretto il tipo runtime dei profili basati su `Snapmaker PLA SnapSpeed`: U1FA ora scrive `PLA RAPID` invece di `PLA HIGH SPEED`.
+- La base di stampa resta `Snapmaker PLA SnapSpeed`; non cambiano velocità, temperature, portata volumetrica o altri parametri ereditati dal profilo.
+- Spoolman resta invariato e continua a registrare il materiale come `PLA RAPID`.
+- Fix verificato su U1 firmware 2.0.0.205: con `PLA RAPID` il controllo pre-stampa di Snapmaker Orca non segnala più il mismatch con lo slot della stampante.
+- Aggiunto test di regressione dedicato. `PETG HF` non viene modificato finché non viene verificato sulla U1 reale.
+
+
 ## 2.0.1 — Windows setup & Spoolman HTTPS hotfix
 
 - Corretto il problema Windows che poteva convertire gli asset protetti Adaptive PA in CRLF, causando un errore SHA-256 durante il setup della stampante.
