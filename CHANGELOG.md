@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — automatic update visibility
+## 2.0.4 — automatic update visibility
 
 - Il controllo delle nuove versioni resta automatico e non bloccante all'avvio di U1FA.
 - Se la Home viene aperta mentre il controllo è ancora in corso, si aggiorna automaticamente appena possibile: non serve premere **Controlla ora**.
