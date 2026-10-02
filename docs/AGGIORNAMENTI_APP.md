@@ -4,6 +4,8 @@
 
 U1FA controlla in sottofondo le release pubbliche del progetto quando si avvia. Il controllo riguarda esclusivamente l'applicazione installata sul computer: **non interroga, non aggiorna e non riavvia il firmware della Snapmaker U1**.
 
+Se la schermata iniziale viene aperta mentre il controllo è ancora in corso, la Home si aggiorna automaticamente al termine. Non è necessario premere **Controlla ora** per sapere se esiste una nuova versione; il pulsante resta disponibile soltanto per forzare manualmente un nuovo controllo.
+
 ## Come funziona
 
 1. L'app legge le release pubbliche tramite HTTPS senza usare credenziali personali.
