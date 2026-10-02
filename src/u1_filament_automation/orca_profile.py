@@ -94,7 +94,7 @@ def _snapmaker_runtime_filament_type(base_file: Path) -> str | None:
     """
     name = base_file.stem.upper()
     special_types = (
-        ("PLA SNAPSPEED", "PLA HIGH SPEED"),
+        ("PLA SNAPSPEED", "PLA RAPID"),
         ("PETG HF", "PETG HIGH SPEED"),
         ("PLA SILK", "PLA SILK"),
         ("PLA WOOD", "PLA WOOD"),
