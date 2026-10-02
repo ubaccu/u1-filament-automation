@@ -1,0 +1,25 @@
+name: Validate automatic update visibility
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/validate-update-visibility.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package
+        run: python -m pip install .
+      - name: Run full test suite
+        run: python -m unittest discover -s tests
