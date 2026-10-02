@@ -9,3 +9,4 @@ Hotfix release for two issues found in U1FA 2.0.0.
 The Windows setup fix was confirmed with the 2.0.1 RC1 test build on a real user setup.
 
 No changes to firmware compatibility or Adaptive PA calibration behaviour.
+

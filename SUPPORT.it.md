@@ -41,3 +41,4 @@ Usa il modulo **Feature request** nelle GitHub Issues. Le richieste dovrebbero r
 Il progetto supporta l'ultima release U1FA pubblicata. L'installazione dei file sulla stampante è volutamente prudente: firmware o hash file sconosciuti possono essere bloccati finché non vengono validati. Un firmware sconosciuto bloccato è una protezione di sicurezza, non un motivo per aggirare manualmente i controlli.
 
 U1FA è software community indipendente. Il supporto viene fornito nei limiti del possibile e non sostituisce il supporto ufficiale Snapmaker né quello dei manutentori di Spoolman, OrcaSlicer, Klipper o Moonraker.
+

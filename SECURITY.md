@@ -69,3 +69,4 @@ High-priority reports include unauthorized command execution, credential exposur
 ### Responsible testing
 
 Test only devices you own or are authorized to use. Do not test during a print and do not attempt to access another person's printer or accounts.
+

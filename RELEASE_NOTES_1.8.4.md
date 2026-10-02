@@ -21,3 +21,4 @@ U1FA 1.8.4 is a focused hotfix for first-time setup on PAXX 12-21.
 - The firmware preflight no longer presents a not-yet-installed macro as a missing firmware component.
 - Improves diagnostics for a mismatched PAXX `BUILD_VERSION`.
 - No changes to Adaptive PA logic, AutoPA assets, Orca profiles, or Snapmaker U1 2.0.0.205 support compared with 1.8.3.
+

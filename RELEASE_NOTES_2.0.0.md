@@ -57,3 +57,4 @@ U1FA 2.0.0 adds fail-closed support for the current stable **PAXX v1.6.0-paxx12-
 Users on **U1FA 1.8.3 or 1.8.4 can update directly to 2.0.0** through the built-in updater. No intermediate version is required.
 
 > Note: PAXX 12-22 was validated from the official firmware image and with a complete sandbox installation. No physical PAXX 12-22 printer was available for direct hardware execution testing.
+
