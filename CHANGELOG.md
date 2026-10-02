@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — preserve official Snapmaker Orca filament types
+
+- Corretta la regressione introdotta nella 2.0.2: U1FA non forza più sottotipi inventati nel campo `filament_type` dei profili materializzati.
+- I profili veloci/speciali mantengono il tipo dichiarato dalla base ufficiale Snapmaker Orca: SnapSpeed/Silk/Wood/Translucent restano `PLA`, PETG HF/Translucent restano `PETG`; i profili CF conservano i loro tipi ufficiali `PLA-CF` e `PETG-CF`.
+- La scelta della base di stampa resta separata dal tipo: parole come RAPID/HYPER/HS/HF nel vendor, materiale o nome continuano a selezionare SnapSpeed/HF senza alterare `filament_type`.
+- Correzione verificata contro i profili ufficiali Snapmaker Orca e contro il caso reale U1 che rifiutava `FILAMENT_TYPE=PLA RAPID` come comando non valido.
+- Aggiunti test di regressione per PLA SnapSpeed, PLA Silk/Wood/Translucent, PETG HF/Translucent e famiglie CF.
+
 ## 2.0.2 — PLA Rapid runtime type hotfix
 
 - Corretto il tipo runtime dei profili basati su `Snapmaker PLA SnapSpeed`: U1FA ora scrive `PLA RAPID` invece di `PLA HIGH SPEED`.
