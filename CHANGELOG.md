@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — preserve official Snapmaker Orca filament types
+## 2.0.3 — Snapmaker Orca filament type regression fix
 
 - Corretta la regressione introdotta nella 2.0.2: U1FA non forza più sottotipi inventati nel campo `filament_type` dei profili materializzati.
 - I profili veloci/speciali mantengono il tipo dichiarato dalla base ufficiale Snapmaker Orca: SnapSpeed/Silk/Wood/Translucent restano `PLA`, PETG HF/Translucent restano `PETG`; i profili CF conservano i loro tipi ufficiali `PLA-CF` e `PETG-CF`.
