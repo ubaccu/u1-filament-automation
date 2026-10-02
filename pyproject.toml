@@ -27,3 +27,4 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 u1_filament_automation = ["assets/*.py", "assets/*.cfg", "assets/*.png", "assets/*.webp"]
+

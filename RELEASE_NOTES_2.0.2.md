@@ -10,3 +10,4 @@ Hotfix release for Snapmaker U1 fast-PLA tray matching.
 - `PETG HF` is intentionally unchanged pending real-printer verification.
 
 No changes to Adaptive PA calibration logic or firmware compatibility.
+

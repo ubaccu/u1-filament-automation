@@ -170,3 +170,4 @@ Klipper, Snapmaker firmware, Moonraker, OrcaSlicer and Spoolman remain under the
 U1FA is independent community software for calibration and experimentation. It is **not affiliated with or endorsed by Snapmaker, OrcaSlicer or the other projects mentioned above**.
 
 Use it only on a printer you own or are authorised to operate. Keep verified backups, make sure the printer is idle before configuration, supervise calibrations and stop if anything is unclear. The software is provided **without warranty** as described by GPLv3 sections 15 and 16.
+

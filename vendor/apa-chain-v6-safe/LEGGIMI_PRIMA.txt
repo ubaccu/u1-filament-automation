@@ -30,3 +30,4 @@ TEST DIAGNOSTICO DOPO INSTALLAZIONE:
 
 BACKUP SULLA U1 DA NON TOCCARE:
  /home/lava/klipper/klippy/extras/flow_calibrator.py.BACKUP_ORIGINALE_20260824
+

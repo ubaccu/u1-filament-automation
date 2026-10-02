@@ -77,3 +77,4 @@ rm -f "$ARCHIVE"
 
 sha256sum "$ARCHIVE"
 echo "$ARCHIVE"
+

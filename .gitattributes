@@ -1,3 +1,4 @@
 # Keep protected printer-side assets byte-stable on every platform.
 src/u1_filament_automation/assets/*.py text eol=lf
 src/u1_filament_automation/assets/*.cfg text eol=lf
+

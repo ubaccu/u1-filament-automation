@@ -669,3 +669,4 @@
 
 La versione 0.1.0 non incorporava ancora il modulo Adaptive PA; l'integrazione
 successiva mantiene licenza, crediti e tracciabilità delle modifiche.
+

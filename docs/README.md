@@ -10,3 +10,4 @@ Use these guides for installation, printer setup, firmware safety and applicatio
 - [Support and bug reporting](../SUPPORT.md) — how to open a useful GitHub Issue and what information not to publish.
 
 For downloads and the feature overview, return to the [main README](../README.md).
+
