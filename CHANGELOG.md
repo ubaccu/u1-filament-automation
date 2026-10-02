@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — PLA Rapid runtime type hotfix
+## 2.0.2 — PLA Rapid runtime type hotfix
 
 - Corretto il tipo runtime dei profili basati su `Snapmaker PLA SnapSpeed`: U1FA ora scrive `PLA RAPID` invece di `PLA HIGH SPEED`.
 - La base di stampa resta `Snapmaker PLA SnapSpeed`; non cambiano velocità, temperature, portata volumetrica o altri parametri ereditati dal profilo.
