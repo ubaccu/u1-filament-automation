@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.6 — filament picker language hotfix
+
+- Corretto il campo di ricerca del selettore filamenti della calibrazione: con **IT** mostra solo **“Cerca filamento…”**, con **EN** solo **“Search filament…”**.
+- Corretto anche il messaggio quando la ricerca non trova risultati: **“Nessun filamento trovato”** in IT e **“No filament found”** in EN.
+- Restano invariati l'ordinamento alfabetico A → Z e la visualizzazione dei colori Spoolman introdotti nella 2.0.5.
+- Nessuna modifica ad Adaptive PA, profili Orca, logica di scrittura Spoolman, compatibilità firmware o supporto PAXX.
+
 ## 2.0.5 — language persistence, translation coverage & filament picker
 
 - La lingua scelta nell'interfaccia (**IT** o **EN**) viene ora salvata e ripristinata anche dopo la chiusura completa e il riavvio di U1FA.
