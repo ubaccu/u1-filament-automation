@@ -1,6 +1,6 @@
 """U1 Filament Automation for Spoolman and Snapmaker Orca."""
 
-__version__ = "2.0.4"
+__version__ = "2.0.5"
 
 # Install the small metadata bridge before callers import sync_profiles from
 # the sync module. This keeps CLI and desktop builds on the same behaviour.
@@ -16,7 +16,9 @@ install_sync_density_patch(_sync_module)
 from . import gui as _gui_module
 from .gui_delete import install_filament_delete_ui_patch
 from .gui_post_creation import install_post_creation_ui_patch
+from .gui_language import install_language_fix
 
 install_filament_delete_ui_patch(_gui_module)
 install_post_creation_ui_patch(_gui_module)
+install_language_fix(_gui_module)
 
