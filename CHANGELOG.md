@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.5 — language persistence, translation coverage & filament picker
+
+- La lingua scelta nell'interfaccia (**IT** o **EN**) viene ora salvata e ripristinata anche dopo la chiusura completa e il riavvio di U1FA.
+- Richieste lingua mancanti o non valide non riportano più silenziosamente l'app in italiano.
+- Completata la copertura inglese dei messaggi dinamici di calibrazione, stato, coda, retry/recovery Moonraker, preview e principali errori tecnici mostrati dalla GUI.
+- Estesa la traduzione ai percorsi di setup stampante, diagnostica firmware mostrata dalla GUI, envelope/profilo, Spoolman/Orca e cancellazione filamenti, eliminando i casi noti di testo misto IT/EN.
+- I selettori dei profili/bobine per la calibrazione sono ora ordinati alfabeticamente **A → Z**.
+- Il colore memorizzato in Spoolman viene mostrato accanto al profilo selezionato; i filamenti multicolore mostrano più valori HEX.
+- Aggiunti test di regressione dedicati a persistenza lingua, rendering EN, errori tecnici e selettore alfabetico con colori.
+- Nessuna modifica alla logica Adaptive PA, alle regole di compatibilità firmware U1, alla scrittura dei profili Orca, alla logica di scrittura Spoolman o al supporto PAXX.
+- Il supporto RFID non fa parte di questa release.
+
 ## 2.0.4 — automatic update visibility
 
 - Il controllo delle nuove versioni resta automatico e non bloccante all'avvio di U1FA.
