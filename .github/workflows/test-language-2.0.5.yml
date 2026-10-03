@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/2.0.5-language-translation
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
