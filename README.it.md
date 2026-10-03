@@ -30,6 +30,8 @@ Il repository pubblico è il canale ufficiale per **distribuzione, documentazion
 
 - **Workflow Spoolman reale** — crea o riutilizza vendor e filamenti, poi crea bobine reali con colore, peso, tara, temperature, posizione di stoccaggio e lotto.
 - **Bobine mono e multicolore** — da 2 a 8 colori HEX vengono mantenuti nel profilo Orca generato.
+- **Interfaccia IT/EN persistente** — la lingua scelta viene ricordata anche dopo la chiusura e il riavvio di U1FA.
+- **Selettore calibrazione alfabetico con colore** — i profili/bobine sono ordinati A → Z e mostrano le informazioni colore salvate in Spoolman.
 - **Rilevamento automatico U1** — il primo setup può rilevare in rete locale un endpoint Snapmaker U1/Moonraker compatibile tramite controlli in sola lettura prima di salvare qualsiasi configurazione.
 - **Scelta automatica del profilo base Snapmaker Orca** — materiale e nome tecnico determinano il profilo compatibile.
 - **Gestione anti-doppione dei profili** — un profilo esatto già esistente viene riutilizzato; anche un singolo profilo legacy equivalente riconosciuto in modo prudente può essere riutilizzato senza crearne un secondo.
@@ -114,7 +116,7 @@ Prima della configurazione protetta abilita dal touchscreen:
 
 Poi usa **Controlla configurazione stampante** dentro U1FA. L'app può prima rilevare automaticamente in rete locale l'endpoint U1/Moonraker tramite controlli in sola lettura; la configurazione manuale resta disponibile. Dopo ogni aggiornamento firmware U1, esegui nuovamente il controllo prima di calibrare.
 
-**Compatibilità firmware:** U1FA 2.0.0 riconosce l'attuale PAXX stabile `v1.6.0-paxx12-22` solo tramite identità firmware e SHA-256 dei componenti convalidati esattamente. PAXX 12-21 resta supportato separatamente per le installazioni precedenti. Le build PAXX sconosciute restano bloccate. PAXX 12-22 è stato validato dal firmware ufficiale pubblicato e con un'installazione U1FA completa in sandbox; non era disponibile una stampante fisica PAXX 12-22 per un test hardware diretto.
+**Compatibilità firmware:** la release U1FA attuale riconosce il PAXX stabile `v1.6.0-paxx12-22` solo tramite identità firmware e SHA-256 dei componenti convalidati esattamente. PAXX 12-21 resta supportato separatamente per le installazioni precedenti. Le build PAXX sconosciute restano bloccate. PAXX 12-22 è stato validato dal firmware ufficiale pubblicato e con un'installazione U1FA completa in sandbox; non era disponibile una stampante fisica PAXX 12-22 per un test hardware diretto.
 
 Guide complete:
 
@@ -125,13 +127,13 @@ Guide complete:
 
 ## Famiglie profilo filamento supportate
 
-U1FA 2.0.0 genera profili filamento per **Snapmaker U1 con ugello 0,4 mm**. Oltre alle famiglie PLA/PETG già supportate (standard, rapid/high-speed, silk, wood, translucent e carbon-fibre), riconosce i profili U1 0,4 mm introdotti in **Snapmaker Orca 2.4.0** per **TPU**, **PEBA 90A** e **PLA Rainbow**.
+U1FA genera profili filamento per **Snapmaker U1 con ugello 0,4 mm**. Oltre alle famiglie PLA/PETG già supportate (standard, rapid/high-speed, silk, wood, translucent e carbon-fibre), riconosce i profili U1 0,4 mm introdotti in **Snapmaker Orca 2.4.0** per **TPU**, **PEBA 90A** e **PLA Rainbow**.
 
 Per questi profili vengono usate direttamente le basi ufficiali `Snapmaker TPU @U1 0.4 nozzle`, `Snapmaker PEBA 90A @U1 0.4 nozzle` e `Snapmaker PLA Rainbow @U1 0.4 nozzle`. I valori iniziali della schermata nuova bobina seguono i preset Snapmaker 2.4.0; l'envelope Adaptive PA continua invece a essere calcolato dal `filament_max_volumetric_speed` del profilo reale.
 
 Su firmware U1 2.0.0.205, TPU e PEBA usano inoltre l'intervallo K **0,15–0,45** previsto dalla tabella filamenti del firmware, invece dell'intervallo PLA/PETG predefinito 0,005–0,040. PLA Rainbow usa il normale intervallo 0,005–0,040.
 
-I nuovi preset 2.4.0 disponibili soltanto per ugelli 0,2/0,6/0,8 mm non vengono dichiarati supportati dalla 2.0.0. I preset di **processo/stampa** di Orca non richiedono una calibrazione PA separata: U1FA calibra e aggiorna il profilo **filamento**.
+I nuovi preset 2.4.0 disponibili soltanto per ugelli 0,2/0,6/0,8 mm non vengono dichiarati supportati da U1FA. I preset di **processo/stampa** di Orca non richiedono una calibrazione PA separata: U1FA calibra e aggiorna il profilo **filamento**.
 
 Esempi:
 

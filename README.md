@@ -30,6 +30,8 @@ The public repository is the official **distribution, documentation and support 
 
 - **Real Spoolman workflow** — create or reuse vendors and filaments, then create real spools with colour, weight, tare, temperatures, storage location and lot information.
 - **Single and multicolour spools** — 2 to 8 HEX colours are preserved in generated Orca profiles.
+- **Persistent IT/EN interface** — the selected language is remembered after closing and reopening U1FA.
+- **Alphabetical colour-aware calibration picker** — calibration selectors are ordered A → Z and show the colour information stored in Spoolman.
 - **Automatic U1 discovery** — the first-setup workflow can discover a compatible Snapmaker U1/Moonraker endpoint on the local network with read-only checks before anything is saved.
 - **Automatic Snapmaker Orca profile selection** — material and technical name determine the compatible Snapmaker base profile.
 - **Duplicate-safe profile handling** — an existing exact profile is reused; one conservatively recognized equivalent legacy profile can also be reused without creating a duplicate.
@@ -114,7 +116,7 @@ Before protected printer configuration, enable on the U1 touchscreen:
 
 Then use **Check printer setup** inside U1FA. The application can first discover the U1/Moonraker endpoint on the local network using read-only checks; manual configuration remains available. After any U1 firmware update, run the setup check again before calibrating.
 
-**Firmware compatibility:** U1FA 2.0.0 recognizes the current stable PAXX `v1.6.0-paxx12-22` only through its exact validated firmware identity and component SHA-256 values. PAXX 12-21 remains supported separately for older installations. Unknown PAXX builds stay blocked. The PAXX 12-22 validation was performed from the official published firmware image and a complete U1FA sandbox installation; no physical PAXX 12-22 printer was available for hardware execution testing.
+**Firmware compatibility:** the current U1FA release recognizes the stable PAXX `v1.6.0-paxx12-22` only through its exact validated firmware identity and component SHA-256 values. PAXX 12-21 remains supported separately for older installations. Unknown PAXX builds stay blocked. The PAXX 12-22 validation was performed from the official published firmware image and a complete U1FA sandbox installation; no physical PAXX 12-22 printer was available for hardware execution testing.
 
 See the full guides:
 
@@ -125,13 +127,13 @@ See the full guides:
 
 ## Supported filament profile families
 
-U1FA 2.0.0 generates filament profiles for the **Snapmaker U1 with a 0.4 mm nozzle**. In addition to the previously supported PLA/PETG families (standard, rapid/high-speed, silk, wood, translucent and carbon-fibre), it recognizes the U1 0.4 mm profiles introduced in **Snapmaker Orca 2.4.0** for **TPU**, **PEBA 90A** and **PLA Rainbow**.
+U1FA generates filament profiles for the **Snapmaker U1 with a 0.4 mm nozzle**. In addition to the previously supported PLA/PETG families (standard, rapid/high-speed, silk, wood, translucent and carbon-fibre), it recognizes the U1 0.4 mm profiles introduced in **Snapmaker Orca 2.4.0** for **TPU**, **PEBA 90A** and **PLA Rainbow**.
 
 These use the official `Snapmaker TPU @U1 0.4 nozzle`, `Snapmaker PEBA 90A @U1 0.4 nozzle` and `Snapmaker PLA Rainbow @U1 0.4 nozzle` bases. Initial values in the new-spool screen follow the Snapmaker 2.4.0 presets, while the Adaptive PA envelope is still calculated from the real profile's `filament_max_volumetric_speed`.
 
 On U1 firmware 2.0.0.205, TPU and PEBA also use the firmware filament-table K range **0.15–0.45** instead of the default PLA/PETG range 0.005–0.040. PLA Rainbow keeps the normal 0.005–0.040 range.
 
-New 2.4.0 presets that exist only for 0.2/0.6/0.8 mm nozzles are not claimed as supported by U1FA 2.0.0. Orca **process/print presets** do not require a separate PA calibration: U1FA calibrates and updates the **filament** profile.
+New 2.4.0 presets that exist only for 0.2/0.6/0.8 mm nozzles are not claimed as supported by U1FA. Orca **process/print presets** do not require a separate PA calibration: U1FA calibrates and updates the **filament** profile.
 
 Examples:
 

@@ -8,9 +8,7 @@
 - Estesa la traduzione ai percorsi di setup stampante, diagnostica firmware mostrata dalla GUI, envelope/profilo, Spoolman/Orca e cancellazione filamenti, eliminando i casi noti di testo misto IT/EN.
 - I selettori dei profili/bobine per la calibrazione sono ora ordinati alfabeticamente **A → Z**.
 - Il colore memorizzato in Spoolman viene mostrato accanto al profilo selezionato; i filamenti multicolore mostrano più valori HEX.
-- Aggiunti test di regressione dedicati a persistenza lingua, rendering EN, errori tecnici e selettore alfabetico con colori.
 - Nessuna modifica alla logica Adaptive PA, alle regole di compatibilità firmware U1, alla scrittura dei profili Orca, alla logica di scrittura Spoolman o al supporto PAXX.
-- Il supporto RFID non fa parte di questa release.
 
 ## 2.0.4 — automatic update visibility
 
