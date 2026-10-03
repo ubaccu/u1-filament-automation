@@ -109,6 +109,16 @@ def translate_error_en(message: str) -> str:
             firmware_match.group(1)
         )
 
+    # Deletion errors can append a bilingual partial-state suffix. Handle this
+    # before the broader deletion patterns so no Italian fragment survives.
+    suffix_match = re.match(
+        r"^(.*) Bobine già eliminate / Spools already deleted: ([0-9, ]+)\.$",
+        text,
+    )
+    if suffix_match:
+        base = translate_error_en(suffix_match.group(1))
+        return f"{base} Spools already deleted: {suffix_match.group(2)}."
+
     for pattern, replacement in _PATTERNS_EXTRA:
         if re.match(pattern, text):
             translated = re.sub(pattern, replacement, text)
@@ -124,15 +134,6 @@ def translate_error_en(message: str) -> str:
                     if nested != tail:
                         translated = head + ": " + nested
             return translated
-
-    # Deletion errors can append a bilingual partial-state suffix.
-    suffix_match = re.match(
-        r"^(.*) Bobine già eliminate / Spools already deleted: ([0-9, ]+)\.$",
-        text,
-    )
-    if suffix_match:
-        base = translate_error_en(suffix_match.group(1))
-        return f"{base} Spools already deleted: {suffix_match.group(2)}."
 
     return text
 
