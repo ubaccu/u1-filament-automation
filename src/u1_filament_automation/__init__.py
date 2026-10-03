@@ -18,9 +18,11 @@ from .gui_delete import install_filament_delete_ui_patch
 from .gui_post_creation import install_post_creation_ui_patch
 from .gui_language import install_language_fix
 from .gui_language_extra import install_language_extra
+from .gui_picker import install_profile_picker_patch
 
 install_filament_delete_ui_patch(_gui_module)
 install_post_creation_ui_patch(_gui_module)
 install_language_fix(_gui_module)
 install_language_extra(_gui_module)
+install_profile_picker_patch(_gui_module)
 
