@@ -11,6 +11,7 @@ Gestisce bobine reali, genera o riutilizza in sicurezza i profili Snapmaker Orca
 ![Piattaforme](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-4c8bf5)
 ![Licenza](https://img.shields.io/badge/license-GPL--3.0-blue)
 ![Stato](https://img.shields.io/badge/status-stabile-brightgreen)
+[![Discord](https://img.shields.io/badge/Discord-Entra%20nella%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/VVf7ubPdAT)
 
 **[Scarica U1FA](https://github.com/ubaccu/u1-filament-automation/releases)** · **[Segnala un bug](https://github.com/ubaccu/u1-filament-automation/issues/new/choose)** · **[Documentazione](docs/INSTALLAZIONE_STAMPANTE.md)** · **[English](README.md)**
 
@@ -117,7 +118,6 @@ Prima della configurazione protetta abilita dal touchscreen:
 Poi usa **Controlla configurazione stampante** dentro U1FA. L'app può prima rilevare automaticamente in rete locale l'endpoint U1/Moonraker tramite controlli in sola lettura; la configurazione manuale resta disponibile. Dopo ogni aggiornamento firmware U1, esegui nuovamente il controllo prima di calibrare.
 
 **Compatibilità firmware:** la release U1FA attuale riconosce il PAXX stabile `v1.6.0-paxx12-22` solo tramite identità firmware e SHA-256 dei componenti convalidati esattamente. PAXX 12-21 resta supportato separatamente per le installazioni precedenti. Le build PAXX sconosciute restano bloccate. PAXX 12-22 è stato validato dal firmware ufficiale pubblicato e con un'installazione U1FA completa in sandbox; non era disponibile una stampante fisica PAXX 12-22 per un test hardware diretto.
-
 Guide complete:
 
 - [Installazione e ripristino della stampante](docs/INSTALLAZIONE_STAMPANTE.md)
@@ -172,4 +172,3 @@ Klipper, firmware Snapmaker, Moonraker, OrcaSlicer e Spoolman mantengono le risp
 U1FA è software community indipendente per calibrazione e sperimentazione. **Non è affiliato né approvato da Snapmaker, OrcaSlicer o dagli altri progetti citati.**
 
 Usalo soltanto su una stampante di tua proprietà o per la quale sei autorizzato. Conserva backup verificati, assicurati che la stampante sia inattiva prima della configurazione, sorveglia le calibrazioni e fermati se qualcosa non è chiaro. Il software viene fornito **senza garanzia**, come previsto dalle sezioni 15 e 16 della GPLv3.
-
