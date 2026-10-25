@@ -13,6 +13,7 @@ from .gui_182_final_ui_fixed import install_182_final_ui_fixed
 from .gui_182_interactions import install_182_interaction_fix
 from .gui_182_final_touch import install_182_final_touch
 from .gui_182_nav_repair import install_182_nav_repair
+from .gui_208 import install_208_ux_patch
 
 
 # Apply compatibility and release UI patches in order. These imports only patch
@@ -27,6 +28,7 @@ install_182_final_ui_fixed(gui_module)
 install_182_interaction_fix(gui_module)
 install_182_final_touch(gui_module)
 install_182_nav_repair(gui_module)
+install_208_ux_patch(gui_module)
 
 
 def main() -> int:
