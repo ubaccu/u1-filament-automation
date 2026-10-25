@@ -90,6 +90,16 @@ class PLArapidMaterialRouting207Tests(unittest.TestCase):
 
         self.assertEqual(plan.request.name, "PLA RAPID PLA+ 2.0 ROSSO SANGUE")
 
+    def test_corrected_spoolman_pla_with_rapid_name_routes_to_snapspeed(self):
+        self.assertEqual(
+            choose_base(
+                "Deeplee",
+                "PLA",
+                "DEEPLEE PLA RAPID PLA+ 2.0 ROSSO SANGUE",
+            ),
+            "Snapmaker PLA SnapSpeed @U1",
+        )
+
     def test_legacy_spoolman_pla_rapid_still_routes_to_snapspeed(self):
         self.assertEqual(
             choose_base("Deeplee", "PLA RAPID", "PLA+ 2.0 ROSSO SANGUE"),
