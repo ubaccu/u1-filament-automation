@@ -41,7 +41,7 @@ Dopo aver verificato la U1, U1FA può rilevare Spoolman controllando le sorgenti
 - **Windows:** serve **OpenSSH Client** soltanto per la configurazione protetta dei file stampante; OpenSSH Server non è richiesto;
 - **Linux:** installa `openssh-client` se il comando `ssh` non è disponibile.
 
-U1FA rileva l'assenza del client e non installa automaticamente componenti di sistema.
+U1FA rileva l'assenza del client e non installa automaticamente componenti di sistema. Al primo collegamento U1FA usa OpenSSH `StrictHostKeyChecking=accept-new`: una chiave host U1 mai vista può essere registrata automaticamente, mentre una chiave cambiata per un host già conosciuto continua a essere rifiutata.
 
 ## Procedura desktop consigliata
 
