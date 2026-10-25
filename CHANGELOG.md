@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.9 — PAXX 12-24 compatibility & Windows OpenSSH first-connect fix
+
+- Aggiunto supporto fail-closed per **PAXX v2.0.0-paxx12-24**, basata sul firmware Snapmaker U1 2.0.0.205.
+- Convalidato il nuovo SHA-256 di `print_task_config.py` segnalato dalla release PAXX 12-24: `8298babc42526ef4a4026207927e91c52fd1ca5f1e1afe6b1f08b0dbdced82c0`. Gli altri componenti richiesti devono continuare a corrispondere agli hash 2.0.0.205 già validati.
+- PAXX 12-24 viene accettata solo con `VERSION=2.0.0`, `FULLVERSION=2.0.0-paxx12-24` e con tutti gli hash dei componenti previsti; varianti future o file differenti restano bloccati.
+- Migliorato il primo collegamento SSH su Windows: OpenSSH usa ora `StrictHostKeyChecking=accept-new`, così una nuova chiave host può essere registrata senza un prompt interattivo che bloccava U1FA. Una chiave host già nota ma cambiata continua invece a essere rifiutata.
+- Aumentato il margine del timeout totale SSH per evitare falsi timeout durante l'avvio di `SSH_ASKPASS` nelle build Windows.
+- Aggiunti test di regressione per PAXX 12-24, fail-closed su hash non riconosciuti, AutoPA già installato e gestione OpenSSH.
+- Nessuna modifica agli algoritmi Adaptive PA, ai valori PA/flow, ai profili Orca, ai dati Spoolman o al firmware della stampante.
+
 ## 2.0.8 — Discord shortcut & guided calibration safety check
 
 - Aggiunto il pulsante **Discord U1FA** direttamente nell'app, sia nell'area community sia accanto al collegamento **Buy me a Coffee** nella sidebar. Il collegamento ufficiale è `https://discord.gg/VVf7ubPdAT`.
