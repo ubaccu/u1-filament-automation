@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.8 — Discord shortcut & guided calibration safety check
+
+- Aggiunto il pulsante **Discord U1FA** direttamente nell'app, sia nell'area community sia accanto al collegamento **Buy me a Coffee** nella sidebar. Il collegamento ufficiale è `https://discord.gg/VVf7ubPdAT`.
+- Migliorato il blocco di sicurezza prima della prima calibrazione di ogni sessione: se non è stato ancora eseguito **Controlla configurazione stampante**, U1FA mostra ora un avviso evidente con pulsante diretto **Controlla ora**.
+- L'avviso specifica chiaramente che nessun comando di calibrazione è stato inviato e vale sia per la calibrazione singola sia per la coda 2–4 bobine.
+- Il controllo firmware/AutoPA resta obbligatorio una volta per ogni avvio dell'app; non è stata ridotta o aggirata alcuna protezione.
+- Nessuna modifica ad Adaptive PA, ai profili Orca, ai dati Spoolman, alla compatibilità firmware, a PAXX o ai comandi Moonraker.
+
 ## 2.0.7 — PLA Rapid Spoolman material routing fix
 
 - Corretta la creazione delle bobine **PLA Rapid**: U1FA salva ora in Spoolman il materiale runtime canonico **PLA**, evitando il mismatch con Snapmaker U1/Snapmaker Orca durante l'invio della stampa.
