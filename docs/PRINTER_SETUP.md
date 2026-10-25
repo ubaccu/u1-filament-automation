@@ -41,7 +41,7 @@ After the U1 is verified, U1FA can discover Spoolman from the expected local/Moo
 - **Windows:** **OpenSSH Client** is required only for protected printer-file configuration; OpenSSH Server is not required;
 - **Linux:** install `openssh-client` if the `ssh` command is unavailable.
 
-U1FA detects a missing client and does not install system components automatically.
+U1FA detects a missing client and does not install system components automatically. On first connection U1FA uses OpenSSH `StrictHostKeyChecking=accept-new`: a previously unseen U1 host key can be added automatically, while a changed key for an already-known host is still rejected.
 
 ## Recommended desktop workflow
 
