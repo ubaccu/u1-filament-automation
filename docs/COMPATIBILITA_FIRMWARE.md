@@ -15,6 +15,7 @@ U1FA include nel proprio pacchetto la modifica e la macro validate, ma **non ins
 | Firmware / baseline | Stato | Azione consentita |
 |---|---|---|
 | Snapmaker U1 1.5.2 / baseline legacy riconosciuta | Convalidato | Installazione/ripristino protetti consentiti dopo conferma esplicita |
+| PAXX `2.0.0-paxx12-24` / base Snapmaker 2.0.0.205 | Convalidato fail-closed dalla release/tag ufficiale, dal sorgente PAXX e da un fingerprint U1FA reale in sola lettura | Usa il porting AutoPA firmware-2.0 solo se full version e tutti gli SHA-256 convalidati corrispondono esattamente |
 | PAXX `1.6.0-paxx12-22-31c5a38` / full version `1.6.0.267_20260815150420` | Convalidato fail-closed dal firmware PAXX ufficiale + installazione U1FA in sandbox | Usa il porting AutoPA firmware-2.0 solo se identità build e tutti gli hash PAXX convalidati corrispondono esattamente |
 | PAXX `1.5.2-paxx12-21-2a88932` | Convalidato legacy fail-closed | Mantenuto per gli utenti ancora su PAXX 12-21; richiede identità e hash esatti |
 | Snapmaker U1 2.0.0.205 (`2.0.0.205_20260914173503`) | Convalidato | Porting AutoPA dedicato; accettati sia il `print_task_config.py` stock convalidato sia la variante Adaptive PA convalidata SHA-256 `3770801d…` |
@@ -32,8 +33,8 @@ https://wiki.snapmaker.com/en/snapmaker_u1/firmware/release_notes
 4. Esegui prima il controllo in sola lettura.
 5. Se calibratore, macro e include risultano ancora validi, non serve alcuna scrittura.
 6. Se U1FA riconosce un originale Snapmaker già convalidato, può proporre il ripristino protetto con backup e conferma esplicita.
-7. Su firmware stock 1.5.2 e PAXX 12-21 U1FA usa il flusso AutoPA legacy; su stock 2.0.0.205 e PAXX 12-22 convalidato usa il porting AutoPA firmware-2.0. Le impronte di compatibilità restano separate e fail-closed.
-8. PAXX 12-22 viene accettato soltanto con l'identità ufficiale esatta `1.6.0 / 1.6.0.267_20260815150420 / 1.6.0-paxx12-22-31c5a38` e con gli SHA-256 dei componenti convalidati. PAXX 12-21 resta una impronta legacy separata.
+7. Su firmware stock 1.5.2 e PAXX 12-21 U1FA usa il flusso AutoPA legacy; su stock 2.0.0.205 e PAXX 12-22/12-24 convalidati usa il porting AutoPA firmware-2.0. Le impronte di compatibilità restano separate e fail-closed.
+8. PAXX 12-24 viene accettato soltanto con `VERSION=2.0.0`, `FULLVERSION=2.0.0-paxx12-24` e con gli SHA-256 dei componenti convalidati, incluso `print_task_config.py` SHA-256 `8298babc42526ef4a4026207927e91c52fd1ca5f1e1afe6b1f08b0dbdced82c0`. PAXX 12-22 e 12-21 restano impronte separate.
 9. Se compare `unknown-blocked`, fermati. Il nuovo originale deve essere acquisito, confrontato e convalidato prima che il relativo hash venga aggiunto a una release futura.
 10. Dopo una scrittura protetta effettiva, spegni completamente la U1, attendi 10–15 secondi e riaccendila. Non affidarti a un semplice `RESTART` di Klipper.
 
@@ -53,3 +54,8 @@ Prima del primo setup stampante con U1FA, `/home/lava/printer_data/config/adapti
 ### Metodo di validazione PAXX 12-22
 
 La convalida U1FA 2.0.0 non si basa soltanto sul numero di versione. È stato scaricato il firmware ufficiale `U1_extended_1.6.0-paxx12-22_upgrade.bin`, verificato con lo SHA-256 pubblicato da PAXX, estratto con gli strumenti del progetto PAXX e analizzato direttamente nel rootfs. Gli hash reali dei componenti Klipper sono stati confrontati con la baseline firmware-2.0 di U1FA. Il `flow_calibrator.py` di PAXX 12-22 è risultato byte-per-byte identico al calibratore stock Snapmaker 2.0.0.205 usato come base del porting AutoPA 2.0 U1FA. È stata inoltre verificata la superficie API richiesta ed è stata eseguita con successo l'intera installazione protetta U1FA in una sandbox costruita dal rootfs PAXX estratto. Si tratta di validazione del firmware e in sandbox; non era disponibile una stampante fisica con PAXX 12-22 per un test hardware diretto.
+
+
+### Metodo di validazione PAXX 12-24
+
+U1FA 2.0.9 non considera sufficiente il solo numero di versione. La release/tag ufficiale `v2.0.0-paxx12-24` dichiara come base il firmware Snapmaker `2.0.0.205`. Sono state esaminate le modifiche del sorgente PAXX del tag che interessano `print_task_config.py` e un controllo U1FA reale in sola lettura su una stampante con PAXX 12-24 ha confermato che i fingerprint già convalidati della linea 2.0.0.205 continuano a corrispondere, salvo `print_task_config.py`, rilevato con SHA-256 `8298babc42526ef4a4026207927e91c52fd1ca5f1e1afe6b1f08b0dbdced82c0`. U1FA accetta quindi solo questa combinazione esatta di full version e componenti; build PAXX future o hash differenti restano bloccati.
