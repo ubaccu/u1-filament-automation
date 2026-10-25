@@ -1,0 +1,58 @@
+name: Clean GitHub Actions storage
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/cleanup-actions-storage.yml"
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Delete all Actions artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ids="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" --jq '.artifacts[].id' || true)"
+          count=0
+          while IFS= read -r id; do
+            [[ -z "$id" ]] && continue
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"
+            count=$((count + 1))
+          done <<< "$ids"
+          echo "Deleted $count Actions artifact(s)."
+
+      - name: Delete all Actions caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ids="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/caches?per_page=100" --jq '.actions_caches[].id' || true)"
+          count=0
+          while IFS= read -r id; do
+            [[ -z "$id" ]] && continue
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/caches/$id"
+            count=$((count + 1))
+          done <<< "$ids"
+          echo "Deleted $count Actions cache(s)."
+
+      - name: Remove temporary cleanup workflow
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -f .github/workflows/cleanup-actions-storage.yml
+          git commit -m "Clean up Actions storage maintenance workflow"
+          git push origin HEAD:main
