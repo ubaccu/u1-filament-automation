@@ -118,6 +118,7 @@ Prima della configurazione protetta abilita dal touchscreen:
 Poi usa **Controlla configurazione stampante** dentro U1FA. L'app può prima rilevare automaticamente in rete locale l'endpoint U1/Moonraker tramite controlli in sola lettura; la configurazione manuale resta disponibile. Dopo ogni aggiornamento firmware U1, esegui nuovamente il controllo prima di calibrare.
 
 **Compatibilità firmware:** la release U1FA attuale riconosce il PAXX stabile `v1.6.0-paxx12-22` solo tramite identità firmware e SHA-256 dei componenti convalidati esattamente. PAXX 12-21 resta supportato separatamente per le installazioni precedenti. Le build PAXX sconosciute restano bloccate. PAXX 12-22 è stato validato dal firmware ufficiale pubblicato e con un'installazione U1FA completa in sandbox; non era disponibile una stampante fisica PAXX 12-22 per un test hardware diretto.
+
 Guide complete:
 
 - [Installazione e ripristino della stampante](docs/INSTALLAZIONE_STAMPANTE.md)
@@ -144,6 +145,8 @@ Esempi:
 - TPU → **Snapmaker TPU @U1 0.4 nozzle**
 - PEBA 90A → **Snapmaker PEBA 90A @U1 0.4 nozzle**
 - PLA Rainbow → **Snapmaker PLA Rainbow @U1 0.4 nozzle**
+
+Per **PLA Rapid**, U1FA usa la famiglia rapida per scegliere **Snapmaker PLA SnapSpeed**, ma salva in Spoolman il materiale runtime canonico **PLA**. Il marker **RAPID** viene mantenuto nel nome tecnico quando serve, così Snapmaker Orca/U1 restano allineati sul tipo `PLA` senza perdere il routing SnapSpeed nelle sincronizzazioni successive.
 
 Il riconoscimento dei profili equivalenti è volutamente prudente. Se U1FA trova più di un profilo equivalente, blocca la scelta automatica invece di indovinare.
 
