@@ -88,9 +88,14 @@ def _patch_new_spool_form(gui_module: Any) -> None:
 
 def _edit_values(item: Any) -> dict[str, str]:
     multicolor = bool(item.multi_color_hexes)
+    selected_material = (
+        "PLA Rapid"
+        if getattr(item, "profile_family", "").casefold() == "pla rapid"
+        else item.material
+    )
     return {
         "vendor": item.vendor,
-        "material": item.material,
+        "material": selected_material,
         "name": item.name,
         "color_hex": "#" + item.color_hex.lstrip("#"),
         "color_mode": "multi" if multicolor else "single",
