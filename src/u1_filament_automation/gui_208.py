@@ -37,6 +37,9 @@ _CSS = f"""<style id="{_STYLE_ID}">
 .u1fa-side-discord{{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 4px 10px;padding:10px;border-radius:11px;background:#5865f2;color:#fff!important;text-decoration:none!important;font-size:12px;font-weight:900;box-shadow:0 8px 22px rgba(88,101,242,.18);transition:.17s ease}}
 .u1fa-side-discord:hover{{transform:translateY(-2px);box-shadow:0 12px 28px rgba(88,101,242,.28)}}
 .u1fa-side-discord svg{{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}}
+.u1fa-discord-community{{border-color:#5865f2!important;background:#202969!important;color:#fff!important}}
+.u1fa-discord-community:hover{{border-color:#7c86ff!important;background:#293587!important}}
+.u1fa-discord-community svg{{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;margin-right:7px}}
 .u1fa-208-check{{background:#2a2114;border:1px solid #b9872f;border-radius:14px;padding:18px 20px;margin:14px 0 18px;box-shadow:0 12px 28px rgba(0,0,0,.16)}}
 .u1fa-208-check strong{{display:block;color:#ffd166;font-size:18px;margin-bottom:7px}}
 .u1fa-208-check p{{margin:6px 0 13px;color:#e5e8ed}}
@@ -83,24 +86,37 @@ def _strip_generic_error(page: str, error: str) -> str:
 
 
 def _add_discord(page: str, language: str) -> str:
-    if "u1fa-side-discord" in page:
-        return page
     label = "U1FA Discord" if language == "en" else "Discord U1FA"
-    link = (
-        f'<a class="u1fa-side-discord" href="{_DISCORD_URL}" '
-        'target="_blank" rel="noopener noreferrer" title="Community Discord U1FA">'
-        f'{_discord_icon()}<span>{html.escape(label)}</span></a>'
-    )
-    coffee_marker = '<a class="u1fa-side-coffee"'
-    coffee_pos = page.find(coffee_marker)
-    if coffee_pos >= 0:
-        end = page.find("</a>", coffee_pos)
-        if end >= 0:
-            end += len("</a>")
-            return page[:end] + link + page[end:]
-    language_marker = '<div class="u1fa-side-language">'
-    if language_marker in page:
-        return page.replace(language_marker, link + language_marker, 1)
+    if "u1fa-discord-community" not in page:
+        community_link = (
+            f'<a class="u1fa-social-btn u1fa-discord-community" href="{_DISCORD_URL}" '
+            'target="_blank" rel="noopener noreferrer" title="Community Discord U1FA">'
+            f'{_discord_icon()}<span>{html.escape(label)}</span></a>'
+        )
+        community_close = '</div></section>'
+        community_pos = page.find('id="u1fa-community-182"')
+        if community_pos >= 0:
+            close_pos = page.find(community_close, community_pos)
+            if close_pos >= 0:
+                page = page[:close_pos] + community_link + page[close_pos:]
+
+    if "u1fa-side-discord" not in page:
+        side_link = (
+            f'<a class="u1fa-side-discord" href="{_DISCORD_URL}" '
+            'target="_blank" rel="noopener noreferrer" title="Community Discord U1FA">'
+            f'{_discord_icon()}<span>{html.escape(label)}</span></a>'
+        )
+        coffee_marker = '<a class="u1fa-side-coffee"'
+        coffee_pos = page.find(coffee_marker)
+        if coffee_pos >= 0:
+            end = page.find("</a>", coffee_pos)
+            if end >= 0:
+                end += len("</a>")
+                page = page[:end] + side_link + page[end:]
+        else:
+            language_marker = '<div class="u1fa-side-language">'
+            if language_marker in page:
+                page = page.replace(language_marker, side_link + language_marker, 1)
     return page
 
 
