@@ -143,6 +143,9 @@ class NewSpoolRequest:
     # Spoolman richiede anche la geometria del multicolore: coaxial (colori
     # affiancati nella sezione) oppure longitudinal (cambio lungo il filo).
     multi_color_direction: str = ""
+    # UI/profile family selected by the user. This may differ from the canonical
+    # Spoolman/U1 runtime material (for example PLA Rapid -> PLA).
+    profile_family: str = ""
 
     @property
     def used_weight(self) -> float:
@@ -150,8 +153,34 @@ class NewSpoolRequest:
 
     def validated(self) -> "NewSpoolRequest":
         vendor = _required_text(self.vendor, "Marca/vendor")
-        material = _required_text(self.material, "Materiale").upper()
+        selected_material = _required_text(self.material, "Materiale").upper()
+        profile_family = _required_text(
+            self.profile_family or selected_material,
+            "Famiglia profilo",
+        ).upper()
+        material = selected_material
         name = _required_text(self.name, "Nome tecnico")
+
+        # Snapmaker Orca/U1 uses PLA as the sender/runtime material even when
+        # the high-speed SnapSpeed profile is selected. Keep PLA Rapid as a
+        # U1FA routing family, persist RAPID in the technical name so the
+        # routing survives future Spoolman-only syncs, and store PLA in
+        # Spoolman to avoid a PLA-vs-PLA RAPID mismatch at print send time.
+        if profile_family == "PLA RAPID" or selected_material == "PLA RAPID":
+            profile_family = "PLA RAPID"
+            material = "PLA"
+            normalized_name = name.casefold().replace("-", " ").replace("_", " ")
+            name_tokens = set(normalized_name.split())
+            has_fast_marker = (
+                "snapspeed" in normalized_name
+                or "high speed" in normalized_name
+                or "rapid" in name_tokens
+                or "hyper" in name_tokens
+                or "hs" in name_tokens
+                or "hf" in name_tokens
+            )
+            if not has_fast_marker:
+                name = f"PLA RAPID {name}"
         if len(vendor) > 64 or len(material) > 64 or len(name) > 64:
             raise ValueError("Marca, materiale e nome tecnico devono avere al massimo 64 caratteri")
         color_values = _parse_color_values(self.multi_color_hexes)
@@ -205,6 +234,7 @@ class NewSpoolRequest:
             comment=comment,
             multi_color_hexes=colors,
             multi_color_direction=direction,
+            profile_family=profile_family,
         )
 
 
@@ -318,7 +348,7 @@ def plan_spool_creation(
 
     base = choose_base(
         item.vendor,
-        item.material,
+        item.profile_family or item.material,
         item.name,
         multicolor=len(item.multi_color_hexes) >= 2,
     )
