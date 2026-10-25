@@ -146,6 +146,8 @@ Examples:
 - PEBA 90A → **Snapmaker PEBA 90A @U1 0.4 nozzle**
 - PLA Rainbow → **Snapmaker PLA Rainbow @U1 0.4 nozzle**
 
+For **PLA Rapid**, U1FA uses the rapid family to select **Snapmaker PLA SnapSpeed**, while storing the canonical **PLA** runtime material in Spoolman. The **RAPID** marker is retained in the technical name when needed, keeping Snapmaker Orca/U1 aligned on the `PLA` type without losing SnapSpeed routing during later synchronization.
+
 Profile-equivalence matching is intentionally conservative. If more than one equivalent profile is found, U1FA blocks the automatic choice instead of guessing.
 
 ## Support and bug reports
