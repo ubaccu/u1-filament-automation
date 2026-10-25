@@ -117,7 +117,7 @@ Prima della configurazione protetta abilita dal touchscreen:
 
 Poi usa **Controlla configurazione stampante** dentro U1FA. L'app può prima rilevare automaticamente in rete locale l'endpoint U1/Moonraker tramite controlli in sola lettura; la configurazione manuale resta disponibile. Dopo ogni aggiornamento firmware U1, esegui nuovamente il controllo prima di calibrare.
 
-**Compatibilità firmware:** la release U1FA attuale riconosce il PAXX stabile `v1.6.0-paxx12-22` solo tramite identità firmware e SHA-256 dei componenti convalidati esattamente. PAXX 12-21 resta supportato separatamente per le installazioni precedenti. Le build PAXX sconosciute restano bloccate. PAXX 12-22 è stato validato dal firmware ufficiale pubblicato e con un'installazione U1FA completa in sandbox; non era disponibile una stampante fisica PAXX 12-22 per un test hardware diretto.
+**Compatibilità firmware:** U1FA 2.0.9 aggiunge il supporto fail-closed a PAXX `v2.0.0-paxx12-24` sulla base Snapmaker 2.0.0.205. Viene accettata soltanto quando full version esatta e SHA-256 dei componenti convalidati corrispondono; build PAXX sconosciute o future restano bloccate. PAXX 12-22 e 12-21 restano supportati come fingerprint separati.
 
 Guide complete:
 

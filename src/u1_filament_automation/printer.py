@@ -839,6 +839,8 @@ class SSHPrinterTarget:
             f"BatchMode={batch_mode}",
             "-o",
             f"ConnectTimeout={max(1, int(self.timeout))}",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
             "-p",
             str(self.port),
         ]
@@ -920,7 +922,7 @@ class SSHPrinterTarget:
                 input=script,
                 text=True,
                 capture_output=True,
-                timeout=max(2.0, self.timeout + 2.0),
+                timeout=max(10.0, self.timeout + 5.0),
                 check=False,
                 env=environment,
                 start_new_session=start_new_session,

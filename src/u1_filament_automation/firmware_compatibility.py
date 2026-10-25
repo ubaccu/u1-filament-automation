@@ -30,6 +30,8 @@ PAXX_152_V21_BUILD = '1.5.2-paxx12-21-2a88932'
 PAXX_152_V21_PRINT_TASK_CONFIG = '83c9a6614e4b6ff8d39c60b5cd9d458479126df0e6f687c95def9193141f539a'
 PAXX_160_V22_FULLVERSION = '1.6.0.267_20260815150420'
 PAXX_160_V22_BUILD = '1.6.0-paxx12-22-31c5a38'
+PAXX_200_V24_FULLVERSION = '2.0.0-paxx12-24'
+PAXX_200_V24_PRINT_TASK_CONFIG = '8298babc42526ef4a4026207927e91c52fd1ca5f1e1afe6b1f08b0dbdced82c0'
 PAXX_160_V22_DEPENDENCIES = {
     'filament_parameters.py': '6d20c3cdb8121e08b04111865efb20b33898b0528cbe32b0c6aa8d2e9e5a232f',
     'machine_state_manager.py': '6a45ab5778916b97cc71532df0edb8c33aac3b5721a1f250f0dd67c897ee7183',
@@ -50,6 +52,10 @@ PRINT_TASK_CONFIG_205_HASHES = frozenset({
     DEPENDENCIES_205['print_task_config.py'],
     ADAPTIVE_205_PRINT_TASK_CONFIG,
 })
+PAXX_200_V24_DEPENDENCIES = {
+    **DEPENDENCIES_205,
+    'print_task_config.py': PAXX_200_V24_PRINT_TASK_CONFIG,
+}
 
 
 def _matches_205_dependencies(hashes: dict[str, str]) -> bool:
@@ -62,6 +68,10 @@ def _matches_205_dependencies(hashes: dict[str, str]) -> bool:
 
 def _matches_paxx_160_v22_dependencies(hashes: dict[str, str]) -> bool:
     return all(hashes.get(name) == expected for name, expected in PAXX_160_V22_DEPENDENCIES.items())
+
+
+def _matches_paxx_200_v24_dependencies(hashes: dict[str, str]) -> bool:
+    return all(hashes.get(name) == expected for name, expected in PAXX_200_V24_DEPENDENCIES.items())
 
 
 @dataclass(frozen=True)
@@ -181,6 +191,36 @@ def inspect_firmware(target) -> FirmwareCompatibility:
                 'Vecchio AutoPA v6 su PAXX 12-22: incompatibile / '
                 'Old AutoPA v6 on PAXX 12-22: incompatible.'
             )
+    elif (
+        version == '2.0.0'
+        and full == PAXX_200_V24_FULLVERSION
+        and _matches_paxx_200_v24_dependencies(hashes)
+    ):
+        if calibrator == STOCK_205:
+            state = 'paxx-200-v24-compatible'
+            message = (
+                'PAXX 2.0.0-paxx12-24 riconosciuto con componenti U1FA convalidati; '
+                'installazione AutoPA 2.0 controllata consentita / '
+                'PAXX 2.0.0-paxx12-24 recognized with validated U1FA components; '
+                'guarded AutoPA 2.0 installation allowed.'
+            )
+            install = True
+        elif calibrator in {CANDIDATE_205, TESTED_205}:
+            state = 'paxx-200-v24-autopa-installed'
+            message = (
+                'AutoPA U1FA per PAXX 2.0.0-paxx12-24 riconosciuto / '
+                'U1FA AutoPA for PAXX 2.0.0-paxx12-24 recognized.'
+            )
+            install = True
+            calibration = hashes.get('adaptive_pa_macro.cfg') in {
+                MACRO_205_SHA256, MACRO_205_TESTED_SHA256
+            }
+        elif calibrator == LEGACY_V6:
+            state = 'legacy-v6-on-paxx-v24-blocked'
+            message = (
+                'Vecchio AutoPA v6 su PAXX 12-24: incompatibile / '
+                'Old AutoPA v6 on PAXX 12-24: incompatible.'
+            )
     elif version == '2.0.0' and full == FULLVERSION_205:
         if _matches_205_dependencies(hashes):
             if calibrator == STOCK_205:
@@ -228,22 +268,30 @@ def inspect_firmware(target) -> FirmwareCompatibility:
                     f"flow_calibrator.py trovato={calibrator or '<mancante>'}"
                 )
         elif version == '2.0.0':
-            if full != FULLVERSION_205:
-                details.append(
-                    f"FULLVERSION trovato={full or '<vuoto>'} atteso={FULLVERSION_205}"
-                )
-            for name, expected in DEPENDENCIES_205.items():
-                actual = hashes.get(name)
-                accepted = (
-                    PRINT_TASK_CONFIG_205_HASHES
-                    if name == 'print_task_config.py'
-                    else frozenset({expected})
-                )
-                if actual not in accepted:
-                    expected_text = "|".join(sorted(accepted))
+            if full == PAXX_200_V24_FULLVERSION:
+                for name, expected in PAXX_200_V24_DEPENDENCIES.items():
+                    actual = hashes.get(name)
+                    if actual != expected:
+                        details.append(
+                            f"{name} trovato={actual or '<mancante>'} atteso={expected}"
+                        )
+            else:
+                if full != FULLVERSION_205:
                     details.append(
-                        f"{name} trovato={actual or '<mancante>'} atteso={expected_text}"
+                        f"FULLVERSION trovato={full or '<vuoto>'} atteso={FULLVERSION_205}|{PAXX_200_V24_FULLVERSION}"
                     )
+                for name, expected in DEPENDENCIES_205.items():
+                    actual = hashes.get(name)
+                    accepted = (
+                        PRINT_TASK_CONFIG_205_HASHES
+                        if name == 'print_task_config.py'
+                        else frozenset({expected})
+                    )
+                    if actual not in accepted:
+                        expected_text = "|".join(sorted(accepted))
+                        details.append(
+                            f"{name} trovato={actual or '<mancante>'} atteso={expected_text}"
+                        )
             if calibrator not in {
                 STOCK_205,
                 CANDIDATE_205,

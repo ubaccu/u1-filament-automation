@@ -117,7 +117,7 @@ Before protected printer configuration, enable on the U1 touchscreen:
 
 Then use **Check printer setup** inside U1FA. The application can first discover the U1/Moonraker endpoint on the local network using read-only checks; manual configuration remains available. After any U1 firmware update, run the setup check again before calibrating.
 
-**Firmware compatibility:** the current U1FA release recognizes the stable PAXX `v1.6.0-paxx12-22` only through its exact validated firmware identity and component SHA-256 values. PAXX 12-21 remains supported separately for older installations. Unknown PAXX builds stay blocked. The PAXX 12-22 validation was performed from the official published firmware image and a complete U1FA sandbox installation; no physical PAXX 12-22 printer was available for hardware execution testing.
+**Firmware compatibility:** U1FA 2.0.9 adds fail-closed support for PAXX `v2.0.0-paxx12-24` on the Snapmaker 2.0.0.205 base. It is accepted only when the exact full version and reviewed component SHA-256 values match; unknown or future PAXX builds stay blocked. PAXX 12-22 and 12-21 remain supported as separate validated fingerprints.
 
 See the full guides:
 
