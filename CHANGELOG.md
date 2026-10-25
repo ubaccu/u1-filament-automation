@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.7 — PLA Rapid Spoolman material routing fix
+
+- Corretta la creazione delle bobine **PLA Rapid**: U1FA salva ora in Spoolman il materiale runtime canonico **PLA**, evitando il mismatch con Snapmaker U1/Snapmaker Orca durante l'invio della stampa.
+- **PLA Rapid** resta una famiglia di routing U1FA e continua a selezionare la base **Snapmaker PLA SnapSpeed**.
+- Se il nome tecnico non contiene già un indicatore rapido, U1FA mantiene **RAPID** nel nome così le sincronizzazioni future continuano a scegliere SnapSpeed anche leggendo solo i dati Spoolman.
+- Le bobine già corrette con **Materiale = PLA** e **RAPID** nel nome continuano a essere riconosciute; restano compatibili anche le vecchie voci Spoolman con materiale **PLA RAPID**.
+- Nessuna modifica agli algoritmi Adaptive PA, ai valori PA/flow già calibrati, alla compatibilità firmware, a PAXX o ai comandi Moonraker.
+
 ## 2.0.6 — filament picker language hotfix
 
 - Corretto il campo di ricerca del selettore filamenti della calibrazione: con **IT** mostra solo **“Cerca filamento…”**, con **EN** solo **“Search filament…”**.
