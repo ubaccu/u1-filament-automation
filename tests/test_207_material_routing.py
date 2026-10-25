@@ -9,7 +9,7 @@ from u1_filament_automation.spoolman import (
 from u1_filament_automation.sync import choose_base
 
 
-def _request(name: str = "PLA+ 2.0 ROSSO SANGUE") -> NewSpoolRequest:
+def _request(name: str = "DEEPLEE PLA+ 2.0 ROSSO SANGUE") -> NewSpoolRequest:
     return NewSpoolRequest(
         vendor="Deeplee",
         material="PLA Rapid",
@@ -47,7 +47,7 @@ class PLArapidMaterialRouting207Tests(unittest.TestCase):
 
         self.assertEqual(plan.request.material, "PLA")
         self.assertEqual(plan.request.profile_family, "PLA RAPID")
-        self.assertEqual(plan.request.name, "PLA RAPID PLA+ 2.0 ROSSO SANGUE")
+        self.assertEqual(plan.request.name, "DEEPLEE PLA RAPID PLA+ 2.0 ROSSO SANGUE")
         self.assertEqual(plan.base_profile, "Snapmaker PLA SnapSpeed @U1")
         self.assertEqual(
             plan.profile_name,
@@ -65,7 +65,20 @@ class PLArapidMaterialRouting207Tests(unittest.TestCase):
         self.assertEqual(client.filament_payload["material"], "PLA")
         self.assertEqual(
             client.filament_payload["name"],
-            "PLA RAPID PLA+ 2.0 ROSSO SANGUE",
+            "DEEPLEE PLA RAPID PLA+ 2.0 ROSSO SANGUE",
+        )
+
+    def test_name_without_vendor_gets_persistent_rapid_marker(self):
+        inventory = SpoolmanInventory(url="http://127.0.0.1:7912")
+        plan = plan_spool_creation(
+            inventory,
+            _request("PLA+ 2.0 ROSSO SANGUE"),
+        )
+
+        self.assertEqual(plan.request.name, "PLA RAPID PLA+ 2.0 ROSSO SANGUE")
+        self.assertEqual(
+            plan.profile_name,
+            "Deeplee PLA RAPID PLA+ 2.0 ROSSO SANGUE @Snapmaker U1 (0.4 nozzle)",
         )
 
     def test_existing_rapid_marker_is_not_duplicated(self):
