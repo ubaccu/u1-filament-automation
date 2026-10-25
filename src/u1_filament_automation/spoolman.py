@@ -180,7 +180,16 @@ class NewSpoolRequest:
                 or "hf" in name_tokens
             )
             if not has_fast_marker:
-                name = f"PLA RAPID {name}"
+                vendor_prefix = name[: len(vendor)]
+                vendor_delimiter_ok = (
+                    len(name) == len(vendor)
+                    or (len(name) > len(vendor) and name[len(vendor)] in " -_:")
+                )
+                if vendor_prefix.casefold() == vendor.casefold() and vendor_delimiter_ok:
+                    tail = name[len(vendor):].lstrip(" -_:")
+                    name = f"{name[:len(vendor)]} PLA RAPID {tail}".rstrip()
+                else:
+                    name = f"PLA RAPID {name}"
         if len(vendor) > 64 or len(material) > 64 or len(name) > 64:
             raise ValueError("Marca, materiale e nome tecnico devono avere al massimo 64 caratteri")
         color_values = _parse_color_values(self.multi_color_hexes)
