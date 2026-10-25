@@ -108,15 +108,17 @@ def _replace_legacy_guide(page: str, language: str) -> str:
         return page
     if language == "en":
         new = (
-            "Choose the real filament family directly from the Material menu. "
-            "PLA Rapid is the generic high-speed PLA choice and U1FA maps it to the "
-            "Snapmaker PLA SnapSpeed base profile."
+            "Choose the filament family directly from the Material menu. "
+            "PLA Rapid selects the Snapmaker PLA SnapSpeed base profile, while U1FA stores "
+            "the Spoolman/U1 runtime material as PLA and keeps RAPID in the technical name "
+            "for future synchronization."
         )
     else:
         new = (
-            "Scegli direttamente dal menu Materiale la famiglia reale del filamento. "
-            "PLA Rapid è la voce generica per i PLA veloci e U1FA la collega al profilo "
-            "base Snapmaker PLA SnapSpeed."
+            "Scegli direttamente dal menu Materiale la famiglia del filamento. "
+            "PLA Rapid seleziona la base Snapmaker PLA SnapSpeed, mentre U1FA salva in "
+            "Spoolman/U1 il materiale runtime PLA e mantiene RAPID nel nome tecnico per "
+            "le sincronizzazioni successive."
         )
     return page.replace(old, new, 1)
 
@@ -132,9 +134,10 @@ def _replace_material_defaults_js(page: str) -> str:
 def enhance_new_spool_page(page: str, language: str = "it") -> str:
     """Espone tutte le famiglie già supportate da ``choose_base``.
 
-    ``PLA Rapid`` è volutamente un nome generico: ``choose_base`` riconosce la
-    parola ``rapid`` e usa il profilo Snapmaker PLA SnapSpeed. Non vengono
-    inventati profili o parametri specifici del produttore.
+    ``PLA Rapid`` è una famiglia di routing U1FA: viene associata alla base
+    Snapmaker PLA SnapSpeed, ma il materiale runtime salvato in Spoolman/U1 resta
+    ``PLA``. Il marker RAPID viene mantenuto nel nome tecnico per rendere stabile
+    la scelta della base anche nelle sincronizzazioni future.
     """
     page = _replace_material_select(page)
     page = _replace_legacy_guide(page, language)
