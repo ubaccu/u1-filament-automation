@@ -1,0 +1,26 @@
+name: Validate U1FA 2.0.10
+
+on:
+  push:
+    branches:
+      - feature/2.0.10-asa-abs
+    paths:
+      - ".github/workflows/ci-2.0.10.yml"
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2025, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install U1FA
+        run: python -m pip install .
+      - name: Run complete test suite
+        run: python -m unittest discover -s tests
