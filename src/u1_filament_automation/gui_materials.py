@@ -29,6 +29,8 @@ MATERIAL_OPTIONS = (
     "PETG HF",
     "PETG Translucent",
     "PETG-CF",
+    "ASA",
+    "ABS",
     "TPU",
     "PEBA 90A",
 )
@@ -76,7 +78,8 @@ _OLD_MATERIAL_JS = (
 )
 _NEW_MATERIAL_JS = (
     "document.getElementById('material').addEventListener('change',function(){var v=this.value;"
-    "var p=v==='TPU'?['1.22','235','35']:v==='PEBA 90A'?['1.21','235','100']:"
+    "var p=v==='ASA'?['1.04','255','110']:v==='ABS'?['1.04','255','110']:"
+    "v==='TPU'?['1.22','235','35']:v==='PEBA 90A'?['1.21','235','100']:"
     "v==='PLA Rainbow'?['1.21','230','65']:v.indexOf('PETG')===0?['1.27','240','75']:"
     "v==='PLA Silk'?['1.24','230','60']:['1.24','220','60'];"
     "document.getElementById('density').value=p[0];document.getElementById('nozzle-temp').value=p[1];"
@@ -149,19 +152,19 @@ def enhance_new_spool_page(page: str, language: str = "it") -> str:
         if language == "en":
             hint = (
                 "Supported families: PLA, PLA Rapid, PLA Silk, PLA Wood, PLA Translucent, "
-                "PLA-CF, PETG, PETG HF, PETG Translucent, PETG-CF, TPU, PEBA 90A and "
-                "PLA Rainbow. U1FA 1.8.3 creates U1 0.4 mm filament profiles; TPU, "
-                "PEBA 90A and PLA Rainbow use the official Snapmaker Orca 2.4.0 U1 "
-                "0.4 mm bases. Temperature, density and the other spool values must "
+                "PLA-CF, PETG, PETG HF, PETG Translucent, PETG-CF, ASA, ABS, TPU, PEBA 90A and "
+                "PLA Rainbow. U1FA creates U1 0.4 mm filament profiles; ASA and ABS use "
+                "the official Snapmaker @U1 bases, while TPU, PEBA 90A and PLA Rainbow "
+                "use their official U1 0.4 mm bases. Temperature, density and the other spool values must "
                 "still follow the manufacturer's specifications."
             )
         else:
             hint = (
                 "Famiglie supportate: PLA, PLA Rapid, PLA Silk, PLA Wood, PLA Translucent, "
-                "PLA-CF, PETG, PETG HF, PETG Translucent, PETG-CF, TPU, PEBA 90A e "
-                "PLA Rainbow. U1FA 1.8.3 crea profili filamento U1 per ugello 0,4 mm; "
-                "TPU, PEBA 90A e PLA Rainbow usano le basi ufficiali Snapmaker Orca "
-                "2.4.0 per U1 0,4 mm. Temperatura, densità e gli altri dati devono "
+                "PLA-CF, PETG, PETG HF, PETG Translucent, PETG-CF, ASA, ABS, TPU, PEBA 90A e "
+                "PLA Rainbow. U1FA crea profili filamento U1 per ugello 0,4 mm; ASA e ABS "
+                "usano le basi ufficiali Snapmaker @U1, mentre TPU, PEBA 90A e PLA Rainbow "
+                "usano le rispettive basi ufficiali U1 0,4 mm. Temperatura, densità e gli altri dati devono "
                 "comunque seguire le specifiche della bobina reale."
             )
         page = page.replace(
