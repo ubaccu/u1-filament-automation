@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.11 — ASA/ABS local Orca preset fallback hotfix
+
+- Corretto il blocco `Profilo base Snapmaker non trovato: Snapmaker ASA @U1` / `ABS @U1` quando il pacchetto locale di Snapmaker Orca non contiene il child preset con quel nome esatto.
+- U1FA cerca prima eventuali alias U1 0,4 mm realmente installati, quindi una base U1 locale; se necessario usa la catena generica ASA/ABS installata localmente.
+- Quando viene usato il fallback locale, U1FA applica i parametri effettivi ufficiali U1 per ASA/ABS, inclusi `filament_type`, compatibilità U1 0,4 mm, MVF 8 mm³/s e override U1 specifici.
+- Il fallback non scarica profili da Internet e non crea un profilo dal nulla: se sul computer non esiste alcuna base ASA/ABS valida, la creazione resta bloccata prima di scrivere in Spoolman.
+- Aggiunti test specifici per preset U1 rinominato, child U1 mancante, fallback generico ASA/ABS e blocco sicuro quando manca ogni base locale.
+- Nessuna modifica ai profili già calibrati, ai materiali PLA/PETG/TPU/PEBA, al firmware o al supporto PAXX.
+
 ## 2.0.10 — ASA & ABS filament support
 
 - Aggiunte le famiglie **ASA** e **ABS** alla creazione bobina U1FA.
