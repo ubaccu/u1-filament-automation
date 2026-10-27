@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.12 — Preserve local ASA/ABS U1 profile values
+
+- Corretto il comportamento introdotto nella 2.0.11 che poteva sovrascrivere il valore reale di `filament_max_volumetric_speed` del preset ASA/ABS U1 installato localmente.
+- Se Snapmaker Orca contiene un preset U1 ASA/ABS reale, anche con nome file diverso, U1FA ora ne preserva tutti i valori effettivi risolti localmente. Per esempio, un preset ASA locale con MVF **15 mm³/s** resta a **15 mm³/s**.
+- Gli override U1 di fallback vengono applicati solo quando manca completamente un preset U1 locale e U1FA deve partire dalla catena generica ASA/ABS.
+- Nessuna modifica ai profili già calibrati, ai valori PA/flow esistenti, a Spoolman o alla compatibilità firmware/PAXX.
+
 ## 2.0.11 — ASA/ABS local Orca preset fallback hotfix
 
 - Corretto il blocco `Profilo base Snapmaker non trovato: Snapmaker ASA @U1` / `ABS @U1` quando il pacchetto locale di Snapmaker Orca non contiene il child preset con quel nome esatto.
