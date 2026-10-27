@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.13 — ASA/ABS U1 0.4 profile discovery hotfix
+
+- Corretto il falso avviso di ambiguità nella preview ASA/ABS quando Snapmaker Orca contiene più child preset U1 per ugelli diversi (0,2 / 0,4 / 0,6 / 0,8 mm).
+- Per U1FA, che genera profili per **Snapmaker U1 (0.4 nozzle)**, `Snapmaker ASA @U1 0.4 nozzle` e `Snapmaker ABS @U1 0.4 nozzle` vengono ora trattati come alias locali esatti delle rispettive basi logiche.
+- I preset 0,2 / 0,6 / 0,8 mm non vengono considerati equivalenti esatti e non possono più causare il messaggio “U1FA non sceglie automaticamente” quando è presente il child 0,4 mm.
+- La preview mostra quindi la corrispondenza 0,4 mm effettivamente usata dal percorso di creazione profilo.
+- Nessuna modifica a MVF, temperature, Adaptive PA, Spoolman, profili già calibrati o compatibilità firmware/PAXX.
+
 ## 2.0.12 — Preserve local ASA/ABS U1 profile values
 
 - Corretto il comportamento introdotto nella 2.0.11 che poteva sovrascrivere il valore reale di `filament_max_volumetric_speed` del preset ASA/ABS U1 installato localmente.
