@@ -128,9 +128,9 @@ Guide complete:
 
 ## Famiglie profilo filamento supportate
 
-U1FA genera profili filamento per **Snapmaker U1 con ugello 0,4 mm**. Oltre alle famiglie PLA/PETG già supportate (standard, rapid/high-speed, silk, wood, translucent e carbon-fibre), riconosce i profili U1 0,4 mm introdotti in **Snapmaker Orca 2.4.0** per **TPU**, **PEBA 90A** e **PLA Rainbow**.
+U1FA genera profili filamento per **Snapmaker U1 con ugello 0,4 mm**. Le famiglie supportate includono varianti PLA/PETG, **ASA**, **ABS**, **TPU**, **PEBA 90A** e **PLA Rainbow**.
 
-Per questi profili vengono usate direttamente le basi ufficiali `Snapmaker TPU @U1 0.4 nozzle`, `Snapmaker PEBA 90A @U1 0.4 nozzle` e `Snapmaker PLA Rainbow @U1 0.4 nozzle`. I valori iniziali della schermata nuova bobina seguono i preset Snapmaker 2.4.0; l'envelope Adaptive PA continua invece a essere calcolato dal `filament_max_volumetric_speed` del profilo reale.
+ASA e ABS usano le basi ufficiali `Snapmaker ASA @U1` e `Snapmaker ABS @U1`. TPU, PEBA 90A e PLA Rainbow usano le rispettive basi ufficiali U1 0,4 mm. I valori iniziali della schermata nuova bobina seguono i preset Snapmaker 2.4.0; l'envelope Adaptive PA continua invece a essere calcolato dal `filament_max_volumetric_speed` del profilo reale.
 
 Su firmware U1 2.0.0.205, TPU e PEBA usano inoltre l'intervallo K **0,15–0,45** previsto dalla tabella filamenti del firmware, invece dell'intervallo PLA/PETG predefinito 0,005–0,040. PLA Rainbow usa il normale intervallo 0,005–0,040.
 
@@ -142,6 +142,8 @@ Esempi:
 - PLA Rapid / Hyper / High Speed / HS / HF → **Snapmaker PLA SnapSpeed**
 - PLA Silk → **Snapmaker PLA Silk**
 - famiglie PETG → relativo profilo compatibile **Snapmaker PETG**
+- ASA → **Snapmaker ASA @U1**
+- ABS → **Snapmaker ABS @U1**
 - TPU → **Snapmaker TPU @U1 0.4 nozzle**
 - PEBA 90A → **Snapmaker PEBA 90A @U1 0.4 nozzle**
 - PLA Rainbow → **Snapmaker PLA Rainbow @U1 0.4 nozzle**
