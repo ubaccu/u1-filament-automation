@@ -18,6 +18,51 @@ class ASAABSLocalFallback211Tests(unittest.TestCase):
             resolved = base_profile_path(root, "Snapmaker ASA @U1")
             self.assertEqual(resolved, alias)
 
+    def test_installed_u1_asa_alias_preserves_local_mvf(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            common = root / "fdm_filament_asa.json"
+            common.write_text(
+                json.dumps(
+                    {
+                        "type": "filament",
+                        "name": "fdm_filament_asa",
+                        "filament_type": ["ASA"],
+                        "filament_density": ["1.04"],
+                        "filament_max_volumetric_speed": ["7.6"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            alias = root / "Snapmaker ASA @U1 0.4 nozzle.json"
+            alias.write_text(
+                json.dumps(
+                    {
+                        "type": "filament",
+                        "name": "Snapmaker ASA @U1 0.4 nozzle",
+                        "inherits": "fdm_filament_asa",
+                        "compatible_printers": ["Snapmaker U1 (0.4 nozzle)"],
+                        "filament_max_volumetric_speed": ["15"],
+                        "hot_plate_temp": ["110"],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            resolved = base_profile_path(root, "Snapmaker ASA @U1")
+            self.assertEqual(resolved, alias)
+            payload = _build_profile_payload(
+                resolved,
+                "Snapmaker ASA @U1",
+                "Overture ASA TEST @Snapmaker U1 (0.4 nozzle)",
+                "Overture",
+                "222222",
+                "2.0.12",
+            )
+            self.assertEqual(payload["filament_max_volumetric_speed"], ["15"])
+            self.assertEqual(payload["filament_type"], ["ASA"])
+            self.assertEqual(payload["compatible_printers"], ["Snapmaker U1 (0.4 nozzle)"])
+
     def test_asa_uses_local_generic_chain_when_u1_child_is_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
