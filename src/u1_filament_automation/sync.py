@@ -83,6 +83,12 @@ def choose_base(
     if "tpu" in normalized:
         return "Snapmaker TPU @U1 0.4 nozzle"
 
+    if "asa" in tokens:
+        return "Snapmaker ASA @U1"
+
+    if "abs" in tokens:
+        return "Snapmaker ABS @U1"
+
     if "petg" in normalized:
         if "cf" in tokens or "carbon fiber" in normalized or "carbon fibre" in normalized:
             return "Snapmaker PETG-CF @U1 0.4 nozzle"

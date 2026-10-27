@@ -42,6 +42,10 @@ def _material_family(value: str) -> str:
         return "petg"
     if "pla" in tokens:
         return "pla"
+    if "asa" in tokens:
+        return "asa"
+    if "abs" in tokens:
+        return "abs"
     return ""
 
 
