@@ -85,12 +85,26 @@ def installed_snapmaker_profiles(system_dir: Path) -> tuple[str, ...]:
 def _exact_alias(profile: str, expected: str) -> bool:
     if profile.casefold() == expected.casefold():
         return True
+
     # Snapmaker has shipped the PLA Silk profile both with and without @U1.
     silk_aliases = {
         "snapmaker pla silk",
         "snapmaker pla silk @u1",
     }
-    return profile.casefold() in silk_aliases and expected.casefold() in silk_aliases
+    if profile.casefold() in silk_aliases and expected.casefold() in silk_aliases:
+        return True
+
+    # U1FA targets Snapmaker U1 with a 0.4 mm nozzle. Some Snapmaker Orca
+    # resource bundles expose ASA/ABS as nozzle-specific child presets while
+    # the validated logical base remains "... @U1". Treat the 0.4-mm child as
+    # the exact local alias; do not accept 0.2/0.6/0.8 as equivalent.
+    u1_04_aliases = {
+        "snapmaker asa @u1": "snapmaker asa @u1 0.4 nozzle",
+        "snapmaker abs @u1": "snapmaker abs @u1 0.4 nozzle",
+    }
+    wanted = expected.casefold()
+    actual = profile.casefold()
+    return u1_04_aliases.get(wanted) == actual
 
 
 def _score_candidate(profile: str, expected: str) -> int:
