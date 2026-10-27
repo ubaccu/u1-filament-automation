@@ -305,15 +305,22 @@ def base_profile_path(system_dir: Path, base: str) -> Path:
     return candidates[0]
 
 
-def _apply_u1_material_overrides(payload: dict[str, Any], base: str) -> dict[str, Any]:
-    """Apply the official U1 0.4-mm ASA/ABS effective settings.
+def _apply_u1_material_overrides(
+    payload: dict[str, Any],
+    base: str,
+    base_file: Path,
+) -> dict[str, Any]:
+    """Apply U1 fallback settings only when a real local U1 preset is absent.
 
-    This keeps U1FA functional when Snapmaker Orca ships the generic ASA/ABS
-    chain locally but omits the lightweight U1 child preset.  We still require
-    an installed Snapmaker/generic material base, so no profile is fabricated
-    from nothing.
+    If Snapmaker Orca already provides any installed U1 ASA/ABS preset (including
+    aliases with a different filename), its fully-resolved local values win.
+    This is important for fields such as maximum volumetric speed, which can
+    differ between Snapmaker Orca resource builds.
     """
     result = dict(payload)
+    source_tokens = set(_normalized_profile_stem(base_file.stem).split())
+    if "u1" in source_tokens:
+        return result
     if base == "Snapmaker ASA @U1":
         result.update(
             {
@@ -388,7 +395,7 @@ def _build_profile_payload(
         colors,
         version,
     )
-    return _apply_u1_material_overrides(payload, base)
+    return _apply_u1_material_overrides(payload, base, base_file)
 
 
 def repair_profile_colors(
