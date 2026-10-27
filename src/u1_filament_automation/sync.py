@@ -224,16 +224,171 @@ def _filament_colors(filament: dict[str, Any]) -> tuple[str, ...]:
     return (color,) if re.fullmatch(r"[0-9A-F]{6}", color) else ()
 
 
+def _normalized_profile_stem(value: str) -> str:
+    text = value.casefold().replace("@", " ").replace("_", " ").replace("-", " ")
+    return " ".join(re.findall(r"[a-z0-9.]+", text))
+
+
+def _u1_family_candidates(system_dir: Path, family: str) -> list[Path]:
+    """Return safe local aliases for one U1 material family.
+
+    Snapmaker has changed filament preset naming across Orca resource bundles.
+    Prefer an installed U1 0.4-mm preset when available, then the U1 base.
+    Benchy and other nozzle-specific presets are deliberately excluded.
+    """
+    wanted = family.casefold()
+    ranked: list[tuple[int, str, Path]] = []
+    try:
+        paths = tuple(system_dir.glob("*.json"))
+    except OSError:
+        return []
+    for path in paths:
+        stem = _normalized_profile_stem(path.stem)
+        tokens = set(stem.split())
+        if "snapmaker" not in tokens or wanted not in tokens or "u1" not in tokens:
+            continue
+        if "benchy" in tokens:
+            continue
+        if any(nozzle in stem for nozzle in ("0.2 nozzle", "0.6 nozzle", "0.8 nozzle")):
+            continue
+        score = 0
+        if "0.4 nozzle" in stem:
+            score += 30
+        if "base" not in tokens:
+            score += 20
+        if stem == f"snapmaker {wanted} u1":
+            score += 40
+        ranked.append((-score, path.name.casefold(), path))
+    return [path for _, _, path in sorted(ranked)]
+
+
+_U1_ENGINEERING_FALLBACKS = {
+    "Snapmaker ASA @U1": (
+        "Snapmaker ASA @U1 0.4 nozzle",
+        "Snapmaker ASA @U1 base",
+        "Snapmaker ASA",
+        "Snapmaker ASA @base",
+        "fdm_filament_asa",
+    ),
+    "Snapmaker ABS @U1": (
+        "Snapmaker ABS @U1 0.4 nozzle",
+        "Snapmaker ABS @U1 base",
+        "Snapmaker ABS",
+        "Snapmaker ABS @base",
+        "fdm_filament_abs",
+    ),
+}
+
+
 def base_profile_path(system_dir: Path, base: str) -> Path:
     candidates = [system_dir / f"{base}.json"]
     if base == "Snapmaker PLA Silk":
         candidates.append(system_dir / "Snapmaker PLA Silk @U1.json")
     elif base == "Snapmaker PLA Silk @U1":
         candidates.append(system_dir / "Snapmaker PLA Silk.json")
+
+    if base in _U1_ENGINEERING_FALLBACKS:
+        family = "ASA" if " ASA " in f" {base} " else "ABS"
+        candidates.extend(_u1_family_candidates(system_dir, family))
+        candidates.extend(
+            system_dir / f"{name}.json"
+            for name in _U1_ENGINEERING_FALLBACKS[base]
+        )
+
+    seen: set[Path] = set()
     for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
         if candidate.is_file():
             return candidate
     return candidates[0]
+
+
+def _apply_u1_material_overrides(payload: dict[str, Any], base: str) -> dict[str, Any]:
+    """Apply the official U1 0.4-mm ASA/ABS effective settings.
+
+    This keeps U1FA functional when Snapmaker Orca ships the generic ASA/ABS
+    chain locally but omits the lightweight U1 child preset.  We still require
+    an installed Snapmaker/generic material base, so no profile is fabricated
+    from nothing.
+    """
+    result = dict(payload)
+    if base == "Snapmaker ASA @U1":
+        result.update(
+            {
+                "compatible_printers": ["Snapmaker U1 (0.4 nozzle)"],
+                "filament_type": ["ASA"],
+                "filament_density": ["1.04"],
+                "filament_flow_ratio": ["0.94"],
+                "filament_max_volumetric_speed": ["8"],
+                "hot_plate_temp": ["110"],
+                "hot_plate_temp_initial_layer": ["100"],
+                "nozzle_temperature": ["255"],
+                "nozzle_temperature_initial_layer": ["255"],
+                "nozzle_temperature_range_low": ["240"],
+                "nozzle_temperature_range_high": ["280"],
+                "overhang_fan_speed": ["15"],
+                "fan_max_speed": ["15"],
+                "fan_min_speed": ["0"],
+                "filament_loading_speed_start": ["35"],
+                "filament_loading_speed": ["35"],
+                "filament_unloading_speed_start": ["35"],
+                "filament_unloading_speed": ["35"],
+                "filament_load_time": ["2"],
+                "filament_unload_time": ["2"],
+                "filament_cooling_moves": ["2"],
+                "filament_cooling_initial_speed": ["35"],
+                "filament_cooling_final_speed": ["60"],
+            }
+        )
+    elif base == "Snapmaker ABS @U1":
+        result.update(
+            {
+                "compatible_printers": ["Snapmaker U1 (0.4 nozzle)"],
+                "filament_type": ["ABS"],
+                "filament_density": ["1.04"],
+                "filament_flow_ratio": ["0.95"],
+                "filament_max_volumetric_speed": ["8"],
+                "hot_plate_temp": ["110"],
+                "hot_plate_temp_initial_layer": ["105"],
+                "nozzle_temperature": ["255"],
+                "nozzle_temperature_initial_layer": ["265"],
+                "nozzle_temperature_range_low": ["240"],
+                "nozzle_temperature_range_high": ["280"],
+                "overhang_fan_speed": ["20"],
+                "fan_max_speed": ["15"],
+                "pressure_advance": ["0.02"],
+                "filament_loading_speed_start": ["35"],
+                "filament_loading_speed": ["35"],
+                "filament_unloading_speed_start": ["35"],
+                "filament_unloading_speed": ["35"],
+                "filament_load_time": ["2"],
+                "filament_unload_time": ["2"],
+                "filament_cooling_moves": ["2"],
+                "filament_cooling_initial_speed": ["35"],
+                "filament_cooling_final_speed": ["60"],
+            }
+        )
+    return result
+
+
+def _build_profile_payload(
+    base_file: Path,
+    base: str,
+    profile_name: str,
+    vendor: str,
+    colors: tuple[str, ...] | str,
+    version: str,
+) -> dict[str, Any]:
+    payload = build_detached_profile_payload(
+        base_file,
+        profile_name,
+        vendor,
+        colors,
+        version,
+    )
+    return _apply_u1_material_overrides(payload, base)
 
 
 def repair_profile_colors(
@@ -327,8 +482,9 @@ def migrate_legacy_profile_identity(
         return False, ""
 
     base_file = base_profile_path(system_dir, base)
-    fresh = build_detached_profile_payload(
+    fresh = _build_profile_payload(
         base_file,
+        base,
         profile_name,
         vendor,
         colors,
@@ -447,8 +603,9 @@ def _write_new_profile(
     filename = safe_filename(profile_name)
     json_path = user_dir / f"{filename}.json"
     info_path = user_dir / f"{filename}.info"
-    payload = build_detached_profile_payload(
+    payload = _build_profile_payload(
         base_file,
+        base,
         profile_name,
         vendor,
         color,
