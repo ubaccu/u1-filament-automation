@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.10 — ASA & ABS filament support
+
+- Aggiunte le famiglie **ASA** e **ABS** alla creazione bobina U1FA.
+- ASA viene associato alla base ufficiale **Snapmaker ASA @U1**; ABS alla base ufficiale **Snapmaker ABS @U1** per Snapmaker U1 con ugello 0,4 mm.
+- Spoolman conserva i materiali runtime canonici `ASA` e `ABS`; non vengono creati alias o tipi filamento personalizzati.
+- I profili materializzati mantengono il `filament_type` ufficiale Snapmaker Orca (`ASA` / `ABS`) e il limite volumetrico della base U1, attualmente **8 mm³/s**.
+- Valori iniziali nella schermata nuova bobina: densità **1,04 g/cm³**, ugello **255 °C**, piano **110 °C**; restano modificabili secondo le specifiche del filamento reale.
+- Adaptive PA continua a usare il range K standard per ASA/ABS; il range esteso 0,15–0,45 resta riservato a TPU/PEBA.
+- Aggiunti test di regressione per routing, Spoolman, materializzazione profilo e tipo runtime.
+- Nessuna modifica alla compatibilità firmware, al supporto PAXX, ai profili già esistenti o ai valori PA/flow già calibrati.
+
 ## 2.0.9 — PAXX 12-24 compatibility & Windows OpenSSH first-connect fix
 
 - Aggiunto supporto fail-closed per **PAXX v2.0.0-paxx12-24**, basata sul firmware Snapmaker U1 2.0.0.205.
