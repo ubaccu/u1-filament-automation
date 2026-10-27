@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from u1_filament_automation.gui import _material_pa_k_range
-from u1_filament_automation.gui_materials import MATERIAL_OPTIONS
+from u1_filament_automation.gui_materials import MATERIAL_OPTIONS, _NEW_MATERIAL_JS
 from u1_filament_automation.models import SpoolmanInventory
 from u1_filament_automation.orca_profile import build_detached_profile_payload
 from u1_filament_automation.spoolman import NewSpoolRequest, plan_spool_creation
@@ -31,6 +31,8 @@ class ASAABS210Tests(unittest.TestCase):
     def test_material_menu_exposes_asa_and_abs(self):
         self.assertIn("ASA", MATERIAL_OPTIONS)
         self.assertIn("ABS", MATERIAL_OPTIONS)
+        self.assertIn("v==='ASA'?['1.04','255','110']", _NEW_MATERIAL_JS)
+        self.assertIn("v==='ABS'?['1.04','255','110']", _NEW_MATERIAL_JS)
 
     def test_asa_routes_to_official_u1_profile_and_stays_asa_in_spoolman(self):
         inventory = SpoolmanInventory(url="http://127.0.0.1:7912")
