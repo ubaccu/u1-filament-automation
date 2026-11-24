@@ -1,141 +1,41 @@
-name: Publish U1FA 2.0.14
-
+name: Publish verified U1FA 2.0.14 packages
 on:
   push:
     branches: [main]
-    paths:
-      - ".github/workflows/publish-2.0.14.yml"
-
+    paths: [".github/workflows/publish-2.0.14.yml"]
 permissions:
   contents: write
-
+  actions: read
 jobs:
-  prepare:
-    runs-on: ubuntu-22.04
-    outputs:
-      release_sha: ${{ steps.release_sha.outputs.sha }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: 2a29ff438d2df122115217a0a761eacf4cc0d343
-          fetch-depth: 0
-      - id: release_sha
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-  source:
-    needs: prepare
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare.outputs.release_sha }}
-      - run: bash packaging/source/build_source_archive.sh dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: U1FA-Source
-          path: dist/*-Source.zip
-          if-no-files-found: error
-
-  macos:
-    needs: prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-15-intel
-            arch: x86_64
-          - runner: macos-15
-            arch: arm64
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare.outputs.release_sha }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: python -m pip install . pyinstaller
-      - run: python -m unittest discover -s tests
-      - env:
-          U1FA_ARCH: ${{ matrix.arch }}
-        run: packaging/macos/build_dmg.sh
-      - uses: actions/upload-artifact@v4
-        with:
-          name: U1FA-macOS-${{ matrix.arch }}
-          path: dist/*.dmg
-          if-no-files-found: error
-
-  windows:
-    needs: prepare
-    runs-on: windows-2025
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare.outputs.release_sha }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - shell: pwsh
-        run: |
-          python -m pip install . pyinstaller pillow
-          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
-            choco install innosetup --yes --no-progress
-          }
-      - run: python -m unittest discover -s tests
-      - shell: pwsh
-        run: packaging/windows/build_installer.ps1
-      - uses: actions/upload-artifact@v4
-        with:
-          name: U1FA-Windows-x64
-          path: dist/*Windows-x64-Setup.exe
-          if-no-files-found: error
-
-  linux:
-    needs: prepare
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.prepare.outputs.release_sha }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: python -m pip install . pyinstaller
-      - run: python -m unittest discover -s tests
-      - run: |
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/appimagetool-x86_64.AppImage" https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod 0755 "$RUNNER_TEMP/appimagetool-x86_64.AppImage"
-      - env:
-          APPIMAGETOOL: ${{ runner.temp }}/appimagetool-x86_64.AppImage
-          U1FA_ARCH: x86_64
-        run: packaging/linux/build_appimage.sh
-      - uses: actions/upload-artifact@v4
-        with:
-          name: U1FA-Linux-x86_64
-          path: dist/*.AppImage
-          if-no-files-found: error
-
   publish:
-    needs: [prepare, source, macos, windows, linux]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.prepare.outputs.release_sha }}
+          fetch-depth: 0
+      - name: Check that sources match the tested build
+        run: |
+          git fetch origin 2a29ff438d2df122115217a0a761eacf4cc0d343
+          git diff --exit-code 2a29ff438d2df122115217a0a761eacf4cc0d343 HEAD -- . ':!.github/workflows'
       - uses: actions/download-artifact@v4
         with:
+          github-token: ${{ github.token }}
+          run-id: 45394413246
           pattern: U1FA-*
           path: release-assets
           merge-multiple: true
-      - run: |
-          set -euo pipefail
-          (cd release-assets && sha256sum ./* > SHA256SUMS.txt)
-      - name: Publish v2.0.14
+      - name: Verify package set and publish
+        working-directory: release-assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create v2.0.14 release-assets/*             --repo "${{ github.repository }}"             --target "${{ needs.prepare.outputs.release_sha }}"             --title "U1 Filament Automation 2.0.14"             --notes "U1FA 2.0.14 adds optional migration of existing U1FA filament profiles from Snapmaker Orca to OrcaSlicer, including inherited settings and saved Adaptive PA models. Enable the mirror under Manage Orca Slicer profiles. New spools also get their OrcaSlicer profile immediately. Optional Spooler linking associates each Spoolman filament with its preset."
+          files=(*)
+          [[ ${#files[@]} == 5 ]]
+          for suffix in 'Linux-x86_64.AppImage' 'macOS-arm64.dmg' 'macOS-x86_64.dmg' 'Source.zip' 'Windows-x64-Setup.exe'; do
+            matches=( *"$suffix" )
+            test -s "${matches[0]}"
+          done
+          sha256sum "${files[@]}" > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+          gh release create v2.0.14 "${files[@]}" SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "U1 Filament Automation 2.0.14" --notes "Transfer your existing U1FA filament profiles from Snapmaker Orca to OrcaSlicer, including inherited settings and saved Adaptive PA models. Choose Manage Orca Slicer profiles and enable the mirror. New spools also receive an OrcaSlicer profile immediately. Spooler linking is optional."
