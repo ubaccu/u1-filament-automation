@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ec2acdb2631035fddddd7a332c61733342ffd687
+          ref: 2a29ff438d2df122115217a0a761eacf4cc0d343
           fetch-depth: 0
       - id: release_sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

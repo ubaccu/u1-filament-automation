@@ -138,7 +138,7 @@ def standard_filament_choices(snap_dir: Path) -> list[Path]:
         for marker in root.glob("user/*/_local/spooler/.spooler-profiles.json"):
             account = marker.parents[2]
             if marker.is_file() and not account.is_symlink():
-                dirs.add(account / "filament")
+                dirs.add((account / "filament").resolve())
     return sorted(path for path in dirs if path.resolve() != snap_dir.resolve())
 
 

@@ -18,9 +18,10 @@ class SpoolerFolderTests(TestCase):
             other.mkdir(parents=True)
             with patch.object(discovery, "candidate_slicer_roots", return_value=[("orca_slicer", root, "macOS")]):
                 choices = discovery.standard_filament_choices(Path(tmp) / "Snap")
-                self.assertEqual(set(choices), {target, other})
+                self.assertEqual(set(choices), {target.resolve(), other.resolve()})
                 self.assertIsNone(discovery.choose_standard_filament_dir(choices))
                 target.mkdir()
-                self.assertEqual(discovery.choose_standard_filament_dir(choices), target)
+                choices = discovery.standard_filament_choices(Path(tmp) / "Snap")
+                self.assertEqual(discovery.choose_standard_filament_dir(choices), target.resolve())
                 marker.unlink()
                 self.assertIsNone(discovery.choose_standard_filament_dir(choices))
