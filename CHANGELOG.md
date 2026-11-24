@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.14 — Profili calibrati in OrcaSlicer e collegamenti Spooler
+
+- Con il mirror attivo, «Crea bobina» prepara subito il profilo anche in OrcaSlicer standard e mostra il percorso. Se il collegamento Spooler è attivo, U1FA associa subito il preset al filamento.
+- Il mirror opzionale copia in OrcaSlicer i profili filamento U1FA, risolve i valori ereditati e conserva il modello Adaptive PA.
+- Il collegamento automatico associa i filamenti Spoolman al preset Orca tramite il campo `orca_filament_preset`. Il pannello consente di verificare tutti i collegamenti.
+- Il rilevamento della cartella considera gli account Orca con Spooler. Un profilo bloccato viene segnalato individualmente.
+
 ## 2.0.13 — ASA/ABS U1 0.4 profile discovery hotfix
 
 - Corretto il falso avviso di ambiguità nella preview ASA/ABS quando Snapmaker Orca contiene più child preset U1 per ugelli diversi (0,2 / 0,4 / 0,6 / 0,8 mm).

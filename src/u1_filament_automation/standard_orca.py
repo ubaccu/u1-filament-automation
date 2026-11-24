@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Literal
 
 from .pa_profile import PAProfileError, find_profile_path
-from .sync import safe_filename
+from .sync import safe_filename, default_system_dir
+from .orca_profile import ProfileMaterializationError, flatten_filament_profile
+from .profile_equivalence import profile_names_equivalent
 
 
 class StandardOrcaMirrorError(RuntimeError):
@@ -85,6 +87,22 @@ def set_standard_orca_mirror_enabled(target_dir: Path, enabled: bool) -> None:
             raise StandardOrcaMirrorError(
                 f"Impossibile disabilitare il mirror Orca Slicer: {exc}"
             ) from exc
+
+
+def spooler_linking_enabled(target_dir: Path, url: str) -> bool:
+    marker = target_dir / ".u1fa" / "spooler-link-server"
+    return (bool(url) and not marker.parent.is_symlink() and not marker.is_symlink()
+            and marker.is_file() and marker.read_text(encoding="utf-8") == url.rstrip("/"))
+
+
+def set_spooler_linking(target_dir: Path, url: str, enabled: bool) -> None:
+    marker = target_dir / ".u1fa" / "spooler-link-server"
+    if not standard_orca_mirror_enabled(target_dir) or marker.is_symlink():
+        raise StandardOrcaMirrorError("Abilitare il mirror protetto")
+    if enabled:
+        _atomic_write(marker, url.rstrip("/").encode("utf-8"))
+    else:
+        marker.unlink(missing_ok=True)
 
 
 def _load_state(target_dir: Path) -> dict[str, dict[str, str]]:
@@ -172,25 +190,49 @@ def _portable_profile_bytes(path: Path, profile_name: str) -> bytes:
         ) from exc
     if not isinstance(payload, dict):
         raise StandardOrcaMirrorError("Profilo Snapmaker Orca non valido")
-    if payload.get("name") != profile_name:
-        raise StandardOrcaMirrorError(
-            "Il nome interno del profilo non corrisponde al profilo selezionato"
-        )
+    internal = payload.get("name")
     setting_id = payload.get("filament_settings_id")
-    if setting_id not in ([profile_name], (profile_name,)):
+    # A renamed legacy file can still carry its previous display name. Accept
+    # the requested name only when the filename and stored settings ID agree.
+    rename = (internal != profile_name and setting_id == [profile_name]
+              and path.stem.casefold() == safe_filename(profile_name).casefold())
+    vendor, family, variant = profile_name.casefold().partition(" pla rapid ")
+    legacy_name = f"pla rapid {vendor} {variant}"
+    moved_vendor = (
+        bool(vendor and family and variant)
+        and isinstance(internal, str)
+        and internal.casefold() == legacy_name
+        and path.stem.casefold() == safe_filename(profile_name).casefold()
+        and setting_id == [internal]
+    )
+    if internal != profile_name and not (rename or moved_vendor):
+        raise StandardOrcaMirrorError(
+            f"Nome interno {payload.get('name')!r} diverso dal profilo selezionato {profile_name!r}"
+        )
+    if setting_id != [profile_name] and not moved_vendor:
         raise StandardOrcaMirrorError(
             "Profilo non riconosciuto come profilo U1FA portabile"
-        )
-    inherits = payload.get("inherits")
-    if isinstance(inherits, str) and inherits.strip():
-        raise StandardOrcaMirrorError(
-            "Il profilo dipende ancora da una base Snapmaker e non può essere copiato "
-            "in Orca Slicer standard"
         )
     if payload.get("from") not in (None, "User"):
         raise StandardOrcaMirrorError(
             "Profilo non riconosciuto come profilo utente U1FA"
         )
+    if payload.get("inherits"):
+        try:
+            system = default_system_dir(path.parent)
+            effective = flatten_filament_profile(path, parent_dirs=(system,))
+        except (ProfileMaterializationError, ValueError) as exc:
+            raise StandardOrcaMirrorError(str(exc)) from exc
+        for key in ("setting_id", "instantiation"):
+            effective.pop(key, None)
+        effective["from"] = "User"
+        effective["filament_settings_id"] = [profile_name]
+        effective["name"] = profile_name
+        return (json.dumps(effective, ensure_ascii=False, indent=2) + "\n").encode()
+    if rename or moved_vendor:
+        payload["filament_settings_id"] = [profile_name]
+        payload["name"] = profile_name
+        return (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode()
     return data
 
 
@@ -214,6 +256,14 @@ def plan_standard_orca_mirror(
         source_path = find_profile_path(source_dir, profile_name)
     except PAProfileError as exc:
         raise StandardOrcaMirrorError(str(exc)) from exc
+    # Spoolman vendor capitalization may differ from the name stored by Orca.
+    try:
+        payload = json.loads(source_path.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as exc:
+        raise StandardOrcaMirrorError(f"{source_path.name}: {exc}") from exc
+    internal = payload.get("name") if isinstance(payload, dict) else None
+    if isinstance(internal, str) and profile_names_equivalent(profile_name, internal):
+        profile_name = internal
     source_bytes = _portable_profile_bytes(source_path, profile_name)
     source_hash = _sha256(source_bytes)
 

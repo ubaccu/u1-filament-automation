@@ -99,6 +99,37 @@ class SpoolmanClient:
             spools=spools,
         )
 
+    def ensure_preset_link_field(self) -> bool:
+        """Return whether this server merges extra fields on PATCH."""
+        info = self._request("GET", "info")
+        version = re.match(r"v?(\d+)\.(\d+)\.", str(info.get("version", "")))
+        if not version:
+            raise ServiceError("Versione Spoolman sconosciuta")
+        key = "orca_filament_preset"
+        fields = self._request("GET", "field/filament")
+        field = next((item for item in fields if item.get("key") == key), None)
+        if field is None:
+            self._request("POST", f"field/filament/{key}", {
+                "name": "OrcaSlicer preset", "field_type": "text", "order": 102,
+            })
+        elif field.get("field_type") != "text":
+            raise ServiceError(f"Campo Spoolman incompatibile: {key}")
+        return tuple(map(int, version.groups())) >= (0, 22)
+
+    def link_filament_preset(self, filament_id: int, profile: str, merges: bool) -> str:
+        endpoint = f"filament/{filament_id}"
+        current = self._request("GET", endpoint)
+        extra = current.get("extra") or {}
+        key = "orca_filament_preset"
+        value = json.dumps(profile, ensure_ascii=False)
+        if extra.get(key) not in (None, "", '""'):
+            return "existing"
+        patch = {key: value} if merges else {**extra, key: value}
+        saved = self._request("PATCH", endpoint, {"extra": patch})
+        if json.loads((saved.get("extra") or {}).get(key, '""')) != profile:
+            raise ServiceError(f"Collegamento non confermato per filamento {filament_id}")
+        return "linked"
+
     def create_vendor(self, payload: dict[str, Any]) -> dict[str, Any]:
         return _created_object(self._request("POST", "vendor", payload), "vendor")
 
