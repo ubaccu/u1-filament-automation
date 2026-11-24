@@ -89,6 +89,8 @@ chmod +x U1-Filament-Automation-*-Linux-x86_64.AppImage
 7. In a multi-spool queue, each calibration fully finishes and saves its profile before the next one starts; the queue stops at the first error.
 8. If you explicitly enable the **standard Orca Slicer** mirror, U1FA keeps protected copies of managed profiles without overwriting foreign or manually changed profiles. Snapmaker Orca remains the primary slicer.
 
+**Moving from Snapmaker Orca to OrcaSlicer.** In U1FA, open **Manage Orca Slicer profiles**, check the folder and preview, then select **Enable Orca Slicer mirror**. U1FA copies compatible filament profiles from your inventory, including inherited settings and saved Adaptive PA models. Creating a spool then prepares its profile in OrcaSlicer too. If you use Spooler, select **Automatically link filaments to Spooler**. You can disable the mirror later and keep using the transferred copies.
+
 For normal use, choose **Automatic from filament profile**. Advanced manual mode remains available for experienced users.
 
 ## Safety by design

@@ -89,6 +89,8 @@ chmod +x U1-Filament-Automation-*-Linux-x86_64.AppImage
 7. Nella coda multi-bobina ogni calibrazione termina e salva il proprio profilo prima che inizi la successiva; al primo errore la coda si ferma.
 8. Se abiliti volontariamente il mirror **Orca Slicer standard**, U1FA mantiene una copia protetta dei profili gestiti senza sovrascrivere profili esterni o modificati manualmente. Snapmaker Orca resta lo slicer principale.
 
+**Passare da Snapmaker Orca a OrcaSlicer.** In U1FA apri **Gestisci profili Orca Slicer**, verifica la cartella e l’anteprima, poi seleziona **Abilita mirror Orca Slicer**. U1FA copia i profili filamento compatibili del tuo inventario, inclusi i valori ereditati e il modello Adaptive PA salvato. Da quel momento **Crea bobina** prepara il profilo anche in OrcaSlicer. Se usi Spooler, scegli **Collega automaticamente i filamenti a Spooler**. Puoi disattivare il mirror quando vuoi e continuare a usare le copie già trasferite.
+
 Per l'uso normale è consigliata la modalità **Automatico dal profilo filamento**. La modalità manuale avanzata resta disponibile per utenti esperti.
 
 ## Sicurezza progettata nell'app

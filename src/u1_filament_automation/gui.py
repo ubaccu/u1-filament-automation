@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import json
 import secrets
 import threading
 import time
@@ -33,11 +34,13 @@ from .envelope import (
 )
 from .models import SpoolmanInventory
 from .orca import discover_orca
-from .slicer_discovery import discover_slicers
+from .slicer_discovery import standard_filament_choices, choose_standard_filament_dir
 from .standard_orca import (
     StandardOrcaMirrorError,
     StandardOrcaMirrorPlan,
     apply_standard_orca_mirror,
+    spooler_linking_enabled,
+    set_spooler_linking,
     plan_standard_orca_mirror,
     set_standard_orca_mirror_enabled,
     standard_orca_mirror_enabled,
@@ -80,7 +83,7 @@ from .spoolman import (
     first_working_inventory,
     plan_spool_creation,
 )
-from .sync import base_profile_path, default_system_dir, sync_profiles
+from .sync import _filament_for_spool, base_profile_path, default_system_dir, sync_profiles
 from .update import (
     DEFAULT_GITHUB_REPOSITORY,
     UpdateError,
@@ -266,6 +269,8 @@ class PreparedSpoolCreation:
 class SpoolCreationReceipt:
     result: SpoolCreationResult
     real_profile_path: Path
+    standard_profile_path: Path | None = None
+    spooler_notice: str = ""
 
 
 @dataclass(frozen=True)
@@ -439,6 +444,7 @@ class CalibrationController:
         self._spoolman_client_factory = spoolman_client_factory
         self._lock = threading.Lock()
         self._creation_lock = threading.Lock()
+        self._spooler_link_lock = threading.Lock()
         self._setup_lock = threading.Lock()
         self._job = JobSnapshot("idle", "Pronto")
         self._inventory = SpoolmanInventory(url=spoolman_url)
@@ -507,24 +513,13 @@ class CalibrationController:
         with self._lock:
             names = tuple(item.profile_name for item in self._profiles)
         plans: list[StandardOrcaMirrorPlan] = []
-        try:
-            for name in names:
-                # Spoolman may contain unsupported materials or a profile the
-                # user deliberately deleted from Snapmaker Orca. The optional
-                # standard-Orca mirror must never recreate those implicitly.
-                try:
-                    find_profile_path(self.real_orca_dir, name)
-                except PAProfileError:
-                    continue
-                plans.append(
-                    plan_standard_orca_mirror(
-                        self.real_orca_dir,
-                        self.standard_orca_dir,
-                        name,
-                    )
-                )
-        except StandardOrcaMirrorError as exc:
-            raise GUIError(str(exc)) from exc
+        for name in names:
+            try:
+                plan = plan_standard_orca_mirror(self.real_orca_dir, self.standard_orca_dir, name)
+            except StandardOrcaMirrorError as exc:
+                plan = StandardOrcaMirrorPlan(name, self.real_orca_dir, self.standard_orca_dir,
+                                              "", "", "blocked", str(exc))
+            plans.append(plan)
         return tuple(plans)
 
     def enable_standard_orca_mirror(self) -> tuple[StandardOrcaMirrorPlan, ...]:
@@ -532,13 +527,9 @@ class CalibrationController:
             if self._job.state in ACTIVE_CALIBRATION_STATES:
                 raise GUIError("Attendere la fine della calibrazione in corso")
         plans = self.standard_orca_preview()
-        blocked = [plan for plan in plans if plan.action == "blocked"]
-        if blocked:
-            names = ", ".join(plan.profile_name for plan in blocked[:4])
-            raise GUIError(
-                "Mirror Orca Slicer bloccato da profili esistenti o modificati: "
-                + names
-            )
+        plans = tuple(plan for plan in plans if plan.action != "blocked")
+        if not plans:
+            raise GUIError("Nessun profilo compatibile da sincronizzare")
         results: list[StandardOrcaMirrorPlan] = []
         try:
             for plan in plans:
@@ -552,6 +543,43 @@ class CalibrationController:
             raise GUIError(str(exc)) from exc
         self._standard_orca_mirror_enabled = True
         return tuple(results)
+
+    def link_spooler_profiles(self, client: SpoolmanClient, inventory: SpoolmanInventory) -> list[str]:
+        """Link exact portable U1FA profiles to their unique Spoolman filament."""
+        if self.real_orca_dir is None or self.standard_orca_dir is None:
+            raise GUIError("Cartelle Snapmaker Orca / OrcaSlicer non disponibili")
+        spools = {item["id"]: item for item in inventory.spools if item.get("id") is not None}
+        filaments = {item["id"]: item for item in inventory.filaments}
+        merges = None
+        results = []
+        for candidate in profile_candidates(inventory):
+            name = candidate.profile_name
+            ids = {_filament_for_spool(spools[sid], inventory).get("id")
+                   for sid in candidate.spool_ids}
+            if len(ids) != 1 or next(iter(ids)) not in filaments:
+                results.append(f"{name} — ID filamento ambiguo")
+                continue
+            filament_id = next(iter(ids))
+            link = (filaments[filament_id].get("extra") or {}).get("orca_filament_preset")
+            try:
+                plan = plan_standard_orca_mirror(self.real_orca_dir, self.standard_orca_dir, name)
+                if plan.action != "unchanged":
+                    apply_standard_orca_mirror(plan)
+                if link not in (None, "", '""'):
+                    try:
+                        existing = json.loads(link)
+                    except (ValueError, TypeError):
+                        existing = link
+                    status = "già collegato" if existing == plan.profile_name else f"altro preset associato: {existing}"
+                    results.append(f"{name} — {status}")
+                    continue
+                if merges is None:
+                    merges = client.ensure_preset_link_field()
+                status = client.link_filament_preset(filament_id, plan.profile_name, merges)
+                results.append(f"{name} — {status}")
+            except (StandardOrcaMirrorError, ServiceError, OSError, ValueError) as exc:
+                results.append(f"{name} — {exc}")
+        return results
 
     def disable_standard_orca_mirror(self) -> None:
         if self.standard_orca_dir is None:
@@ -788,6 +816,10 @@ class CalibrationController:
             for action in report.actions:
                 if action.status in {"created", "repaired"}:
                     self._mirror_standard_orca_profile(action.profile_name)
+        if (self._standard_orca_mirror_enabled and self.standard_orca_dir
+                and spooler_linking_enabled(self.standard_orca_dir, inventory.url)):
+            with self._spooler_link_lock:
+                self.link_spooler_profiles(self._spoolman_client(), inventory)
         created = tuple(
             action.profile_name for action in report.actions if action.status == "created"
         )
@@ -1026,16 +1058,26 @@ class CalibrationController:
                     self.real_orca_dir,
                     result.plan.profile_name,
                 )
-                self._mirror_standard_orca_profile(result.plan.profile_name)
+                mirror = self._mirror_standard_orca_profile(result.plan.profile_name)
             except (ServiceError, PAProfileError, OSError, ValueError, GUIError) as exc:
                 raise GUIError(
                     f"La bobina Spoolman ID {result.spool_id} è già stata creata, "
                     f"ma la creazione del profilo Orca non è stata completata: {exc}. "
                     "Non creare di nuovo la bobina; aggiornare la pagina iniziale e riprovare la sincronizzazione."
                 ) from exc
+            spooler_notice = ""
+            if mirror and spooler_linking_enabled(mirror.target_path.parent, updated_inventory.url):
+                try:
+                    with self._spooler_link_lock:
+                        merges = client.ensure_preset_link_field()
+                        client.link_filament_preset(result.filament_id, mirror.profile_name, merges)
+                except (ServiceError, ValueError, OSError) as exc:
+                    spooler_notice = str(exc)
             receipt = SpoolCreationReceipt(
                 result=result,
                 real_profile_path=real_profile_path,
+                standard_profile_path=mirror.target_path if mirror else None,
+                spooler_notice=spooler_notice,
             )
             with self._lock:
                 self._last_creation = receipt
@@ -1750,6 +1792,10 @@ def _home(
 <p class="muted">{_tr(language, 'Opzionale: mantiene una copia protetta dei profili U1FA anche in Orca Slicer standard, senza sostituire Snapmaker Orca come slicer principale.', 'Optional: keeps a protected copy of U1FA profiles in standard Orca Slicer without replacing Snapmaker Orca as the primary slicer.')}</p>
 <p><a class="button secondary" href="/standard-orca">{_tr(language, 'Gestisci profili Orca Slicer', 'Manage Orca Slicer profiles')}</a></p></div>"""
 
+    else:
+        label = _tr(language, "Gestisci profili Orca Slicer", "Manage Orca Slicer profiles")
+        standard_orca_box = f'<div class="card"><a class="button" href="/standard-orca">{label}</a></div>'
+
     calibration_form = f"""
 <form method="post" action="/preview">
 <input type="hidden" name="token" value="{token}">
@@ -1902,10 +1948,20 @@ def _standard_orca_page(
     target = controller.standard_orca_target()
     error_box = "" if not error else f'<p class="warn">{html.escape(error)}</p>'
     if target is None:
-        body = f"""<h1>{_tr(language, 'Orca Slicer standard', 'Standard Orca Slicer')}</h1>
-<div class="card">{error_box}
-<p class="muted">{_tr(language, 'Orca Slicer standard non è stato rilevato in modo univoco su questo computer. Snapmaker Orca continua a funzionare normalmente.', 'Standard Orca Slicer was not detected unambiguously on this computer. Snapmaker Orca continues to work normally.')}</p>
-<p><a class="button secondary" href="/">{_tr(language, 'Torna indietro', 'Go back')}</a></p></div>"""
+        choices = standard_filament_choices(controller.real_orca_dir)
+        title = _tr(language, "Scegli la cartella filamenti di OrcaSlicer", "Choose the OrcaSlicer filament folder")
+        hint = _tr(language, "Se manca dall’elenco, incolla il percorso della cartella filament del tuo account OrcaSlicer.", "If missing, paste the path to your OrcaSlicer account’s filament folder.")
+        options = "".join(f'<option value="{html.escape(str(path), quote=True)}"></option>' for path in choices)
+        shortcuts = "".join(
+            f'<form method="post" action="/standard-orca/folder"><input type="hidden" name="token" value="{token}">'
+            f'<button name="folder" value="{html.escape(str(path), quote=True)}">{html.escape(str(path))}</button></form>'
+            for path in choices
+        )
+        body = f"""<h1>{title}</h1><div class="card">{error_box}{shortcuts}<p>{hint}</p>
+<form method="post" action="/standard-orca/folder">
+<input type="hidden" name="token" value="{token}">
+<input name="folder" list="folders" required><datalist id="folders">{options}</datalist>
+<button>{_tr(language, "Usa questa cartella", "Use this folder")}</button></form></div>"""
         return _page(
             _tr(language, "Orca Slicer standard", "Standard Orca Slicer"),
             body,
@@ -1931,6 +1987,16 @@ def _standard_orca_page(
     for plan in plans:
         cls = "warn" if plan.action == "blocked" else ("ok" if plan.action == "unchanged" else "muted")
         reason = "" if not plan.reason else f"<br><span class=\"muted\">{html.escape(plan.reason)}</span>"
+        if plan.action == "unchanged":
+            try:
+                preset = json.loads(plan.target_path.read_text(encoding="utf-8"))
+                model = preset.get("adaptive_pressure_advance_model") or []
+                enabled_pa = preset.get("adaptive_pressure_advance") in (["1"], [1], [True])
+                points = sum(len(str(value).strip().splitlines()) for value in model)
+                pa_status = f"Adaptive PA: {points} righe" if enabled_pa and points else "Adaptive PA: disattivato o senza misure"
+                reason += f"<br>{pa_status}"
+            except (OSError, ValueError):
+                pass
         rows.append(
             f'<li><strong>{html.escape(plan.profile_name)}</strong> — '
             f'<span class="{cls}">{html.escape(labels.get(plan.action, plan.action))}</span>{reason}</li>'
@@ -1952,12 +2018,27 @@ def _standard_orca_page(
 <label><input style="width:auto" type="checkbox" name="confirm" value="yes" required> {_tr(language, 'Confermo di voler disattivare gli aggiornamenti automatici verso Orca Slicer standard', 'I confirm that I want to disable automatic updates to standard Orca Slicer')}</label>
 <p><button class="secondary" type="submit">{_tr(language, 'Disattiva mirror', 'Disable mirror')}</button></p></form>"""
     else:
-        blocked = any(plan.action == "blocked" for plan in plans)
+        blocked = not any(plan.action != "blocked" for plan in plans)
         disabled = " disabled" if blocked or preview_error else ""
         action = f"""<form method="post" action="/standard-orca/enable">
 <input type="hidden" name="token" value="{token}">
 <label><input style="width:auto" type="checkbox" name="confirm" value="yes" required> {_tr(language, 'Confermo di voler creare e mantenere copie protette dei profili U1FA anche in Orca Slicer standard', 'I confirm that I want to create and maintain protected copies of U1FA profiles in standard Orca Slicer')}</label>
 <p><button class="danger" type="submit"{disabled}>{_tr(language, 'Abilita mirror Orca Slicer', 'Enable Orca Slicer mirror')}</button></p></form>"""
+
+    if enabled:
+        linked = spooler_linking_enabled(target, controller.spoolman_url or "")
+        label = (_tr(language, "Disattiva collegamento automatico Spooler", "Disable automatic Spooler links")
+                 if linked else _tr(language, "Collega automaticamente i filamenti a Spooler", "Automatically link filaments to Spooler"))
+        action += f"""<form method="post" action="/standard-orca/link-spooler">
+<input type="hidden" name="enable" value="{0 if linked else 1}">
+<input type="hidden" name="token" value="{token}">
+<button type="submit">{label}</button>
+</form>"""
+
+        if linked:
+            action += f"""<form method="post" action="/standard-orca/link-spooler">
+<input type="hidden" name="token" value="{token}"><input type="hidden" name="enable" value="1">
+<button>{_tr(language, 'Verifica tutti i collegamenti', 'Check all filament links')}</button></form>"""
 
     body = f"""<h1>{_tr(language, 'Orca Slicer standard', 'Standard Orca Slicer')}</h1>
 <div class="card">{error_box}
@@ -2228,6 +2309,12 @@ def _spool_created(
 ) -> str:
     result = receipt.result
     item = result.plan.request
+    standard_note = ""
+    if receipt.standard_profile_path:
+        label = _tr(language, "Profilo OrcaSlicer standard", "Standard OrcaSlicer profile")
+        standard_note = f"<p><strong>{label}</strong><br>{html.escape(str(receipt.standard_profile_path))}</p>"
+    if receipt.spooler_notice:
+        standard_note += f"<p>Spooler — {html.escape(receipt.spooler_notice)}</p>"
     vendor_note = _tr(language, "creato", "created") if result.vendor_created else _tr(language, "riutilizzato", "reused")
     filament_note = _tr(language, "creato", "created") if result.filament_created else _tr(language, "riutilizzato", "reused")
     body = f"""
@@ -2237,7 +2324,7 @@ def _spool_created(
 {_tr(language, 'Filamento', 'Filament')} ID {html.escape(str(result.filament_id))}: {filament_note}<br>
 {_tr(language, 'Bobina Spoolman', 'Spoolman spool')} ID <strong>{html.escape(str(result.spool_id))}</strong>: {_tr(language, 'creata', 'created')}</p>
 <p><strong>{_tr(language, 'Profilo Snapmaker Orca', 'Snapmaker Orca profile')}:</strong> {html.escape(result.plan.profile_name)}<br>
-<span class="muted">{html.escape(str(receipt.real_profile_path))}</span></p></div>
+<span class="muted">{html.escape(str(receipt.real_profile_path))}</span></p>{standard_note}</div>
 <div class="card"><h2>{_tr(language, 'Calibra questa bobina ora', 'Calibrate this spool now')}</h2>
 <p class="muted">{_tr(language, 'Se questa è l’unica bobina che vuoi calibrare adesso, scegli slot e temperatura e continua con l’anteprima PA.', 'If this is the only spool you want to calibrate now, choose its slot and temperature and continue to the PA preview.')}</p>
 <form method="post" action="/preview"><input type="hidden" name="token" value="{token}">
@@ -2607,6 +2694,44 @@ def _handler(controller: CalibrationController, token: str):
                     self.send_header("Location", "/standard-orca")
                     self.end_headers()
                     return
+                if path == "/standard-orca/folder":
+                    folder = Path(values.get("folder", "")).expanduser()
+                    if (not folder.is_absolute() or folder.name != "filament"
+                            or folder.parent.parent.name != "user"
+                            or folder.is_symlink() or not folder.parent.is_dir()
+                            or folder.resolve().parent.parent == controller.real_orca_dir.resolve().parent.parent):
+                        raise GUIError("Seleziona user/<account>/filament di OrcaSlicer standard")
+                    if not folder.is_dir() and folder not in standard_filament_choices(controller.real_orca_dir):
+                        raise GUIError("Cartella filamenti non trovata")
+                    try:
+                        folder.mkdir(exist_ok=True)
+                        controller.sandbox_dir.mkdir(parents=True, exist_ok=True)
+                        (controller.sandbox_dir / "standard-orca-folder.txt").write_text(str(folder.resolve()), encoding="utf-8")
+                    except OSError as exc:
+                        raise GUIError(str(exc)) from exc
+                    controller.standard_orca_dir = folder.resolve()
+                    controller._standard_orca_mirror_enabled = standard_orca_mirror_enabled(folder)
+                    self.send_response(303)
+                    self.send_header("Location", "/standard-orca")
+                    self.end_headers()
+                    return
+                if path == "/standard-orca/link-spooler":
+                    if not controller.standard_orca_mirror_is_enabled():
+                        raise GUIError("Abilitare il mirror Orca Slicer")
+                    client = controller._spoolman_client()
+                    try:
+                        with controller._spooler_link_lock:
+                            enabled = values.get("enable") == "1"
+                            inventory = client.inventory() if enabled else None
+                            set_spooler_linking(controller.standard_orca_dir, client.base_url, enabled)
+                            results = controller.link_spooler_profiles(client, inventory) if inventory else []
+                    except (ServiceError, OSError, StandardOrcaMirrorError) as exc:
+                        raise GUIError(str(exc)) from exc
+                    rows = "".join(f"<li>{html.escape(row)}</li>" for row in results)
+                    title = _tr(language, "Collegamenti Spooler", "Spooler links")
+                    detail = f"<ul>{rows}</ul>" if rows else _tr(language, "Nessun nuovo collegamento.", "No new links.")
+                    self._send(_page(title, f'<h1>{title}</h1>{detail}<p><a href="/standard-orca">Orca Slicer</a></p>', language=language))
+                    return
                 if path == "/standard-orca/disable":
                     if values.get("confirm") != "yes":
                         raise GUIError(_tr(
@@ -2758,17 +2883,14 @@ def run_gui(
         raise GUIError("Trovate più cartelle Orca: indicare --orca-dir")
     real_user_dir = installations[0].path.resolve()
 
-    standard_candidates = [
-        item.path.resolve()
-        for item in discover_slicers()
-        if item.kind == "orca_slicer"
-    ]
-    standard_user_dir = (
-        standard_candidates[0]
-        if len(standard_candidates) == 1
-        and standard_candidates[0] != real_user_dir
-        else None
-    )
+    choices = standard_filament_choices(real_user_dir)
+    saved = sandbox_dir.expanduser() / "standard-orca-folder.txt"
+    previous = Path(saved.read_text(encoding="utf-8")) if saved.is_file() else None
+    standard_user_dir = choose_standard_filament_dir(choices)
+    if (previous and previous.is_absolute() and previous.is_dir()
+            and previous.name == "filament" and previous.parent.parent.name == "user"
+            and previous.resolve().parent.parent != real_user_dir.parent.parent):
+        standard_user_dir = previous
 
     sandbox_dir = sandbox_dir.expanduser().resolve()
     if (

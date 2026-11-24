@@ -28,6 +28,7 @@ def flatten_filament_profile(
     base_file: Path,
     *,
     _seen: set[Path] | None = None,
+    parent_dirs: tuple[Path, ...] = (),
 ) -> dict[str, Any]:
     """Resolve an Orca filament preset inheritance chain into one payload.
 
@@ -47,12 +48,17 @@ def flatten_filament_profile(
     payload = _read_profile(base_file)
     parent_name = payload.get("inherits")
     if isinstance(parent_name, str) and parent_name.strip():
-        parent_file = base_file.parent / f"{parent_name}.json"
-        if not parent_file.is_file():
-            raise ProfileMaterializationError(
-                f"profilo padre Orca non trovato: {parent_name}"
-            )
-        merged = flatten_filament_profile(parent_file, _seen=seen)
+        if "/" in parent_name or chr(92) in parent_name or parent_name in {".", ".."}:
+            raise ProfileMaterializationError(f"nome base Orca non valido: {parent_name}")
+        parent_file = None
+        for folder in dict.fromkeys((base_file.parent, *parent_dirs)):
+            candidate = folder / f"{parent_name}.json"
+            if candidate.is_file() and not candidate.is_symlink():
+                parent_file = candidate
+                break
+        if parent_file is None:
+            raise ProfileMaterializationError(f"profilo padre Orca non trovato: {parent_name}")
+        merged = flatten_filament_profile(parent_file, _seen=seen, parent_dirs=parent_dirs)
         merged.update(payload)
     else:
         merged = dict(payload)

@@ -127,3 +127,23 @@ def discover_slicers(
             item.path.as_posix().casefold(),
         ),
     )
+
+
+def standard_filament_choices(snap_dir: Path) -> list[Path]:
+    """Include accounts with Spooler installed before the first personal preset."""
+    dirs = {item.path for item in discover_slicers() if item.kind == "orca_slicer"}
+    for kind, root, _ in candidate_slicer_roots():
+        if kind != "orca_slicer":
+            continue
+        for marker in root.glob("user/*/_local/spooler/.spooler-profiles.json"):
+            account = marker.parents[2]
+            if marker.is_file() and not account.is_symlink():
+                dirs.add(account / "filament")
+    return sorted(path for path in dirs if path.resolve() != snap_dir.resolve())
+
+
+def choose_standard_filament_dir(choices: list[Path]) -> Path | None:
+    active = [path for path in choices if
+              (path.parent / "_local/spooler/.spooler-profiles.json").is_file()]
+    preferred = active if len(active) == 1 else choices
+    return preferred[0] if len(preferred) == 1 and preferred[0].is_dir() else None
